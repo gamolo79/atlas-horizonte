@@ -1,0 +1,955 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Atlas · Grafo de {{ persona.nombre_completo }}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <!-- Lexend -->
+  <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Cytoscape -->
+  <script src="https://unpkg.com/cytoscape@3.28.0/dist/cytoscape.min.js"></script>
+
+  <style>
+    :root {
+      --bg: #000000;
+      --panel-bg: #05070b;
+      --card-border: #262c38;
+      --text-main: #ffffff;
+      --text-muted: #a6bec8;
+
+      /* Sólo para el layout (no para Cytoscape) */
+      --shadow-soft: 0 18px 45px rgba(0,0,0,0.6);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: "Lexend", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    .page {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* HEADER */
+
+    header {
+      border-bottom: 1px solid #111827;
+      background: radial-gradient(circle at top left, rgba(193,68,210,0.18), transparent 55%);
+    }
+
+    .header-inner {
+      padding: 10px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .brand-logo {
+      height: 28px;
+      width: auto;
+    }
+
+    .brand-labels {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+    }
+
+    .brand-text-main {
+      font-size: 16px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+    }
+
+    .brand-text-sub {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+      color: var(--text-muted);
+    }
+
+    .nav-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .nav-link {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .nav-link strong { color: var(--text-main); }
+
+    .tag-app {
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      background: rgba(15,23,42,0.95);
+      border: 1px solid rgba(148,163,184,0.4);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--text-muted);
+    }
+
+    .tag-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 999px;
+      background: #4ade80;
+    }
+
+    /* LAYOUT PRINCIPAL */
+
+    main {
+      flex: 1;
+      display: flex;
+      min-height: 0;
+    }
+
+    .layout {
+      flex: 1;
+      display: flex;
+      min-height: calc(100vh - 52px);
+    }
+
+    /* ÁREA DE GRAFO */
+
+    .graph-area {
+      flex: 1 1 auto;
+      min-width: 0;
+      padding: 12px;
+      background: radial-gradient(circle at top left, rgba(193,68,210,0.12), #020617 35%, #000000 100%);
+      position: relative;
+    }
+
+    .graph-frame {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      border-radius: 20px;
+      border: 1px solid rgba(148,163,184,0.45);
+      background: radial-gradient(circle at center, rgba(15,23,42,0.98), #020617);
+      box-shadow: var(--shadow-soft);
+      overflow: hidden;
+    }
+
+    #cy {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    .graph-grid {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background-image:
+        linear-gradient(to right, rgba(31,41,55,0.28) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(31,41,55,0.28) 1px, transparent 1px);
+      background-size: 60px 60px;
+      opacity: 0.22;
+    }
+
+    .graph-label {
+      position: absolute;
+      left: 16px;
+      top: 10px;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      color: var(--text-muted);
+      z-index: 5;
+    }
+
+    .graph-caption {
+      position: absolute;
+      left: 16px;
+      bottom: 10px;
+      font-size: 10px;
+      color: var(--text-muted);
+      z-index: 5;
+    }
+
+    /* PANEL LATERAL */
+
+    #side-panel {
+      width: 320px;
+      max-width: 100%;
+      background: var(--panel-bg);
+      border-left: 1px solid #111827;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    #panel-header {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+      color: var(--text-muted);
+    }
+
+    #panel-title {
+      font-size: 16px;
+      font-weight: 600;
+      line-height: 1.25;
+      margin-top: 2px;
+    }
+
+    #panel-content {
+      font-size: 13px;
+      color: var(--text-main);
+      line-height: 1.5;
+    }
+
+    #panel-content p {
+      margin: 4px 0;
+    }
+
+    #panel-content ul {
+      margin: 4px 0;
+      padding-left: 16px;
+    }
+
+    #panel-content li {
+      margin-bottom: 3px;
+    }
+
+    .panel-section {
+      margin-top: 6px;
+      padding-top: 6px;
+      border-top: 1px solid #111827;
+    }
+
+    .panel-section-title {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+
+    /* Filtros */
+
+    .filters {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .filter-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .filter-item input {
+      accent-color: #f7931a;
+    }
+
+    /* LEYENDA */
+
+    #legend {
+      margin-top: 6px;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 4px;
+      font-size: 10px;
+      color: var(--text-muted);
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .legend-color {
+      width: 11px;
+      height: 11px;
+      border-radius: 999px;
+      background: #374151;
+    }
+
+    .legend-color.central   { background: #f7931a; }  /* persona central */
+    .legend-color.persona   { background: #e8a87c; }  /* otras personas */
+    .legend-color.inst-padre { background: #4b5563; } /* instituciones */
+    .legend-color.line      { border-radius: 2px; background: #9aa0a6; }
+
+    /* Navegación a otras personas */
+
+    #related-people {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .person-chip {
+      font-size: 11px;
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: #111827;
+      border: 1px solid #1f2937;
+      color: var(--text-main);
+      cursor: pointer;
+      transition: background 150ms ease, border-color 150ms ease, transform 120ms ease;
+      white-space: nowrap;
+    }
+
+    .person-chip:hover {
+      background: #1f2937;
+      border-color: #4b5563;
+      transform: translateY(-1px);
+    }
+
+    /* DEBUG opcional */
+    #debug {
+      display: none;
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 320px;
+      max-height: 25vh;
+      background: rgba(0,0,0,0.85);
+      color: #e5e7eb;
+      font-size: 11px;
+      padding: 4px 8px;
+      overflow: auto;
+      z-index: 9999;
+      white-space: pre-wrap;
+    }
+
+    @media (max-width: 900px) {
+      .layout {
+        flex-direction: column;
+      }
+
+      .graph-area {
+        height: 52vh;
+      }
+
+      #side-panel {
+        width: 100%;
+        border-left: none;
+        border-top: 1px solid #111827;
+      }
+
+      #debug {
+        right: 0;
+      }
+
+      #panel-title {
+        font-size: 15px;
+      }
+
+      #panel-content {
+        font-size: 13px;
+      }
+    }
+  </style>
+</head>
+<body>
+<div class="page">
+  <header>
+    <div class="header-inner">
+      <div class="brand">
+        <img src="{% static 'img/logo-horizonte-atlas.png' %}" alt="Horizonte Digital Atlas" class="brand-logo">
+        <div class="brand-labels">
+          <div class="brand-text-main">Atlas · Grafo por persona</div>
+          <div class="brand-text-sub">Personas e instituciones conectadas</div>
+        </div>
+      </div>
+
+      <div class="nav-right">
+        <a href="/apps/atlas/" class="nav-link">← Volver a <strong>Atlas</strong></a>
+        <span class="tag-app">
+          <span class="tag-dot"></span> Vista de grafo
+        </span>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <div class="layout">
+      <!-- Área de grafo -->
+      <section class="graph-area">
+        <div class="graph-frame">
+          <div class="graph-grid"></div>
+          <div class="graph-label">
+            Grafo político de {{ persona.nombre_completo }}
+          </div>
+          <div id="cy"></div>
+          <div class="graph-caption">
+            Usa scroll / pinch para hacer zoom. Toca un nodo o flecha para ver detalles en el panel lateral.
+          </div>
+        </div>
+      </section>
+
+      <!-- Panel lateral -->
+      <aside id="side-panel">
+        <div>
+          <div id="panel-header">Red política</div>
+          <div id="panel-title">{{ persona.nombre_completo }}</div>
+        </div>
+
+        <div id="panel-content">
+          <p>Selecciona una persona, institución o relación para ver detalles.</p>
+        </div>
+
+        <!-- Filtros -->
+        <div class="panel-section">
+          <div class="panel-section-title">Filtros de vista</div>
+          <div class="filters">
+            <label class="filter-item">
+              <input type="checkbox" id="toggle-cargos" checked>
+              <span>Mostrar cargos (persona → institución)</span>
+            </label>
+            <label class="filter-item">
+              <input type="checkbox" id="toggle-relaciones" checked>
+              <span>Mostrar relaciones entre personas</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Leyenda -->
+        <div class="panel-section">
+          <div class="panel-section-title">Leyenda</div>
+          <div id="legend">
+            <div class="legend-item">
+              <span class="legend-color central"></span>
+              <span>Persona central</span>
+            </div>
+            <div class="legend-item">
+              <span class="legend-color persona"></span>
+              <span>Otras personas</span>
+            </div>
+            <div class="legend-item">
+              <span class="legend-color inst-padre"></span>
+              <span>Instituciones</span>
+            </div>
+            <div class="legend-item">
+              <span class="legend-color line"></span>
+              <span>Relaciones / cargos</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Navegación a otras personas -->
+        <div class="panel-section" id="related-people-section" style="display:none;">
+          <div class="panel-section-title">Otras personas relacionadas</div>
+          <div id="related-people"></div>
+        </div>
+      </aside>
+    </div>
+  </main>
+
+  <div id="debug"></div>
+</div>
+
+<script>
+  const slug = "{{ persona.slug }}";
+  const API_URL = `/api/personas/${slug}/grafo/`;
+
+  const debugEl = document.getElementById("debug");
+  const panelTitle = document.getElementById("panel-title");
+  const panelContent = document.getElementById("panel-content");
+
+  const toggleCargosEl = document.getElementById("toggle-cargos");
+  const toggleRelacionesEl = document.getElementById("toggle-relaciones");
+
+  const relatedPeopleSection = document.getElementById("related-people-section");
+  const relatedPeopleContainer = document.getElementById("related-people");
+
+  let personasMap = {};
+  let institucionesMap = {};
+  let cy = null;
+
+  function logDebug(msg, obj) {
+    if (!debugEl) return;
+    const time = new Date().toISOString();
+    debugEl.innerText += `\n[${time}] ${msg}`;
+    if (obj) {
+      debugEl.innerText += `\n` + JSON.stringify(obj, null, 2) + "\n";
+    }
+  }
+
+  function setPanelForPersona(p) {
+    panelTitle.textContent = p.nombre_completo;
+    let html = "";
+
+    if (p.bio_corta) {
+      html += `<p>${p.bio_corta}</p>`;
+    }
+
+    if (p.cargos && p.cargos.length) {
+      html += `<p><strong>Cargos registrados:</strong></p><ul>`;
+      p.cargos.forEach(c => {
+        const inst = c.institucion;
+        const instNombre = inst ? inst.nombre : "(Institución no registrada)";
+        html += `<li>${c.nombre_cargo} – ${instNombre}</li>`;
+      });
+      html += `</ul>`;
+    } else {
+      html += `<p>Sin cargos registrados en la base.</p>`;
+    }
+
+    panelContent.innerHTML = html;
+  }
+
+  function setPanelForInstitucion(inst) {
+    panelTitle.textContent = inst.nombre;
+    let html = "";
+
+    html += `<p><strong>Tipo:</strong> ${inst.tipo || "—"}</p>`;
+    if (inst.ambito) {
+      html += `<p><strong>Ámbito:</strong> ${inst.ambito}</p>`;
+    }
+
+    const partes = [];
+    if (inst.ciudad) partes.push(inst.ciudad);
+    if (inst.estado) partes.push(inst.estado);
+    if (inst.pais) partes.push(inst.pais);
+    if (partes.length) {
+      html += `<p><strong>Ubicación:</strong> ${partes.join(", ")}</p>`;
+    }
+
+    if (inst.fecha_inicio || inst.fecha_fin) {
+      html += `<p><strong>Periodo:</strong> ${
+        inst.fecha_inicio || "¿?"
+      } – ${inst.fecha_fin || "actual o sin registro"}</p>`;
+    }
+
+    panelContent.innerHTML = html || "<p>Sin detalles adicionales.</p>";
+  }
+
+  function setPanelForRelacion(rel, personasMap, institucionesMap) {
+    const tipoPretty = {
+      familiar: "Relación familiar",
+      amistad: "Amistad / cercanía personal",
+      socio: "Socios / negocios",
+      grupo_politico: "Mismo grupo político",
+      laboral: "Relación laboral",
+      cargo: "Cargo en institución",
+      otro: "Otro tipo de relación",
+    }[rel.tipo] || rel.tipo;
+
+    panelTitle.textContent = tipoPretty;
+    let html = "<p>";
+
+    if (rel.tipo === "cargo") {
+      const persona = personasMap[rel.persona_id];
+      const inst = institucionesMap[rel.institucion_padre_id] || institucionesMap[rel.institucion_id];
+
+      if (persona) {
+        html += `<strong>${persona.nombre_completo}</strong><br/>`;
+      }
+
+      if (inst) {
+        html += `${rel.cargo_nombre || "Cargo"} en <strong>${inst.nombre}</strong></p>`;
+      } else {
+        html += "Relación persona ↔ institución</p>";
+      }
+
+      if (rel.fecha_inicio || rel.fecha_fin) {
+        html += `<p><strong>Periodo:</strong> ${
+          rel.fecha_inicio || "¿?"
+        } – ${rel.fecha_fin || "actual o sin registro"}</p>`;
+      }
+
+      if (rel.notas) {
+        html += `<p><strong>Notas:</strong> ${rel.notas}</p>`;
+      }
+    } else {
+      const origen = personasMap[rel.origen];
+      const destino = personasMap[rel.destino];
+
+      if (origen && destino) {
+        html += `<strong>${origen.nombre_completo}</strong> ↔ <strong>${destino.nombre_completo}</strong></p>`;
+      }
+
+      if (rel.descripcion) {
+        html += `<p><strong>Descripción:</strong> ${rel.descripcion}</p>`;
+      }
+
+      if (rel.fuente) {
+        html += `<p><strong>Fuente:</strong> ${rel.fuente}</p>`;
+      }
+    }
+
+    panelContent.innerHTML = html || "<p>Sin detalles adicionales.</p>";
+  }
+
+  function getTopParent(inst) {
+    if (!inst) return null;
+    let current = inst;
+    let safety = 20;
+    while (current.padre && institucionesMap[current.padre] && safety > 0) {
+      current = institucionesMap[current.padre];
+      safety--;
+    }
+    return current;
+  }
+
+  function applyFilters() {
+    if (!cy) return;
+
+    const showCargos = toggleCargosEl.checked;
+    const showRelaciones = toggleRelacionesEl.checked;
+
+    const allEdges = cy.edges();
+
+    allEdges.forEach(edge => {
+      const tipo = edge.data("tipo");
+      if (tipo === "cargo") {
+        edge.style("display", showCargos ? "element" : "none");
+      } else {
+        edge.style("display", showRelaciones ? "element" : "none");
+      }
+    });
+  }
+
+  logDebug("Cargando grafo desde " + API_URL);
+
+  fetch(API_URL)
+    .then(res => {
+      logDebug("Respuesta HTTP: " + res.status);
+      return res.json();
+    })
+    .then(data => {
+      logDebug("Datos recibidos:", data);
+
+      const elements = [];
+      personasMap = {};
+      institucionesMap = {};
+
+      // 1) Mapa de instituciones (todas, para resolver padres)
+      (data.instituciones || []).forEach(inst => {
+        institucionesMap[inst.id] = inst;
+      });
+
+      // 2) Persona central
+      const central = data.persona_central;
+      personasMap[central.id] = central;
+      elements.push({
+        data: {
+          id: `p-${central.id}`,
+          persona_id: central.id,
+          label: central.nombre_completo,
+          tipo: "persona_central"
+        }
+      });
+
+      // 3) Instituciones TOP-LEVEL solo de la persona central
+      const instPadreCentral = new Set();
+
+      (central.cargos || []).forEach(cargo => {
+        if (!cargo.institucion || cargo.institucion.id == null) return;
+
+        const instOriginalId = cargo.institucion.id;
+        const instOriginal = institucionesMap[instOriginalId] || cargo.institucion;
+        const top = getTopParent(instOriginal) || instOriginal;
+
+        if (top && top.id != null) {
+          instPadreCentral.add(top.id);
+        }
+      });
+
+      instPadreCentral.forEach(id => {
+        const inst = institucionesMap[id];
+        if (!inst) return;
+        elements.push({
+          data: {
+            id: `i-${inst.id}`,
+            institucion_id: inst.id,
+            label: inst.nombre,
+            tipo: "institucion"
+          }
+        });
+      });
+
+      // 4) Personas conectadas (nodos)
+      (data.personas_conectadas || []).forEach(pc => {
+        personasMap[pc.id] = pc;
+        elements.push({
+          data: {
+            id: `p-${pc.id}`,
+            persona_id: pc.id,
+            slug: pc.slug || null,
+            label: pc.nombre_completo,
+            tipo: "persona"
+          }
+        });
+      });
+
+      // 5) Relaciones persona ↔ persona (aristas)
+      (data.relaciones || []).forEach(rel => {
+        elements.push({
+          data: {
+            id: `r-${rel.id}`,
+            source: `p-${rel.origen}`,
+            target: `p-${rel.destino}`,
+            relacion_id: rel.id,
+            tipo: rel.tipo || "otro",
+            descripcion: rel.descripcion,
+            fuente: rel.fuente
+          }
+        });
+      });
+
+      // 6) Cargos SOLO de la persona central: persona ↔ institución PADRE
+      (central.cargos || []).forEach(cargo => {
+        if (!cargo.institucion || cargo.institucion.id == null) return;
+
+        const instOriginalId = cargo.institucion.id;
+        const instOriginal = institucionesMap[instOriginalId] || cargo.institucion;
+        const top = getTopParent(instOriginal) || instOriginal;
+        if (!top || top.id == null) return;
+
+        const targetNodeId = `i-${top.id}`;
+        const edgeId = `c-${central.id}-${cargo.id}-${top.id}`;
+
+        elements.push({
+          data: {
+            id: edgeId,
+            source: `p-${central.id}`,
+            target: targetNodeId,
+            relacion_id: `cargo-${cargo.id}`,
+            tipo: "cargo",
+            cargo_nombre: cargo.nombre_cargo,
+            persona_id: central.id,
+            institucion_id: instOriginalId,
+            institucion_padre_id: top.id,
+            fecha_inicio: cargo.fecha_inicio || null,
+            fecha_fin: cargo.fecha_fin || null,
+            notas: cargo.notas || ""
+          }
+        });
+      });
+
+      logDebug("Elementos generados para Cytoscape:", elements);
+
+      cy = cytoscape({
+        container: document.getElementById("cy"),
+        elements,
+        layout: {
+          name: "concentric",
+          animate: false,
+          padding: 35,
+          minNodeSpacing: 40,   // un poco más compacto
+          concentric: function(node) {
+            const tipo = node.data("tipo");
+            if (tipo === "persona_central") return 3;
+            if (tipo === "persona") return 2;
+            if (tipo === "institucion") return 1;
+            return 0;
+          },
+          levelWidth: function() { return 1; }
+        },
+        style: [
+          /* Base nodos */
+          {
+            selector: "node",
+            style: {
+              "background-color": "#4b5563",
+              "label": "data(label)",
+              "color": "#ffffff",
+              "font-family": "Lexend, system-ui, sans-serif",
+              "text-valign": "center",
+              "text-halign": "center",
+              "font-size": 11,
+              "width": 38,
+              "height": 38,
+              "overlay-opacity": 0,
+              "text-background-opacity": 1,
+              "text-background-padding": 3,
+              "text-background-shape": "round-rectangle",
+              "text-outline-width": 0
+            }
+          },
+          /* Persona central */
+          {
+            selector: "node[tipo = 'persona_central']",
+            style: {
+              "background-color": "#f7931a",
+              "width": 56,
+              "height": 56,
+              "font-size": 13,
+              "font-weight": "bold",
+              "text-background-color": "#0b1220"
+            }
+          },
+          /* Otras personas */
+          {
+            selector: "node[tipo = 'persona']",
+            style: {
+              "background-color": "#e8a87c",
+              "width": 42,
+              "height": 42,
+              "font-size": 11,
+              "text-background-color": "#0b1220"
+            }
+          },
+          /* Instituciones */
+          {
+            selector: "node[tipo = 'institucion']",
+            style: {
+              "shape": "round-rectangle",
+              "background-color": "#1f2937",
+              "border-width": 1,
+              "border-color": "#4b5563",
+              "width": 150,
+              "height": 40,
+              "font-size": 11,
+              "font-weight": "500",
+              "text-wrap": "wrap",
+              "text-max-width": 130,
+              "text-background-color": "#211133"
+            }
+          },
+          /* Aristas base */
+          {
+            selector: "edge",
+            style: {
+              "width": 2,
+              "line-color": "#9aa0a6",
+              "target-arrow-color": "#9aa0a6",
+              "target-arrow-shape": "triangle",
+              "curve-style": "bezier",
+              "label": "",
+              "font-size": 8,
+              "text-rotation": "autorotate"
+            }
+          },
+          /* Cargos un poquito más gruesos */
+          {
+            selector: "edge[tipo = 'cargo']",
+            style: {
+              "width": 2.5
+            }
+          }
+        ]
+      });
+
+      cy.ready(() => {
+        cy.fit();
+      });
+
+      // Panel inicial: persona central
+      setPanelForPersona(central);
+
+      // Click en nodos
+      cy.on("tap", "node", evt => {
+        const node = evt.target;
+        const tipo = node.data("tipo");
+
+        if (tipo === "institucion") {
+          const instId = node.data("institucion_id");
+          const inst = institucionesMap[instId];
+          if (inst) setPanelForInstitucion(inst);
+        } else {
+          const personaId = node.data("persona_id");
+          const persona = personasMap[personaId];
+          if (persona) setPanelForPersona(persona);
+        }
+      });
+
+      // Click en aristas
+      cy.on("tap", "edge", evt => {
+        const edge = evt.target;
+        const tipo = edge.data("tipo");
+
+        if (tipo === "cargo") {
+          const rel = {
+            tipo: "cargo",
+            persona_id: edge.data("persona_id"),
+            institucion_id: edge.data("institucion_id"),
+            institucion_padre_id: edge.data("institucion_padre_id"),
+            cargo_nombre: edge.data("cargo_nombre"),
+            fecha_inicio: edge.data("fecha_inicio"),
+            fecha_fin: edge.data("fecha_fin"),
+            notas: edge.data("notas")
+          };
+          setPanelForRelacion(rel, personasMap, institucionesMap);
+        } else {
+          const rel = {
+            id: edge.data("relacion_id"),
+            origen: parseInt(String(edge.data("source")).replace("p-", ""), 10),
+            destino: parseInt(String(edge.data("target")).replace("p-", ""), 10),
+            tipo: edge.data("tipo"),
+            descripcion: edge.data("descripcion"),
+            fuente: edge.data("fuente")
+          };
+          setPanelForRelacion(rel, personasMap, institucionesMap);
+        }
+      });
+
+      // Poblar chips de personas relacionadas
+      const relacionadas = data.personas_conectadas || [];
+      if (relacionadas.length) {
+        relatedPeopleSection.style.display = "block";
+        relacionadas.forEach(p => {
+          const chip = document.createElement("button");
+          chip.type = "button";
+          chip.className = "person-chip";
+          chip.textContent = p.nombre_completo;
+          if (p.slug) {
+            chip.addEventListener("click", () => {
+              window.location.href = `/api/personas/${p.slug}/grafo-page/`;
+            });
+          }
+          relatedPeopleContainer.appendChild(chip);
+        });
+      }
+
+      // Listeners de filtros
+      toggleCargosEl.addEventListener("change", applyFilters);
+      toggleRelacionesEl.addEventListener("change", applyFilters);
+      applyFilters();
+
+      logDebug("Grafo dibujado.");
+    })
+    .catch(err => {
+      console.error("Error cargando grafo:", err);
+      logDebug("Error en fetch/grafo: " + err);
+      panelContent.innerHTML = "<p>Ocurrió un problema al cargar el grafo.</p>";
+    });
+</script>
+</body>
+</html>

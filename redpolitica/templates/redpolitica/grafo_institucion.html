@@ -1,0 +1,958 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Atlas · Grafo de {{ institucion.nombre }}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <!-- Lexend -->
+  <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --bg: #000000;
+      --panel-bg: #05070b;
+      --card-bg: #11151d;
+      --card-border: #262c38;
+      --accent: #c144d2;
+      --accent-soft: #fda24f;
+      --text-main: #ffffff;
+      --text-muted: #a6bec8;
+      --pill-bg: #1f2933;
+      --pill-text: #e5e7eb;
+      --shadow-soft: 0 18px 45px rgba(0,0,0,0.6);
+      --radius-lg: 18px;
+      --radius-pill: 999px;
+      --transition-fast: 160ms ease-out;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: "Lexend", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    .page {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* HEADER */
+
+    header {
+      border-bottom: 1px solid #111827;
+      background: radial-gradient(circle at top left, rgba(193,68,210,0.18), transparent 55%);
+    }
+
+    .header-inner {
+      padding: 10px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .brand-logo {
+      height: 28px;
+      width: auto;
+    }
+
+    .brand-labels {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+    }
+
+    .brand-text-main {
+      font-size: 16px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+    }
+
+    .brand-text-sub {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+      color: var(--text-muted);
+    }
+
+    .nav-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .nav-link {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .nav-link strong { color: var(--text-main); }
+
+    .tag-app {
+      padding: 4px 10px;
+      border-radius: var(--radius-pill);
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      background: rgba(15,23,42,0.95);
+      border: 1px solid rgba(148,163,184,0.4);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--text-muted);
+    }
+
+    .tag-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 999px;
+      background: #4ade80;
+    }
+
+    /* LAYOUT PRINCIPAL */
+
+    main {
+      flex: 1;
+      display: flex;
+      min-height: 0;
+    }
+
+    .layout {
+      flex: 1;
+      display: flex;
+      min-height: calc(100vh - 52px);
+    }
+
+    /* ÁREA DE GRAFO */
+
+    .graph-area {
+      flex: 1 1 auto;
+      min-width: 0;
+      padding: 12px;
+      background: radial-gradient(circle at top left, rgba(193,68,210,0.12), #020617 35%, #000000 100%);
+      position: relative;
+    }
+
+    .graph-frame {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      border-radius: 20px;
+      border: 1px solid rgba(148,163,184,0.45);
+      background: radial-gradient(circle at center, rgba(15,23,42,0.96), #020617);
+      box-shadow: var(--shadow-soft);
+      overflow: hidden;
+    }
+
+    #cy {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    .graph-grid {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background-image:
+        linear-gradient(to right, rgba(31,41,55,0.28) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(31,41,55,0.28) 1px, transparent 1px);
+      background-size: 60px 60px;
+      opacity: 0.28;
+    }
+
+    .graph-label {
+      position: absolute;
+      left: 14px;
+      top: 10px;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      color: var(--text-muted);
+      z-index: 5;
+    }
+
+    .graph-caption {
+      position: absolute;
+      left: 14px;
+      bottom: 10px;
+      font-size: 10px;
+      color: var(--text-muted);
+      z-index: 5;
+    }
+
+    /* PANEL LATERAL */
+
+    #side-panel {
+      width: 320px;
+      max-width: 100%;
+      background: var(--panel-bg);
+      border-left: 1px solid #111827;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    #panel-header {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+      color: var(--text-muted);
+    }
+
+    #panel-title {
+      font-size: 16px;
+      font-weight: 600;
+      line-height: 1.25;
+      margin-top: 2px;
+    }
+
+    #panel-content {
+      font-size: 12px;
+      color: var(--text-main);
+      line-height: 1.5;
+    }
+
+    #panel-content p {
+      margin: 4px 0;
+    }
+
+    #panel-content ul {
+      margin: 4px 0;
+      padding-left: 16px;
+    }
+
+    #panel-content li {
+      margin-bottom: 3px;
+    }
+
+    .panel-section {
+      margin-top: 6px;
+      padding-top: 6px;
+      border-top: 1px solid #111827;
+    }
+
+    .panel-section-title {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+
+    /* Filtros toggle */
+
+    .toggle-list {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .toggle-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .toggle-item input {
+      width: 13px;
+      height: 13px;
+      accent-color: var(--accent);
+      cursor: pointer;
+    }
+
+    .toggle-item span {
+      line-height: 1.3;
+    }
+
+    /* Leyenda */
+
+    #legend {
+      margin-top: 6px;
+      padding-top: 6px;
+      border-top: 1px solid #111827;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 4px;
+      font-size: 10px;
+      color: var(--text-muted);
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .legend-color {
+      width: 11px;
+      height: 11px;
+      border-radius: 999px;
+      background: #374151;
+    }
+
+    .legend-color.inst-central { background: #e5e7eb; }
+    .legend-color.inst-hija    { background: #9ca3af; }
+    .legend-color.personas     { background: #e8a87c; }
+    .legend-color.line         { border-radius: 2px; background: #9aa0a6; }
+
+    /* Chips de instituciones relacionadas */
+
+    #institutions-chips {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .chips-group-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    .chips-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+    }
+
+    .chip-link {
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 8px;
+      border-radius: 999px;
+      border: 1px solid #374151;
+      background: #020617;
+      font-size: 10px;
+      color: var(--text-muted);
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      transition: background var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
+    }
+
+    .chip-link:hover {
+      background: rgba(193,68,210,0.16);
+      border-color: var(--accent);
+      color: var(--text-main);
+    }
+
+    /* DEBUG opcional */
+
+    #debug {
+      display: none;
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 320px;
+      max-height: 25vh;
+      background: rgba(0,0,0,0.85);
+      color: #e5e7eb;
+      font-size: 11px;
+      padding: 4px 8px;
+      overflow: auto;
+      z-index: 9999;
+      white-space: pre-wrap;
+    }
+
+    @media (max-width: 900px) {
+      .layout {
+        flex-direction: column;
+      }
+
+      .graph-area {
+        height: 52vh;
+      }
+
+      #side-panel {
+        width: 100%;
+        border-left: none;
+        border-top: 1px solid #111827;
+        height: auto;
+      }
+
+      #debug {
+        right: 0;
+      }
+    }
+  </style>
+
+  <!-- Cytoscape -->
+  <script src="https://unpkg.com/cytoscape@3.28.0/dist/cytoscape.min.js"></script>
+</head>
+<body>
+<div class="page">
+  <header>
+    <div class="header-inner">
+      <div class="brand">
+        <img src="{% static 'img/logo-horizonte-atlas.png' %}" alt="Horizonte Digital Atlas" class="brand-logo">
+        <div class="brand-labels">
+          <div class="brand-text-main">Atlas · Grafo por institución</div>
+          <div class="brand-text-sub">Mapa de cargos y dependencias</div>
+        </div>
+      </div>
+
+      <div class="nav-right">
+        <a href="/apps/atlas/" class="nav-link">← Volver a <strong>Atlas</strong></a>
+        <span class="tag-app">
+          <span class="tag-dot"></span> Vista de grafo
+        </span>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <div class="layout">
+      <!-- Área de grafo -->
+      <section class="graph-area">
+        <div class="graph-frame">
+          <div class="graph-grid"></div>
+          <div class="graph-label">
+            Grafo institucional de {{ institucion.nombre }}
+          </div>
+          <div id="cy"></div>
+          <div class="graph-caption">
+            Usa scroll / pinch para hacer zoom. Toca una persona o institución para ver detalles en el panel lateral.
+          </div>
+        </div>
+      </section>
+
+      <!-- Panel lateral -->
+      <aside id="side-panel">
+        <div>
+          <div id="panel-header">Red política</div>
+          <div id="panel-title">{{ institucion.nombre }}</div>
+          <div id="panel-content">
+            <p><strong>Tipo:</strong> {{ institucion.tipo|default:"" }}</p>
+            {% if institucion.ambito %}
+              <p><strong>Ámbito:</strong> {{ institucion.ambito }}</p>
+            {% endif %}
+            {% if institucion.ciudad or institucion.estado or institucion.pais %}
+              <p><strong>Ubicación:</strong>
+                {{ institucion.ciudad }}{% if institucion.estado %}, {{ institucion.estado }}{% endif %}{% if institucion.pais %}, {{ institucion.pais }}{% endif %}
+              </p>
+            {% endif %}
+          </div>
+        </div>
+
+        <!-- Filtros -->
+        <div class="panel-section">
+          <div class="panel-section-title">Filtros de vista</div>
+          <div class="toggle-list">
+            <label class="toggle-item">
+              <input type="checkbox" id="toggle-personas" checked />
+              <span>Mostrar personas con cargos</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Leyenda -->
+        <div class="panel-section">
+          <div class="panel-section-title">Leyenda</div>
+          <div id="legend">
+            <div class="legend-item">
+              <span class="legend-color inst-central"></span>
+              <span>Institución central</span>
+            </div>
+            <div class="legend-item">
+              <span class="legend-color inst-hija"></span>
+              <span>Instituciones hijas</span>
+            </div>
+            <div class="legend-item">
+              <span class="legend-color personas"></span>
+              <span>Personas con cargos</span>
+            </div>
+            <div class="legend-item">
+              <span class="legend-color line"></span>
+              <span>Cargos / relaciones</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Otras instituciones -->
+        <div class="panel-section">
+          <div class="panel-section-title">Otras instituciones relacionadas</div>
+          <div id="institutions-chips"></div>
+        </div>
+      </aside>
+    </div>
+  </main>
+
+  <div id="debug"></div>
+
+  <script>
+    const slug = "{{ institucion.slug }}";
+    const API_URL = `/api/instituciones/${slug}/grafo/`;
+
+    const debugEl = document.getElementById("debug");
+    const panelTitle = document.getElementById("panel-title");
+    const panelContent = document.getElementById("panel-content");
+    const togglePersonas = document.getElementById("toggle-personas");
+    const chipsContainer = document.getElementById("institutions-chips");
+
+    let personasMap = {};
+    let institucionesMap = {};
+
+    function logDebug(msg, obj) {
+      if (!debugEl) return;
+      const time = new Date().toISOString();
+      debugEl.innerText += `\n[${time}] ${msg}`;
+      if (obj) {
+        debugEl.innerText += `\n` + JSON.stringify(obj, null, 2) + "\n";
+      }
+    }
+
+    function setPanelForInstitucion(inst) {
+      panelTitle.textContent = inst.nombre || "Institución";
+      let html = "";
+
+      if (inst.tipo) {
+        html += `<p><strong>Tipo:</strong> ${inst.tipo}</p>`;
+      }
+      if (inst.ambito) {
+        html += `<p><strong>Ámbito:</strong> ${inst.ambito}</p>`;
+      }
+
+      const partes = [];
+      if (inst.ciudad) partes.push(inst.ciudad);
+      if (inst.estado) partes.push(inst.estado);
+      if (inst.pais) partes.push(inst.pais);
+      if (partes.length) {
+        html += `<p><strong>Ubicación:</strong> ${partes.join(", ")}</p>`;
+      }
+
+      if (inst.fecha_inicio || inst.fecha_fin) {
+        html += `<p><strong>Periodo:</strong> ${
+          inst.fecha_inicio || "¿?"
+        } – ${inst.fecha_fin || "actual o sin registro"}</p>`;
+      }
+
+      panelContent.innerHTML = html || "<p>Sin detalles adicionales.</p>";
+    }
+
+    function setPanelForPersona(p) {
+      panelTitle.textContent = p.nombre_completo || "Persona";
+      let html = "";
+
+      if (p.bio_corta) {
+        html += `<p>${p.bio_corta}</p>`;
+      }
+
+      panelContent.innerHTML =
+        html || "<p>Selecciona una institución o un cargo para ver más detalles.</p>";
+    }
+
+    function setPanelForCargo(cargo) {
+      const persona = personasMap[cargo.persona_id];
+      const inst = institucionesMap[cargo.institucion_id];
+
+      panelTitle.textContent = "Cargo en institución";
+      let html = "<p>";
+
+      if (persona) {
+        html += `<strong>${persona.nombre_completo}</strong><br/>`;
+      }
+      if (inst) {
+        html += `${cargo.nombre_cargo || "Cargo"} en <strong>${inst.nombre}</strong></p>`;
+      } else {
+        html += `${cargo.nombre_cargo || "Cargo"} en institución</p>`;
+      }
+
+      if (cargo.fecha_inicio || cargo.fecha_fin) {
+        html += `<p><strong>Periodo:</strong> ${
+          cargo.fecha_inicio || "¿?"
+        } – ${cargo.fecha_fin || "actual o sin registro"}</p>`;
+      }
+
+      if (cargo.notas) {
+        html += `<p><strong>Notas:</strong> ${cargo.notas}</p>`;
+      }
+
+      panelContent.innerHTML = html;
+    }
+
+    logDebug("Cargando grafo de institución desde " + API_URL);
+
+    fetch(API_URL)
+      .then(res => {
+        logDebug("Respuesta HTTP: " + res.status);
+        return res.json();
+      })
+      .then(data => {
+        logDebug("Datos recibidos:", data);
+
+        const elements = [];
+        personasMap = {};
+        institucionesMap = {};
+
+        // --- 1) Institución central ---
+        const instCentral = data.institucion_central;
+        if (!instCentral || instCentral.id == null) {
+          throw new Error("institucion_central inválida en la respuesta");
+        }
+        institucionesMap[instCentral.id] = instCentral;
+
+        // Resto de instituciones relacionadas
+        (data.instituciones || []).forEach(inst => {
+          if (inst.id == null) return;
+          institucionesMap[inst.id] = inst;
+        });
+
+// Hijas directas de la central
+const hijas = Object.values(institucionesMap).filter(
+  inst => inst.padre === instCentral.id
+);
+
+// Institución padre (viene directa en el JSON si existe)
+let institucionPadre = data.institucion_padre || null;
+if (institucionPadre && institucionPadre.id != null) {
+  // La agregamos al mapa para poder usarla en el panel si hiciera falta
+  institucionesMap[institucionPadre.id] = institucionPadre;
+}
+
+        // Personas
+        (data.personas || []).forEach(p => {
+          if (p.id == null) return;
+          personasMap[p.id] = p;
+        });
+
+        // Cargos
+        const cargos = data.cargos || [];
+
+        // Conjunto de personas que tienen al menos un cargo en la institución central
+        const personasConCargoCentral = new Set();
+        cargos.forEach(c => {
+          if (c.persona_id == null || c.institucion_id == null) return;
+          if (c.institucion_id === instCentral.id) {
+            personasConCargoCentral.add(c.persona_id);
+          }
+        });
+
+        // --- 2) Nodos de instituciones ---
+        // Institución central en el centro
+        elements.push({
+          data: {
+            id: `i-${instCentral.id}`,
+            institucion_id: instCentral.id,
+            label: instCentral.nombre,
+            tipo: "institucion_central",
+            level: 0
+          }
+        });
+
+        // Instituciones hijas
+        hijas.forEach(inst => {
+          elements.push({
+            data: {
+              id: `i-${inst.id}`,
+              institucion_id: inst.id,
+              label: inst.nombre,
+              tipo: "institucion_hija",
+              level: 1
+            }
+          });
+        });
+
+        // --- 3) Nodos de personas (sólo con cargos en la central) ---
+        personasConCargoCentral.forEach(personaId => {
+          const p = personasMap[personaId];
+          if (!p) return;
+
+          elements.push({
+            data: {
+              id: `p-${p.id}`,
+              persona_id: p.id,
+              label: p.nombre_completo,
+              tipo: "persona",
+              level: 2
+            }
+          });
+        });
+
+        // --- 4) Aristas institución central → hijas ---
+        hijas.forEach(inst => {
+          elements.push({
+            data: {
+              id: `rel-inst-${instCentral.id}-${inst.id}`,
+              source: `i-${instCentral.id}`,
+              target: `i-${inst.id}`,
+              tipo: "jerarquia"
+            }
+          });
+        });
+
+        // --- 5) Aristas de cargos persona → institución central ---
+        cargos.forEach(c => {
+          if (c.persona_id == null || c.institucion_id == null) return;
+          if (c.institucion_id !== instCentral.id) return;
+
+          const personaNodeId = `p-${c.persona_id}`;
+          const instNodeId = `i-${instCentral.id}`;
+
+          const personaExiste = personasConCargoCentral.has(c.persona_id);
+          if (!personaExiste) return;
+
+          elements.push({
+            data: {
+              id: `cargo-${c.id}`,
+              source: personaNodeId,
+              target: instNodeId,
+              tipo: "cargo",
+              cargo_id: c.id,
+              nombre_cargo: c.nombre_cargo,
+              persona_id: c.persona_id,
+              institucion_id: c.institucion_id,
+              fecha_inicio: c.fecha_inicio || null,
+              fecha_fin: c.fecha_fin || null,
+              notas: c.notas || ""
+            }
+          });
+        });
+
+        logDebug("Elementos generados para Cytoscape:", elements);
+
+        const cy = cytoscape({
+          container: document.getElementById("cy"),
+          elements,
+          layout: {
+            name: "concentric",
+            animate: false,
+            padding: 40,
+            minNodeSpacing: 40,
+            concentric: function (node) {
+              const level = node.data("level") ?? 2;
+              return 100 - level; // 0 centro, 1 anillo siguiente, 2 más afuera
+            },
+            levelWidth: function () {
+              return 1;
+            }
+          },
+          style: [
+            {
+              selector: "node",
+              style: {
+                "background-color": "#4b5563",
+                "label": "data(label)",
+                "color": "#ffffff",
+                "font-family": "Lexend, system-ui, sans-serif",
+                "text-valign": "center",
+                "text-halign": "center",
+                "font-size": 11,
+                "width": 38,
+                "height": 38,
+                "overlay-opacity": 0,
+                "text-background-color": "rgba(0,0,0,0.78)",
+                "text-background-opacity": 1,
+                "text-background-padding": 2,
+                "text-background-shape": "round-rectangle"
+              }
+            },
+            {
+              selector: "node[tipo = 'institucion_central']",
+              style: {
+                "shape": "round-rectangle",
+                "background-color": "#e5e7eb",
+                "border-width": 1,
+                "border-color": "#9ca3af",
+                "color": "#000000",
+                "width": 190,
+                "height": 48,
+                "font-size": 12,
+                "font-weight": "600",
+                "text-wrap": "wrap",
+                "text-max-width": 170,
+                "text-background-opacity": 0
+              }
+            },
+            {
+              selector: "node[tipo = 'institucion_hija']",
+              style: {
+                "shape": "round-rectangle",
+                "background-color": "#9ca3af",
+                "border-width": 1,
+                "border-color": "#6b7280",
+                "color": "#000000",
+                "width": 160,
+                "height": 42,
+                "font-size": 11,
+                "font-weight": "500",
+                "text-wrap": "wrap",
+                "text-max-width": 140,
+                "text-background-opacity": 0
+              }
+            },
+            {
+              selector: "node[tipo = 'persona']",
+              style: {
+                "background-color": "#e8a87c",
+                "border-width": 1,
+                "border-color": "#f59e0b",
+                "width": 44,
+                "height": 44,
+                "font-size": 11
+              }
+            },
+            {
+              selector: "edge",
+              style: {
+                "width": 2,
+                "line-color": "#9aa0a6",
+                "target-arrow-color": "#9aa0a6",
+                "target-arrow-shape": "triangle",
+                "curve-style": "bezier",
+                "label": "",
+                "font-size": 8,
+                "text-rotation": "autorotate"
+              }
+            },
+            {
+              selector: "edge[tipo = 'cargo']",
+              style: {
+                "width": 2.4
+              }
+            },
+            {
+              selector: "edge[tipo = 'jerarquia']",
+              style: {
+                "line-style": "solid"
+              }
+            }
+          ]
+        });
+
+        cy.ready(() => {
+          cy.fit();
+        });
+
+        // Panel inicial: institución central
+        setPanelForInstitucion(instCentral);
+
+        // --- Chips: hija(s) y posible padre ---
+        if (chipsContainer) {
+          chipsContainer.innerHTML = "";
+
+          function addGroup(title, list) {
+            if (!list || !list.length) return;
+            const label = document.createElement("div");
+            label.className = "chips-group-label";
+            label.textContent = title;
+            chipsContainer.appendChild(label);
+
+            const row = document.createElement("div");
+            row.className = "chips-row";
+
+            list.forEach(inst => {
+              const a = document.createElement("a");
+              a.className = "chip-link";
+              const slug = inst.slug || inst.id;
+              a.href = `/api/instituciones/${slug}/grafo-page/`;
+              a.textContent = inst.nombre;
+              row.appendChild(a);
+            });
+
+            chipsContainer.appendChild(row);
+          }
+
+          if (institucionPadre) {
+            addGroup("Institución padre", [institucionPadre]);
+          }
+
+          addGroup("Instituciones hijas", hijas);
+        }
+
+        // --- Toggle de personas / cargos ---
+        function applyPersonasVisibility(show) {
+          const displayVal = show ? "element" : "none";
+          cy.batch(() => {
+            cy.nodes("[tipo = 'persona']").style("display", displayVal);
+            cy.edges("[tipo = 'cargo']").style("display", displayVal);
+          });
+        }
+
+        applyPersonasVisibility(togglePersonas ? togglePersonas.checked : true);
+
+        if (togglePersonas) {
+          togglePersonas.addEventListener("change", (e) => {
+            applyPersonasVisibility(e.target.checked);
+          });
+        }
+
+        // Click en nodos
+        cy.on("tap", "node", evt => {
+          const node = evt.target;
+          const tipo = node.data("tipo");
+
+          if (tipo === "institucion_central" || tipo === "institucion_hija") {
+            const instId = node.data("institucion_id");
+            const inst = institucionesMap[instId];
+            if (inst) setPanelForInstitucion(inst);
+          } else if (tipo === "persona") {
+            const personaId = node.data("persona_id");
+            const persona = personasMap[personaId];
+            if (persona) setPanelForPersona(persona);
+          }
+        });
+
+        // Click en aristas (cargos)
+        cy.on("tap", "edge", evt => {
+          const edge = evt.target;
+          const tipo = edge.data("tipo");
+          if (tipo !== "cargo") return;
+
+          const cargo = {
+            id: edge.data("cargo_id"),
+            persona_id: edge.data("persona_id"),
+            institucion_id: edge.data("institucion_id"),
+            nombre_cargo: edge.data("nombre_cargo"),
+            fecha_inicio: edge.data("fecha_inicio"),
+            fecha_fin: edge.data("fecha_fin"),
+            notas: edge.data("notas")
+          };
+          setPanelForCargo(cargo);
+        });
+
+        logDebug("Grafo institucional dibujado (central + hijas + personas central).");
+      })
+      .catch(err => {
+        console.error("Error cargando grafo de institución:", err);
+        logDebug("Error cargando grafo de institución: " + err);
+        panelContent.innerHTML = "<p>Ocurrió un problema al cargar el grafo.</p>";
+      });
+  </script>
+</div>
+</body>
+</html>

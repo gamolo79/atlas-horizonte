@@ -1,0 +1,38 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Entornos virtuales
+venv/
+.env
+.env.*
+
+# Logs y temporales
+*.log
+*.tmp
+*.swp
+
+# Archivos de IDE
+.vscode/
+.idea/
+*.code-workspace
+
+# Sistema
+.DS_Store
+Thumbs.db
+
+# Archivos de coverage / pruebas
+htmlcov/
+.coverage
+.tox/
+pytest_cache/
+
+# Archivos de compilación
+build/
+dist/
+*.egg-info/
+
+# SQLite (si lo usas sólo en desarrollo)
+db.sqlite3
