@@ -1,10 +1,84 @@
+from django.shortcuts import get_object_or_404, render
+from django.views.generic import ListView
 from rest_framework import generics
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from django.shortcuts import get_object_or_404, render
 
-from .models import Persona, Relacion, Cargo, Institucion
-from .serializers import PersonaSerializer, RelacionSerializer, InstitucionSerializer
+from .models import Cargo, Institucion, Persona, Relacion
+from .serializers import InstitucionSerializer, PersonaSerializer, RelacionSerializer
+
+
+def index_apps(request):
+    return render(request, "redpolitica/index_apps.html")
+
+
+def atlas_home(request):
+    return render(request, "redpolitica/atlas_home.html")
+
+
+def monitor_placeholder(request):
+    return render(request, "redpolitica/app_placeholder.html", {"app_name": "Monitor"})
+
+
+def social_placeholder(request):
+    return render(request, "redpolitica/app_placeholder.html", {"app_name": "Social"})
+
+
+class AtlasPersonasListView(ListView):
+    model = Persona
+    template_name = "redpolitica/atlas_personas_list.html"
+    context_object_name = "personas"
+    paginate_by = 20
+
+    def get_queryset(self):
+        queryset = (
+            Persona.objects.all()
+            .prefetch_related("cargos__institucion")
+        )
+        q = self.request.GET.get("q", "").strip()
+        if q:
+            queryset = queryset.filter(nombre_completo__icontains=q)
+        return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["q"] = self.request.GET.get("q", "")
+        return context
+
+
+class AtlasInstitucionesListView(ListView):
+    model = Institucion
+    template_name = "redpolitica/atlas_instituciones_list.html"
+    context_object_name = "instituciones"
+    paginate_by = 20
+
+    def get_queryset(self):
+        queryset = Institucion.objects.all()
+        q = self.request.GET.get("q", "").strip()
+        if q:
+            queryset = queryset.filter(nombre__icontains=q)
+
+        tipo = self.request.GET.get("tipo", "").strip()
+        if tipo:
+            queryset = queryset.filter(tipo=tipo)
+
+        ambito = self.request.GET.get("ambito", "").strip()
+        if ambito:
+            queryset = queryset.filter(ambito__icontains=ambito)
+
+        return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context.update(
+            {
+                "q": self.request.GET.get("q", ""),
+                "tipo": self.request.GET.get("tipo", ""),
+                "ambito": self.request.GET.get("ambito", ""),
+                "tipos": Institucion.TIPO_INSTITUCION,
+            }
+        )
+        return context
 
 
 # ===========
