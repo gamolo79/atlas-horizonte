@@ -106,6 +106,12 @@
           <div class="panel-section-title">Otras instituciones relacionadas</div>
           <div id="institutions-chips"></div>
         </div>
+
+        <!-- Personas con cargos en la institución -->
+        <div class="panel-section" id="people-chips-section" style="display:none;">
+          <div class="panel-section-title">Personas relacionadas</div>
+          <div id="people-chips"></div>
+        </div>
       </aside>
     </div>
   </main>
@@ -121,6 +127,8 @@
     const panelContent = document.getElementById("panel-content");
     const togglePersonas = document.getElementById("toggle-personas");
     const chipsContainer = document.getElementById("institutions-chips");
+    const peopleChipsSection = document.getElementById("people-chips-section");
+    const peopleChips = document.getElementById("people-chips");
 
     let personasMap = {};
     let institucionesMap = {};
@@ -492,6 +500,25 @@ if (institucionPadre && institucionPadre.id != null) {
           }
 
           addGroup("Instituciones hijas", hijas);
+        }
+
+        // Chips de personas con cargos para navegar a sus grafos
+        const personasRelacionadas = Array.from(personasConCargoCentral)
+          .map(id => personasMap[id])
+          .filter(Boolean);
+
+        if (personasRelacionadas.length && peopleChipsSection && peopleChips) {
+          peopleChips.innerHTML = "";
+          peopleChipsSection.style.display = "block";
+
+          personasRelacionadas.forEach(p => {
+            const a = document.createElement("a");
+            a.className = "chip-link";
+            const slug = p.slug || p.id;
+            a.href = `/api/personas/${slug}/grafo-page/`;
+            a.textContent = p.nombre_completo;
+            peopleChips.appendChild(a);
+          });
         }
 
         // --- Toggle de personas / cargos ---
