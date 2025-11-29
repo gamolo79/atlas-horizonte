@@ -648,6 +648,46 @@ header {
   background: #9aa0a6;
 }
 
+#related-people,
+#related-institutions,
+#institutions-chips,
+#people-chips,
+.chips-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.chips-group-label {
+  font-size: 12px;
+  color: var(--text-muted);
+  letter-spacing: 0.01em;
+  margin: 6px 0 4px;
+  text-transform: uppercase;
+}
+
+.chip-link,
+.person-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: #221834;
+  border: 1px solid #3a2d55;
+  color: #f7f5ff;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 150ms ease, border-color 150ms ease, transform 120ms ease;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.chip-link:hover,
+.person-chip:hover {
+  background: #2d2145;
+  border-color: #6b4fa4;
 #related-people {
   display: flex;
   flex-wrap: wrap;
