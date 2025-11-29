@@ -1,0 +1,429 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Atlas · Grafo de {{ persona.nombre_completo }}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <!-- Lexend, como en los mockups -->
+  <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --bg: #000000;
+      --panel-bg: #05070b;
+      --card-bg: #11151d;
+      --card-border: #262c38;
+      --accent: #c144d2;
+      --accent-soft: #fda24f;
+      --text-main: #ffffff;
+      --text-muted: #a6bec8;
+      --pill-bg: #1f2933;
+      --pill-text: #e5e7eb;
+      --shadow-soft: 0 18px 45px rgba(0,0,0,0.6);
+      --radius-lg: 18px;
+      --radius-pill: 999px;
+      --transition-fast: 160ms ease-out;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: "Lexend", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    .page {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* HEADER */
+
+    header {
+      border-bottom: 1px solid #111827;
+      background: radial-gradient(circle at top left, rgba(193,68,210,0.18), transparent 55%);
+    }
+
+    .header-inner {
+      padding: 10px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .brand-logo {
+      height: 28px;
+      width: auto;
+    }
+
+    .brand-labels {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+    }
+
+    .brand-text-main {
+      font-size: 16px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+    }
+
+    .brand-text-sub {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+      color: var(--text-muted);
+    }
+
+    .nav-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .nav-link {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .nav-link strong { color: var(--text-main); }
+
+    .tag-app {
+      padding: 4px 10px;
+      border-radius: var(--radius-pill);
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      background: rgba(15,23,42,0.95);
+      border: 1px solid rgba(148,163,184,0.4);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--text-muted);
+    }
+
+    .tag-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 999px;
+      background: #4ade80;
+    }
+
+    /* LAYOUT PRINCIPAL */
+
+    main {
+      flex: 1;
+      display: flex;
+      min-height: 0;
+    }
+
+    .layout {
+      flex: 1;
+      display: flex;
+      min-height: calc(100vh - 52px);
+    }
+
+    /* ÁREA DE GRAFO REAL (Cytoscape va dentro de #cy) */
+
+    .graph-area {
+      flex: 1 1 auto;
+      min-width: 0;
+      padding: 12px;
+      background: radial-gradient(circle at top left, rgba(193,68,210,0.12), #020617 35%, #000000 100%);
+      position: relative;
+    }
+
+    .graph-frame {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      border-radius: 20px;
+      border: 1px solid rgba(148,163,184,0.45);
+      background: radial-gradient(circle at center, rgba(15,23,42,0.96), #020617);
+      box-shadow: var(--shadow-soft);
+      overflow: hidden;
+    }
+
+    /* El contenedor de Cytoscape */
+    #cy {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    .graph-grid {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background-image:
+        linear-gradient(to right, rgba(31,41,55,0.28) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(31,41,55,0.28) 1px, transparent 1px);
+      background-size: 60px 60px;
+      opacity: 0.28;
+    }
+
+    .graph-label {
+      position: absolute;
+      left: 14px;
+      top: 10px;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      color: var(--text-muted);
+      z-index: 5;
+    }
+
+    .graph-caption {
+      position: absolute;
+      left: 14px;
+      bottom: 10px;
+      font-size: 10px;
+      color: var(--text-muted);
+      z-index: 5;
+    }
+
+    /* PANEL LATERAL REAL (usamos tus IDs actuales) */
+
+    #side-panel {
+      width: 320px;
+      max-width: 100%;
+      background: var(--panel-bg);
+      border-left: 1px solid #111827;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    #panel-header {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+      color: var(--text-muted);
+    }
+
+    #panel-title {
+      font-size: 16px;
+      font-weight: 600;
+      line-height: 1.25;
+      margin-top: 2px;
+    }
+
+    #panel-content {
+      font-size: 12px;
+      color: var(--text-main);
+      line-height: 1.5;
+    }
+
+    #panel-content p {
+      margin: 4px 0;
+    }
+
+    #panel-content ul {
+      margin: 4px 0;
+      padding-left: 16px;
+    }
+
+    #panel-content li {
+      margin-bottom: 3px;
+    }
+
+    .panel-section {
+      margin-top: 6px;
+      padding-top: 6px;
+      border-top: 1px solid #111827;
+    }
+
+    .panel-section-title {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+
+    /* LEYENDA (mantenemos id="legend" para tu HTML, pero estilo nuevo) */
+
+    #legend {
+      margin-top: 6px;
+      padding-top: 6px;
+      border-top: 1px solid #111827;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 4px;
+      font-size: 10px;
+      color: var(--text-muted);
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .legend-color {
+      width: 11px;
+      height: 11px;
+      border-radius: 999px;
+      background: #374151;
+    }
+
+    .legend-color.central   { background: #f7931a; }   /* persona central */
+    .legend-color.persona   { background: #e8a87c; }   /* otras personas */
+    .legend-color.inst-padre { background: #3b4a5e; } /* institución padre */
+    .legend-color.inst-hija  { background: #6b7280; } /* institución hija/relaciones */
+    .legend-color.line      { border-radius: 2px; background: #9aa0a6; }
+
+    /* DEBUG opcional */
+    #debug {
+      display: none;
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 320px;
+      max-height: 25vh;
+      background: rgba(0,0,0,0.85);
+      color: #e5e7eb;
+      font-size: 11px;
+      padding: 4px 8px;
+      overflow: auto;
+      z-index: 9999;
+      white-space: pre-wrap;
+    }
+
+    @media (max-width: 900px) {
+      .layout {
+        flex-direction: column;
+      }
+
+      .graph-area {
+        height: 52vh;
+      }
+
+      #side-panel {
+        width: 100%;
+        border-left: none;
+        border-top: 1px solid #111827;
+        height: auto;
+      }
+
+      #debug {
+        right: 0;
+      }
+    }
+  </style>
+
+  <!-- Cytoscape -->
+  <script src="https://unpkg.com/cytoscape@3.28.0/dist/cytoscape.min.js"></script>
+</head>
+<body>
+<div class="page">
+  <header>
+    <div class="header-inner">
+      <div class="brand">
+        <!-- Logo Atlas desde static -->
+        <img src="{% static 'img/logo-horizonte-atlas.png' %}" alt="Horizonte Digital Atlas" class="brand-logo">
+        <div class="brand-labels">
+          <div class="brand-text-main">Atlas · Grafo por persona</div>
+          <div class="brand-text-sub">Personas e instituciones conectadas</div>
+        </div>
+      </div>
+
+      <div class="nav-right">
+        <a href="/apps/atlas/" class="nav-link">← Volver a <strong>Atlas</strong></a>
+        <span class="tag-app">
+          <span class="tag-dot"></span> Vista de grafo
+        </span>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <div class="layout">
+      <!-- Área de grafo -->
+      <section class="graph-area">
+        <div class="graph-frame">
+          <div class="graph-grid"></div>
+          <div class="graph-label">Grafo político de {{ persona.nombre_completo }}</div>
+          <div id="cy"></div>
+          <div class="graph-caption">
+            Usa scroll / pinch para hacer zoom. Toca un nodo o flecha para ver detalles en el panel lateral.
+          </div>
+        </div>
+      </section>
+
+      <!-- Panel lateral (IDs ya usados por tu JS) -->
+      <aside id="side-panel">
+        <div>
+          <div id="panel-header">Red política</div>
+          <div id="panel-title">{{ persona.nombre_completo }}</div>
+        </div>
+
+        <div id="panel-content">
+          <p>Selecciona una persona, institución o relación para ver detalles.</p>
+        </div>
+
+        <!-- Leyenda con el nuevo estilo -->
+        <div id="legend">
+          <div class="legend-item">
+            <span class="legend-color central"></span>
+            <span>Persona central</span>
+          </div>
+          <div class="legend-item">
+            <span class="legend-color persona"></span>
+            <span>Otras personas</span>
+          </div>
+          <div class="legend-item">
+            <span class="legend-color inst-padre"></span>
+            <span>Instituciones padre</span>
+          </div>
+          <div class="legend-item">
+            <span class="legend-color inst-hija"></span>
+            <span>Instituciones hijas / cargos</span>
+          </div>
+          <div class="legend-item">
+            <span class="legend-color line"></span>
+            <span>Relaciones / conexiones</span>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </main>
+
+  <div id="debug"></div>
+
+  <!-- AQUÍ pega tu SCRIPT ORIGINAL de Cytoscape, SIN cambios -->
+  <!--
+  <script>
+    ... TODO: pega aquí todo el JavaScript que ya tienes funcionando
+  </script>
+  -->
+</div>
+</body>
+</html>

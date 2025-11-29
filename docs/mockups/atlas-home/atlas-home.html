@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Horizonte Digital Atlas</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --bg: #000000;
+      --panel-bg: #05070b;
+      --card-bg: #11151d;
+      --card-border: #262c38;
+      --accent: #c144d2;
+      --accent-soft: #fda24f;
+      --text-main: #ffffff;
+      --text-muted: #a6bec8;
+      --pill-bg: #1f2933;
+      --pill-text: #e5e7eb;
+      --shadow-soft: 0 18px 45px rgba(0,0,0,0.6);
+      --radius-lg: 18px;
+      --radius-pill: 999px;
+      --max-width: 1120px;
+      --transition-fast: 160ms ease-out;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: "Lexend", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    .page {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      border-bottom: 1px solid #111827;
+      background: radial-gradient(circle at top left, rgba(193,68,210,0.18), transparent 55%);
+    }
+
+    .header-inner {
+      max-width: var(--max-width);
+      margin: 0 auto;
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .brand-logo {
+      height: 32px;
+      width: auto;
+    }
+
+    .brand-labels {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+    }
+
+    .brand-text-main {
+      font-size: 18px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+    }
+
+    .brand-text-sub {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+      color: var(--text-muted);
+    }
+
+    .nav-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .nav-link {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .nav-link strong {
+      color: var(--text-main);
+      font-weight: 500;
+    }
+
+    .tag-app {
+      padding: 4px 11px;
+      border-radius: var(--radius-pill);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      background: rgba(15,23,42,0.95);
+      border: 1px solid rgba(148,163,184,0.4);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--text-muted);
+    }
+
+    .tag-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 999px;
+      background: #4ade80;
+    }
+
+    main {
+      flex: 1;
+    }
+
+    .main-inner {
+      max-width: var(--max-width);
+      margin: 0 auto;
+      padding: 18px 16px 40px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    /* HERO */
+
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1.6fr) minmax(0, 1.2fr);
+      gap: 22px;
+      align-items: center;
+    }
+
+    .hero-eyebrow {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
+
+    .hero-title {
+      font-size: 26px;
+      line-height: 1.15;
+      margin-bottom: 6px;
+    }
+
+    .hero-title span {
+      color: var(--accent);
+    }
+
+    .hero-subtitle {
+      font-size: 14px;
+      color: var(--text-muted);
+      max-width: 460px;
+    }
+
+    .hero-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 10px;
+    }
+
+    .pill {
+      font-size: 11px;
+      padding: 4px 10px;
+      border-radius: var(--radius-pill);
+      background: var(--pill-bg);
+      color: var(--pill-text);
+      border: 1px solid rgba(148,163,184,0.35);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+    }
+
+    .pill-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 999px;
+      background: var(--accent);
+    }
+
+    .hero-panel {
+      background: radial-gradient(circle at top right, rgba(193,68,210,0.16), rgba(15,23,42,0.96));
+      border-radius: var(--radius-lg);
+      border: 1px solid rgba(51,65,85,0.9);
+      padding: 14px 14px 12px;
+      box-shadow: var(--shadow-soft);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .hero-panel-title {
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+      color: var(--text-muted);
+    }
+
+    .hero-panel-text {
+      font-size: 12px;
+      color: var(--text-main);
+      line-height: 1.5;
+    }
+
+    .hero-panel-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 2px;
+    }
+
+    .meta-pill {
+      font-size: 10px;
+      padding: 3px 8px;
+      border-radius: var(--radius-pill);
+      background: rgba(15,23,42,0.9);
+      border: 1px solid rgba(148,163,184,0.4);
+      color: var(--text-muted);
+    }
+
+    /* SECCIÓN MODOS */
+
+    .section-header {
+      margin-top: 6px;
+      margin-bottom: 6px;
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: baseline;
+    }
+
+    .section-title {
+      font-size: 15px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--text-muted);
+    }
+
+    .section-subtitle {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .mode-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: 14px;
+    }
+
+    .mode-card {
+      position: relative;
+      background: radial-gradient(circle at top left, rgba(193,68,210,0.12), rgba(15,23,42,0.98));
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--card-border);
+      box-shadow: var(--shadow-soft);
+      padding: 14px 14px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      transition: transform var(--transition-fast), box-shadow var(--transition-fast), border-color var(--transition-fast), background var(--transition-fast);
+    }
+
+    .mode-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 20px 55px rgba(0,0,0,0.85);
+      border-color: rgba(209,213,219,0.55);
+      background: radial-gradient(circle at top left, rgba(193,68,210,0.2), rgba(15,23,42,1));
+    }
+
+    .mode-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      color: var(--text-muted);
+    }
+
+    .mode-title {
+      font-size: 17px;
+      font-weight: 600;
+    }
+
+    .mode-text {
+      font-size: 12px;
+      color: var(--text-main);
+      line-height: 1.45;
+    }
+
+    .mode-footer {
+      margin-top: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .mode-pill-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+    }
+
+    .mode-pill {
+      font-size: 10px;
+      padding: 3px 8px;
+      border-radius: var(--radius-pill);
+      border: 1px solid rgba(148,163,184,0.45);
+      color: var(--text-muted);
+      background: rgba(15,23,42,0.9);
+    }
+
+    .mode-link {
+      font-size: 11px;
+      padding: 5px 10px;
+      border-radius: var(--radius-pill);
+      border: 1px solid rgba(193,68,210,0.9);
+      background: radial-gradient(circle at top left, rgba(193,68,210,0.45), rgba(15,23,42,0.98));
+      color: #f9fafb;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+    }
+
+    .mode-link span.arrow {
+      font-size: 13px;
+      margin-top: -1px;
+    }
+
+    /* AYUDA */
+
+    .helper {
+      margin-top: 16px;
+      display: grid;
+      grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+      gap: 14px;
+    }
+
+    .helper-block {
+      background: rgba(15,23,42,0.96);
+      border-radius: var(--radius-lg);
+      border: 1px solid rgba(55,65,81,0.9);
+      padding: 12px 14px 10px;
+      font-size: 12px;
+      color: var(--text-main);
+      line-height: 1.5;
+    }
+
+    .helper-title {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+
+    .helper-list {
+      margin-top: 4px;
+      padding-left: 16px;
+    }
+
+    .helper-list li {
+      margin-bottom: 3px;
+    }
+
+    footer {
+      border-top: 1px solid #111827;
+      padding: 10px 16px 14px;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .footer-inner {
+      max-width: var(--max-width);
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    @media (max-width: 800px) {
+      .header-inner {
+        padding: 10px 12px;
+      }
+      .main-inner {
+        padding: 14px 12px 28px;
+      }
+      .hero {
+        grid-template-columns: minmax(0, 1fr);
+      }
+      .hero-title {
+        font-size: 22px;
+      }
+      .mode-grid {
+        grid-template-columns: minmax(0, 1fr);
+      }
+      .helper {
+        grid-template-columns: minmax(0, 1fr);
+      }
+    }
+  </style>
+</head>
+<body>
+<div class="page">
+  <header>
+    <div class="header-inner">
+      <div class="brand">
+        <!-- Cambia por logo específico de Atlas -->
+        <img src="logo-horizonte-atlas.png" alt="Horizonte Digital Atlas" class="brand-logo" />
+        <div class="brand-labels">
+          <div class="brand-text-main">Horizonte Digital Atlas</div>
+          <div class="brand-text-sub">Grafos de personas e instituciones</div>
+        </div>
+      </div>
+
+      <div class="nav-right">
+        <a href="index-apps.html" class="nav-link">← Volver a <strong>Apps</strong></a>
+        <span class="tag-app">
+          <span class="tag-dot"></span> Atlas activo · v0.1
+        </span>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <div class="main-inner">
+      <!-- HERO -->
+      <section class="hero">
+        <div>
+          <div class="hero-eyebrow">Panel principal</div>
+          <h1 class="hero-title">
+            Explora el <span>Atlas político</span> de Querétaro.
+          </h1>
+          <p class="hero-subtitle">
+            Elige si quieres ver grafos por persona o por institución.
+            Cada grafo muestra cargos, trayectorias y conexiones políticas
+            de forma visual.
+          </p>
+
+          <div class="hero-pills">
+            <div class="pill">
+              <span class="pill-dot"></span> Personas como nodos centrales
+            </div>
+            <div class="pill">
+              <span class="pill-dot"></span> Instituciones organizadas por jerarquía
+            </div>
+            <div class="pill">
+              <span class="pill-dot"></span> Panel lateral con biografía y cargos
+            </div>
+          </div>
+        </div>
+
+        <aside class="hero-panel">
+          <div class="hero-panel-title">Siguiente paso</div>
+          <p class="hero-panel-text">
+            Usa Atlas como base de datos política: cada persona y cada institución
+            tiene su ficha y su grafo. Más adelante se conectará con Monitor y Social
+            para ver cobertura mediática y conversación en redes.
+          </p>
+          <div class="hero-panel-meta">
+            <span class="meta-pill">Enfoque inicial: Querétaro</span>
+            <span class="meta-pill">Cabildos · Legislaturas · Gobierno estatal</span>
+          </div>
+        </aside>
+      </section>
+
+      <!-- MODO DE EXPLORACIÓN -->
+      <section>
+        <div class="section-header">
+          <h2 class="section-title">¿Cómo quieres explorar Atlas?</h2>
+          <p class="section-subtitle">
+            Puedes partir de una persona o de una institución.
+          </p>
+        </div>
+
+        <div class="mode-grid">
+          <!-- POR PERSONA -->
+          <a href="atlas-personas.html" class="mode-card">
+            <div class="mode-label">Modo 1</div>
+            <div class="mode-title">Explorar por persona</div>
+            <p class="mode-text">
+              Elige una persona y verás su grafo político: cargos, instituciones
+              y relaciones personales. Ideal para seguir trayectorias y redes
+              de poder alrededor de un actor.
+            </p>
+            <div class="mode-footer">
+              <div class="mode-pill-row">
+                <span class="mode-pill">Cargos por periodo</span>
+                <span class="mode-pill">Instituciones relacionadas</span>
+                <span class="mode-pill">Saltos a otras personas</span>
+              </div>
+              <span class="mode-link">
+                Ver listado de personas
+                <span class="arrow">↗</span>
+              </span>
+            </div>
+          </a>
+
+          <!-- POR INSTITUCIÓN -->
+          <a href="atlas-instituciones.html" class="mode-card">
+            <div class="mode-label">Modo 2</div>
+            <div class="mode-title">Explorar por institución</div>
+            <p class="mode-text">
+              Parte de un órgano de gobierno, dependencia o entidad pública.
+              Verás algo más cercano a un organigrama: quiénes han ocupado cargos,
+              en qué periodos y con qué conexiones políticas.
+            </p>
+            <div class="mode-footer">
+              <div class="mode-pill-row">
+                <span class="mode-pill">Poderes y municipios</span>
+                <span class="mode-pill">Órganos autónomos</span>
+                <span class="mode-pill">Universidades y partidos</span>
+              </div>
+              <span class="mode-link">
+                Ver listado de instituciones
+                <span class="arrow">↗</span>
+              </span>
+            </div>
+          </a>
+        </div>
+      </section>
+
+      <!-- AYUDA / FUTUROS FEATURES -->
+      <section class="helper">
+        <div class="helper-block">
+          <div class="helper-title">Panel lateral en los grafos</div>
+          <p>
+            Al abrir un grafo, el panel lateral mostrará:
+          </p>
+          <ul class="helper-list">
+            <li><strong>Biografía corta</strong> de la persona o ficha de la institución.</li>
+            <li><strong>Cargos</strong> agrupados por institución padre.</li>
+            <li><strong>Relaciones personales</strong> relevantes (amistad, grupo político, etc.).</li>
+            <li><strong>Instituciones relacionadas</strong> para saltar rápido a otro grafo.</li>
+          </ul>
+        </div>
+
+        <div class="helper-block">
+          <div class="helper-title">Próximas mejoras en Atlas</div>
+          <ul class="helper-list">
+            <li>Doble tap en móvil para hacer zoom al nodo seleccionado.</li>
+            <li>Modo horizontal alternativo: personas arriba, instituciones abajo.</li>
+            <li>Navegación entre personas con un clic sobre nodos secundarios.</li>
+            <li>Integración con Monitor para ver cobertura de cada actor.</li>
+          </ul>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <footer>
+    <div class="footer-inner">
+      <span>Atlas forma parte del ecosistema Horizonte Digital.</span>
+      <span>Uso interno · 2025</span>
+    </div>
+  </footer>
+</div>
+</body>
+</html>

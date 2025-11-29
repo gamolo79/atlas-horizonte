@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Horizonte Digital – Apps</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <!-- Lexend -->
+  <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --bg: #000000;
+      --panel-bg: #05070b;
+      --card-bg: #11151d;
+      --card-border: #262c38;
+      --accent: #c144d2;
+      --accent-soft: #fda24f;
+      --text-main: #ffffff;
+      --text-muted: #a6bec8;
+      --pill-bg: #1f2933;
+      --pill-text: #e5e7eb;
+      --shadow-soft: 0 18px 45px rgba(0,0,0,0.6);
+      --radius-lg: 18px;
+      --radius-pill: 999px;
+      --transition-fast: 160ms ease-out;
+      --max-width: 1120px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: "Lexend", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background-color: var(--bg);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    .page {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      border-bottom: 1px solid #111827;
+      background: radial-gradient(circle at top left, rgba(193,68,210,0.18), transparent 55%);
+    }
+
+    .header-inner {
+      max-width: var(--max-width);
+      margin: 0 auto;
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .brand-logo {
+      height: 32px;
+      width: auto;
+      display: block;
+    }
+
+    .brand-text-main {
+      font-size: 18px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+    }
+
+    .brand-text-sub {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+      color: var(--text-muted);
+    }
+
+    .tag-beta {
+      padding: 3px 10px;
+      border-radius: var(--radius-pill);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      background: rgba(24,34,45,0.9);
+      border: 1px solid rgba(148,163,184,0.35);
+      color: var(--text-muted);
+    }
+
+    main {
+      flex: 1;
+    }
+
+    .main-inner {
+      max-width: var(--max-width);
+      margin: 0 auto;
+      padding: 18px 16px 40px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    /* HERO */
+
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1.5fr) minmax(0, 1.1fr);
+      gap: 20px;
+      align-items: center;
+    }
+
+    .hero-title {
+      font-size: 26px;
+      line-height: 1.15;
+      letter-spacing: 0.01em;
+      margin-bottom: 6px;
+    }
+
+    .hero-highlight {
+      color: var(--accent);
+    }
+
+    .hero-subtitle {
+      font-size: 14px;
+      color: var(--text-muted);
+      max-width: 440px;
+    }
+
+    .hero-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 10px;
+    }
+
+    .pill {
+      font-size: 11px;
+      padding: 4px 10px;
+      border-radius: var(--radius-pill);
+      background: var(--pill-bg);
+      color: var(--pill-text);
+      border: 1px solid rgba(148,163,184,0.35);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+    }
+
+    .pill-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 999px;
+      background: var(--accent);
+    }
+
+    .hero-stats {
+      background: radial-gradient(circle at top right, rgba(148,163,184,0.12), rgba(15,23,42,0.95));
+      border-radius: var(--radius-lg);
+      border: 1px solid rgba(51,65,85,0.9);
+      padding: 12px 14px;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      box-shadow: var(--shadow-soft);
+    }
+
+    .hero-stat {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .hero-stat-label {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .hero-stat-value {
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    .hero-stat-chip {
+      font-size: 11px;
+      color: var(--accent-soft);
+    }
+
+    /* GRID DE APPS */
+
+    .section-header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 10px;
+      margin-top: 4px;
+    }
+
+    .section-title {
+      font-size: 15px;
+      font-weight: 500;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+
+    .section-subtitle {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .apps-grid {
+      margin-top: 8px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+      gap: 14px;
+    }
+
+    .app-card {
+      position: relative;
+      background: radial-gradient(circle at top left, rgba(193,68,210,0.15), rgba(15,23,42,0.96));
+      border-radius: var(--radius-lg);
+      padding: 14px 14px 12px;
+      border: 1px solid var(--card-border);
+      box-shadow: var(--shadow-soft);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      transition: transform var(--transition-fast), box-shadow var(--transition-fast), border-color var(--transition-fast), background var(--transition-fast);
+    }
+
+    .app-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 20px 55px rgba(0,0,0,0.85);
+      border-color: rgba(209,213,219,0.5);
+      background: radial-gradient(circle at top left, rgba(193,68,210,0.22), rgba(15,23,42,0.98));
+    }
+
+    .app-card.disabled {
+      opacity: 0.6;
+      filter: grayscale(0.2);
+      cursor: default;
+    }
+
+    .app-card.disabled:hover {
+      transform: none;
+      box-shadow: var(--shadow-soft);
+      border-color: var(--card-border);
+      background: radial-gradient(circle at top left, rgba(107,114,128,0.18), rgba(15,23,42,0.96));
+    }
+
+    .app-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .app-meta {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .app-name {
+      font-size: 16px;
+      font-weight: 600;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+    }
+
+    .app-tagline {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .app-logo-wrap {
+      flex-shrink: 0;
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: rgba(15,23,42,0.9);
+      border: 1px solid rgba(148,163,184,0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .app-logo-wrap img {
+      height: 22px;
+      width: auto;
+      display: block;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 10px;
+      padding: 4px 9px;
+      border-radius: var(--radius-pill);
+      border: 1px solid rgba(148,163,184,0.6);
+      background: rgba(15,23,42,0.9);
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--text-muted);
+    }
+
+    .badge-dot,
+    .badge-warning-dot,
+    .badge-disabled-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 999px;
+    }
+
+    .badge-dot { background: #4ade80; }
+    .badge-warning-dot { background: #f97316; }
+    .badge-disabled-dot { background: #9ca3af; }
+
+    .app-body {
+      font-size: 12px;
+      color: var(--text-main);
+      line-height: 1.45;
+    }
+
+    .app-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-top: 2px;
+    }
+
+    .app-pill-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+    }
+
+    .app-pill {
+      font-size: 10px;
+      padding: 3px 8px;
+      border-radius: var(--radius-pill);
+      border: 1px solid rgba(148,163,184,0.4);
+      color: var(--text-muted);
+      background: rgba(15,23,42,0.9);
+    }
+
+    .app-link {
+      font-size: 11px;
+      padding: 5px 10px;
+      border-radius: var(--radius-pill);
+      border: 1px solid rgba(193,68,210,0.8);
+      background: radial-gradient(circle at top left, rgba(193,68,210,0.4), rgba(15,23,42,0.98));
+      color: #f9fafb;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+    }
+
+    .app-link span.arrow {
+      font-size: 13px;
+      margin-top: -1px;
+    }
+
+    .app-card.disabled .app-link {
+      opacity: 0.7;
+      border-style: dashed;
+      cursor: default;
+    }
+
+    .app-card.disabled .app-link span.arrow {
+      display: none;
+    }
+
+    footer {
+      border-top: 1px solid #111827;
+      padding: 10px 16px 14px;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .footer-inner {
+      max-width: var(--max-width);
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    @media (max-width: 768px) {
+      .header-inner {
+        padding: 10px 12px;
+      }
+      .brand-text-main {
+        font-size: 16px;
+      }
+      .main-inner {
+        padding: 14px 12px 28px;
+      }
+      .hero {
+        grid-template-columns: minmax(0, 1fr);
+      }
+      .hero-title {
+        font-size: 22px;
+      }
+    }
+  </style>
+</head>
+<body>
+<div class="page">
+  <header>
+    <div class="header-inner">
+      <div class="brand">
+        <!-- Cambia por tu logo general del ecosistema -->
+        <img src="logo-horizonte-digital.png" alt="Horizonte Digital" class="brand-logo" />
+        <div>
+          <div class="brand-text-main">Horizonte Digital</div>
+          <div class="brand-text-sub">Ecosistema de apps de análisis</div>
+        </div>
+      </div>
+
+      <span class="tag-beta">Laboratorio · Uso interno</span>
+    </div>
+  </header>
+
+  <main>
+    <div class="main-inner">
+      <!-- HERO -->
+      <section class="hero">
+        <div>
+          <h1 class="hero-title">
+            Un mismo <span class="hero-highlight">Atlas</span> para entender
+            <br />personas, instituciones y narrativas.
+          </h1>
+          <p class="hero-subtitle">
+            Desde este panel puedes abrir Atlas y, más adelante, Monitor, Social
+            y Síntesis para analizar información pública y mediática.
+          </p>
+          <div class="hero-pills">
+            <div class="pill">
+              <span class="pill-dot"></span> Grafos políticos interactivos
+            </div>
+            <div class="pill">
+              <span class="pill-dot"></span> Monitoreo de agenda pública
+            </div>
+            <div class="pill">
+              <span class="pill-dot"></span> Integración con UpdateMe / El Queretano
+            </div>
+          </div>
+        </div>
+        <div class="hero-stats">
+          <div class="hero-stat">
+            <div class="hero-stat-label">Apps en el ecosistema</div>
+            <div class="hero-stat-value">4</div>
+            <div class="hero-stat-chip">1 disponible · 3 en desarrollo</div>
+          </div>
+          <div class="hero-stat">
+            <div class="hero-stat-label">Enfoque</div>
+            <div class="hero-stat-value">Querétaro</div>
+            <div class="hero-stat-chip">Escalable a otros estados</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- LISTA DE APPS -->
+      <section>
+        <div class="section-header">
+          <h2 class="section-title">Apps del ecosistema Horizonte</h2>
+          <p class="section-subtitle">
+            Haz clic en una app disponible para abrir su panel.
+          </p>
+        </div>
+
+        <div class="apps-grid">
+          <!-- ATLAS – activa -->
+          <a href="atlas-home.html" class="app-card">
+            <div class="app-card-header">
+              <div class="app-meta">
+                <div class="app-name">Atlas</div>
+                <div class="app-tagline">Mapas de poder y redes políticas</div>
+              </div>
+              <div class="app-logo-wrap">
+                <!-- Logo específico de Atlas -->
+                <img src="logo-horizonte-atlas.png" alt="Atlas" />
+              </div>
+            </div>
+
+            <div class="badge">
+              <span class="badge-dot"></span>
+              Disponible · v0.1
+            </div>
+
+            <p class="app-body">
+              Explora grafos interactivos de personas e instituciones:
+              cargos, trayectorias, vínculos y redes políticas,
+              con foco inicial en Querétaro.
+            </p>
+
+            <div class="app-footer">
+              <div class="app-pill-row">
+                <span class="app-pill">Personas</span>
+                <span class="app-pill">Instituciones</span>
+                <span class="app-pill">Gafos interactivos</span>
+              </div>
+              <span class="app-link">
+                Abrir Atlas
+                <span class="arrow">↗</span>
+              </span>
+            </div>
+          </a>
+
+          <!-- MONITOR – próximamente -->
+          <div class="app-card disabled">
+            <div class="app-card-header">
+              <div class="app-meta">
+                <div class="app-name">Monitor</div>
+                <div class="app-tagline">Agenda mediática y cobertura</div>
+              </div>
+              <div class="app-logo-wrap">
+                <span style="font-size:13px;color:var(--text-muted);">
+                  LOGO
+                </span>
+              </div>
+            </div>
+
+            <div class="badge">
+              <span class="badge-warning-dot"></span>
+              En desarrollo
+            </div>
+
+            <p class="app-body">
+              Panel para seguir qué dicen los medios digitales sobre
+              gobiernos, actores y temas clave. Detecta picos, silencios
+              y narrativas dominantes.
+            </p>
+
+            <div class="app-footer">
+              <div class="app-pill-row">
+                <span class="app-pill">News analytics</span>
+                <span class="app-pill">Alertas</span>
+              </div>
+              <span class="app-link">
+                Próximamente
+              </span>
+            </div>
+          </div>
+
+          <!-- SOCIAL – próximamente -->
+          <div class="app-card disabled">
+            <div class="app-card-header">
+              <div class="app-meta">
+                <div class="app-name">Social</div>
+                <div class="app-tagline">Redes sociales y conversación</div>
+              </div>
+              <div class="app-logo-wrap">
+                <span style="font-size:13px;color:var(--text-muted);">
+                  LOGO
+                </span>
+              </div>
+            </div>
+
+            <div class="badge">
+              <span class="badge-disabled-dot"></span>
+              Diseño conceptual
+            </div>
+
+            <p class="app-body">
+              Análisis de conversación en X, Facebook, Telegram y otras
+              plataformas para seguir crisis, campañas y tendencias.
+            </p>
+
+            <div class="app-footer">
+              <div class="app-pill-row">
+                <span class="app-pill">Tendencias</span>
+                <span class="app-pill">Influencers</span>
+              </div>
+              <span class="app-link">
+                Próximamente
+              </span>
+            </div>
+          </div>
+
+          <!-- SÍNTESIS – próximamente -->
+          <div class="app-card disabled">
+            <div class="app-card-header">
+              <div class="app-meta">
+                <div class="app-name">Síntesis</div>
+                <div class="app-tagline">Resúmenes ejecutivos diarios</div>
+              </div>
+              <div class="app-logo-wrap">
+                <span style="font-size:13px;color:var(--text-muted);">
+                  LOGO
+                </span>
+              </div>
+            </div>
+
+            <div class="badge">
+              <span class="badge-disabled-dot"></span>
+              Idea · Futura integración
+            </div>
+
+            <p class="app-body">
+              Boletines automatizados para clientes y redacciones:
+              qué pasó hoy, quién lo dijo y por qué importa.
+            </p>
+
+            <div class="app-footer">
+              <div class="app-pill-row">
+                <span class="app-pill">PDF / Web</span>
+                <span class="app-pill">Multifuente</span>
+              </div>
+              <span class="app-link">
+                Próximamente
+              </span>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <footer>
+    <div class="footer-inner">
+      <span>Horizonte Digital · Atlas de información pública</span>
+      <span>Uso interno · 2025</span>
+    </div>
+  </footer>
+</div>
+</body>
+</html>

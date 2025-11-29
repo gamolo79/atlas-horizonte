@@ -1,0 +1,642 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Atlas · Grafo por institución · Poder Ejecutivo del Estado de Querétaro</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <!-- Lexend -->
+  <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --bg: #000000;
+      --panel-bg: #05070b;
+      --card-bg: #11151d;
+      --card-border: #262c38;
+      --accent: #c144d2;
+      --accent-soft: #fda24f;
+      --text-main: #ffffff;
+      --text-muted: #a6bec8;
+      --pill-bg: #1f2933;
+      --pill-text: #e5e7eb;
+      --shadow-soft: 0 18px 45px rgba(0,0,0,0.6);
+      --radius-lg: 18px;
+      --radius-pill: 999px;
+
+      --chip-inst-main: #24263b;   /* institución central */
+      --chip-inst-child: #1d2336;  /* instituciones hijas */
+      --chip-person: #0f172a;      /* personas */
+      --chip-border-inst: #8f9bbf;
+      --chip-border-person: #4b5563;
+      --chip-person-main: #f7931a; /* titular */
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: "Lexend", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    .page {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* HEADER */
+
+    header {
+      border-bottom: 1px solid #111827;
+      background: radial-gradient(circle at top left, rgba(193,68,210,0.18), transparent 55%);
+    }
+
+    .header-inner {
+      padding: 10px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .brand-logo {
+      height: 28px;
+      width: auto;
+    }
+
+    .brand-labels {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+    }
+
+    .brand-text-main {
+      font-size: 16px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+    }
+
+    .brand-text-sub {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+      color: var(--text-muted);
+    }
+
+    .nav-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .nav-link {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .nav-link strong { color: var(--text-main); }
+
+    .tag-app {
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      background: rgba(15,23,42,0.95);
+      border: 1px solid rgba(148,163,184,0.4);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--text-muted);
+    }
+
+    .tag-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 999px;
+      background: #4ade80;
+    }
+
+    /* LAYOUT */
+
+    main {
+      flex: 1;
+      display: flex;
+      min-height: 0;
+    }
+
+    .layout {
+      flex: 1;
+      display: flex;
+      min-height: calc(100vh - 52px);
+    }
+
+    /* GRAFO (mockup visual) */
+
+    .graph-area {
+      flex: 1 1 auto;
+      min-width: 0;
+      padding: 12px;
+      background: radial-gradient(circle at top left, rgba(193,68,210,0.12), #020617 35%, #000000 100%);
+      position: relative;
+    }
+
+    .graph-frame {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      border-radius: 20px;
+      border: 1px solid rgba(148,163,184,0.45);
+      background: radial-gradient(circle at center, rgba(15,23,42,0.96), #020617);
+      box-shadow: var(--shadow-soft);
+      overflow: hidden;
+      padding: 16px 18px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .graph-header {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      color: var(--text-muted);
+    }
+
+    .graph-grid {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background-image:
+        linear-gradient(to right, rgba(31,41,55,0.24) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(31,41,55,0.24) 1px, transparent 1px);
+      background-size: 60px 60px;
+      opacity: 0.25;
+      z-index: 0;
+    }
+
+    .graph-body {
+      position: relative;
+      z-index: 1;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .graph-row {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .graph-row.top {
+      justify-content: space-between;
+    }
+
+    .graph-row.bottom {
+      justify-content: space-evenly;
+    }
+
+    .graph-caption {
+      font-size: 10px;
+      color: var(--text-muted);
+      padding-top: 4px;
+    }
+
+    /* CHIPS */
+
+    .chip {
+      position: relative;
+      padding: 7px 10px;
+      border-radius: 999px;
+      font-size: 10px;
+      line-height: 1.2;
+      white-space: nowrap;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      box-shadow: 0 12px 25px rgba(0,0,0,0.45);
+    }
+
+    .chip-label {
+      padding-inline: 4px;
+    }
+
+    .chip-inst-main {
+      background: var(--chip-inst-main);
+      border: 1px solid var(--chip-border-inst);
+      font-weight: 600;
+    }
+
+    .chip-inst-child {
+      background: var(--chip-inst-child);
+      border: 1px solid var(--chip-border-inst);
+    }
+
+    .chip-person {
+      background: var(--chip-person);
+      border: 1px solid var(--chip-border-person);
+    }
+
+    .chip-person-main {
+      background: var(--chip-person-main);
+      color: #111827;
+      border: 1px solid #fbbf77;
+    }
+
+    .chip-pill-tag {
+      font-size: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      padding: 2px 6px;
+      border-radius: 999px;
+      background: rgba(15,23,42,0.86);
+      border: 1px solid rgba(148,163,184,0.45);
+      color: var(--text-muted);
+    }
+
+    /* PANEL LATERAL */
+
+    #side-panel {
+      width: 340px;
+      max-width: 100%;
+      background: var(--panel-bg);
+      border-left: 1px solid #111827;
+      padding: 14px 14px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    #panel-header {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+      color: var(--text-muted);
+    }
+
+    #panel-title {
+      font-size: 16px;
+      font-weight: 600;
+      line-height: 1.25;
+      margin-top: 2px;
+    }
+
+    .panel-subtitle {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    #panel-content {
+      font-size: 12px;
+      color: var(--text-main);
+      line-height: 1.5;
+    }
+
+    #panel-content p {
+      margin: 4px 0;
+    }
+
+    .panel-section {
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px solid #111827;
+    }
+
+    .panel-section-title {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+
+    .panel-list {
+      list-style: none;
+      font-size: 12px;
+    }
+
+    .panel-list li {
+      margin-bottom: 3px;
+    }
+
+    .filters-group {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      font-size: 11px;
+      color: var(--text-main);
+    }
+
+    .filter-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .filter-checkbox {
+      width: 13px;
+      height: 13px;
+      border-radius: 3px;
+      border: 1px solid #4b5563;
+      background: #020617;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      color: #22c55e;
+    }
+
+    .filter-checkbox.active {
+      background: #22c55e;
+      color: #020617;
+      border-color: #22c55e;
+    }
+
+    /* LEYENDA */
+
+    #legend {
+      margin-top: 6px;
+      padding-top: 6px;
+      border-top: 1px solid #111827;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 4px;
+      font-size: 10px;
+      color: var(--text-muted);
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .legend-color {
+      width: 11px;
+      height: 11px;
+      border-radius: 999px;
+      background: #374151;
+    }
+
+    .legend-color.inst-main { background: #818cf8; }
+    .legend-color.inst-child { background: #4b5563; }
+    .legend-color.person-main { background: #f7931a; }
+    .legend-color.person { background: #1f2937; }
+    .legend-color.edge { border-radius: 2px; background: #9aa0a6; }
+
+    /* Navegación rápida */
+
+    .panel-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .panel-chip {
+      padding: 4px 8px;
+      border-radius: 999px;
+      font-size: 10px;
+      background: #0b1120;
+      border: 1px solid #1f2937;
+      color: var(--text-main);
+    }
+
+    .panel-chip:hover {
+      border-color: #6366f1;
+    }
+
+    @media (max-width: 900px) {
+      .layout {
+        flex-direction: column;
+      }
+
+      .graph-area {
+        height: 55vh;
+      }
+
+      #side-panel {
+        width: 100%;
+        border-left: none;
+        border-top: 1px solid #111827;
+      }
+    }
+  </style>
+</head>
+<body>
+<div class="page">
+  <!-- HEADER -->
+  <header>
+    <div class="header-inner">
+      <div class="brand">
+        <img src="{% static 'img/logo-horizonte-atlas.png' %}" alt="Horizonte Digital Atlas" class="brand-logo">
+        <div class="brand-labels">
+          <div class="brand-text-main">Atlas · Grafo por institución</div>
+          <div class="brand-text-sub">Mapa político-institucional</div>
+        </div>
+      </div>
+
+      <div class="nav-right">
+        <a href="/apps/atlas/" class="nav-link">← Volver a <strong>Atlas</strong></a>
+        <span class="tag-app">
+          <span class="tag-dot"></span> Vista de grafo
+        </span>
+      </div>
+    </div>
+  </header>
+
+  <!-- CONTENIDO -->
+  <main>
+    <div class="layout">
+      <!-- GRAFO MOCKUP -->
+      <section class="graph-area">
+        <div class="graph-frame">
+          <div class="graph-grid"></div>
+
+          <div class="graph-header">
+            Grafo político-institucional del Poder Ejecutivo del Estado de Querétaro
+          </div>
+
+          <div class="graph-body">
+            <!-- fila superior: instituciones hijas -->
+            <div class="graph-row top">
+              <div class="chip chip-inst-child">
+                <span class="chip-label">Secretaría de Desarrollo Social</span>
+              </div>
+              <div class="chip chip-inst-child">
+                <span class="chip-label">Unidad de Servicios para la Educación Básica</span>
+              </div>
+              <div class="chip chip-inst-child">
+                <span class="chip-label">Instituto Queretano de la Juventud</span>
+              </div>
+            </div>
+
+            <!-- fila central: institución padre + personas clave -->
+            <div class="graph-row">
+              <div class="chip chip-person">
+                <span class="chip-label">Luis Bernardo Nava Guerrero</span>
+              </div>
+
+              <div class="chip chip-inst-main">
+                <span class="chip-pill-tag">Institución padre</span>
+                <span class="chip-label">Poder Ejecutivo del Estado de Querétaro</span>
+              </div>
+
+              <div class="chip chip-person-main">
+                <span class="chip-label">Mauricio Kuri González</span>
+              </div>
+            </div>
+
+            <!-- fila inferior: otras instituciones y personas históricas -->
+            <div class="graph-row bottom">
+              <div class="chip chip-inst-child">
+                <span class="chip-label">Coordinación de Comunicación Social</span>
+              </div>
+              <div class="chip chip-person">
+                <span class="chip-label">Enrique Antonio Correa Sada</span>
+              </div>
+              <div class="chip chip-person">
+                <span class="chip-label">Ulises Gómez de la Rosa</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="graph-caption">
+            Vista simulada. En la versión funcional, los nodos serán interactivos y mostrarán cargos, periodos y vínculos al hacer clic.
+          </div>
+        </div>
+      </section>
+
+      <!-- PANEL LATERAL MOCKUP -->
+      <aside id="side-panel">
+        <div>
+          <div id="panel-header">Red política</div>
+          <div id="panel-title">Poder Ejecutivo del Estado de Querétaro</div>
+          <div class="panel-subtitle">Gobierno estatal · Poder Ejecutivo</div>
+        </div>
+
+        <div id="panel-content">
+          <p>
+            Estructura central del gobierno estatal. Aquí se agrupan las secretarías, unidades y organismos
+            que dependen directamente del titular del Ejecutivo.
+          </p>
+
+          <div class="panel-section">
+            <div class="panel-section-title">Información básica</div>
+            <ul class="panel-list">
+              <li><strong>Ámbito:</strong> Estatal</li>
+              <li><strong>Sede:</strong> Santiago de Querétaro, Qro.</li>
+              <li><strong>Periodo actual:</strong> 2021 – 2027</li>
+            </ul>
+          </div>
+
+          <div class="panel-section">
+            <div class="panel-section-title">Estructura interna (ejemplo)</div>
+            <ul class="panel-list">
+              <li>Secretaría de Desarrollo Social</li>
+              <li>Unidad de Servicios para la Educación Básica</li>
+              <li>Instituto Queretano de la Juventud</li>
+              <li>Coordinación de Comunicación Social</li>
+            </ul>
+          </div>
+
+          <div class="panel-section">
+            <div class="panel-section-title">Personas vinculadas</div>
+            <ul class="panel-list">
+              <li><strong>Titular actual:</strong> Mauricio Kuri González</li>
+              <li><strong>Colaboradores clave:</strong> Luis Bernardo Nava Guerrero, Enrique Antonio Correa Sada</li>
+              <li><strong>Otros vínculos:</strong> Ulises Gómez de la Rosa, entre otros</li>
+            </ul>
+          </div>
+
+          <div class="panel-section">
+            <div class="panel-section-title">Filtros de vista</div>
+            <div class="filters-group">
+              <div class="filter-item">
+                <div class="filter-checkbox active">✓</div>
+                <span>Estructura interna (instituciones hijas)</span>
+              </div>
+              <div class="filter-item">
+                <div class="filter-checkbox active">✓</div>
+                <span>Personas con cargos actuales</span>
+              </div>
+              <div class="filter-item">
+                <div class="filter-checkbox"></div>
+                <span>Personas con cargos históricos</span>
+              </div>
+              <div class="filter-item">
+                <div class="filter-checkbox"></div>
+                <span>Relaciones externas (otras instituciones)</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel-section">
+            <div class="panel-section-title">Leyenda</div>
+            <div id="legend">
+              <div class="legend-item">
+                <span class="legend-color inst-main"></span>
+                <span>Institución padre</span>
+              </div>
+              <div class="legend-item">
+                <span class="legend-color inst-child"></span>
+                <span>Instituciones hijas</span>
+              </div>
+              <div class="legend-item">
+                <span class="legend-color person-main"></span>
+                <span>Titular actual</span>
+              </div>
+              <div class="legend-item">
+                <span class="legend-color person"></span>
+                <span>Otras personas</span>
+              </div>
+              <div class="legend-item">
+                <span class="legend-color edge"></span>
+                <span>Relaciones / cargos</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel-section">
+            <div class="panel-section-title">Navegar desde aquí</div>
+            <div class="panel-chips">
+              <span class="panel-chip">Ver grafo de Mauricio Kuri González</span>
+              <span class="panel-chip">Ver grafo del Municipio de Querétaro</span>
+              <span class="panel-chip">Ver grafo del Poder Legislativo</span>
+            </div>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </main>
+</div>
+</body>
+</html>

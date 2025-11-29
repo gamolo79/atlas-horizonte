@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Atlas · Instituciones</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --bg: #000000;
+      --panel-bg: #05070b;
+      --card-bg: #11151d;
+      --card-border: #262c38;
+      --accent: #c144d2;
+      --accent-soft: #fda24f;
+      --text-main: #ffffff;
+      --text-muted: #a6bec8;
+      --pill-bg: #1f2933;
+      --pill-text: #e5e7eb;
+      --shadow-soft: 0 18px 45px rgba(0,0,0,0.6);
+      --radius-lg: 18px;
+      --radius-pill: 999px;
+      --max-width: 1120px;
+      --transition-fast: 160ms ease-out;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: "Lexend", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    a { color: inherit; text-decoration: none; }
+
+    .page { min-height: 100vh; display: flex; flex-direction: column; }
+
+    header {
+      border-bottom: 1px solid #111827;
+      background: radial-gradient(circle at top left, rgba(193,68,210,0.18), transparent 55%);
+    }
+
+    .header-inner {
+      max-width: var(--max-width);
+      margin: 0 auto;
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .brand-logo { height: 32px; width: auto; }
+
+    .brand-labels { display: flex; flex-direction: column; gap: 1px; }
+
+    .brand-text-main {
+      font-size: 18px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+    }
+
+    .brand-text-sub {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+      color: var(--text-muted);
+    }
+
+    .nav-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .nav-link {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .nav-link strong { color: var(--text-main); font-weight: 500; }
+
+    .tag-app {
+      padding: 4px 11px;
+      border-radius: var(--radius-pill);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      background: rgba(15,23,42,0.95);
+      border: 1px solid rgba(148,163,184,0.4);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--text-muted);
+    }
+
+    .tag-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 999px;
+      background: #4ade80;
+    }
+
+    main { flex: 1; }
+
+    .main-inner {
+      max-width: var(--max-width);
+      margin: 0 auto;
+      padding: 18px 16px 40px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    .hero {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .hero-eyebrow {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+      color: var(--text-muted);
+    }
+
+    .hero-title {
+      font-size: 22px;
+      line-height: 1.2;
+    }
+
+    .hero-title span { color: var(--accent); }
+
+    .hero-subtitle {
+      font-size: 13px;
+      color: var(--text-muted);
+      max-width: 520px;
+    }
+
+    .filters {
+      margin-top: 8px;
+      display: grid;
+      grid-template-columns: minmax(0, 2fr) minmax(0, 1.2fr);
+      gap: 10px;
+      align-items: center;
+    }
+
+    .search-box {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: #050814;
+      border-radius: var(--radius-pill);
+      border: 1px solid rgba(55,65,81,0.9);
+      padding: 6px 10px;
+    }
+
+    .search-icon {
+      width: 14px;
+      height: 14px;
+      border-radius: 999px;
+      border: 2px solid #6b7280;
+      position: relative;
+    }
+
+    .search-icon::after {
+      content: "";
+      position: absolute;
+      width: 7px;
+      height: 2px;
+      border-radius: 999px;
+      background: #6b7280;
+      transform: rotate(45deg);
+      right: -4px;
+      bottom: -1px;
+    }
+
+    .search-input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      outline: none;
+      color: var(--text-main);
+      font-size: 13px;
+      font-family: inherit;
+    }
+
+    .search-input::placeholder {
+      color: #6b7280;
+    }
+
+    .filter-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      justify-content: flex-end;
+    }
+
+    .chip {
+      font-size: 11px;
+      padding: 4px 10px;
+      border-radius: var(--radius-pill);
+      background: var(--pill-bg);
+      border: 1px solid rgba(148,163,184,0.45);
+      color: var(--pill-text);
+      cursor: pointer;
+    }
+
+    .chip.active {
+      background: radial-gradient(circle at top left, rgba(193,68,210,0.5), rgba(15,23,42,1));
+      border-color: rgba(236,72,153,0.9);
+      color: #f9fafb;
+    }
+
+    .section-header {
+      margin-top: 4px;
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 10px;
+    }
+
+    .section-title {
+      font-size: 14px;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      color: var(--text-muted);
+    }
+
+    .section-subtitle {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .inst-grid {
+      margin-top: 10px;
+      display: grid;
+      grid-template-columns: minmax(0, 1.3fr) minmax(0, 1.3fr);
+      gap: 10px;
+    }
+
+    .inst-card {
+      background: var(--card-bg);
+      border-radius: 14px;
+      border: 1px solid var(--card-border);
+      padding: 10px 11px 9px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      transition: background var(--transition-fast), border-color var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
+    }
+
+    .inst-card:hover {
+      background: radial-gradient(circle at top left, rgba(193,68,210,0.12), rgba(15,23,42,1));
+      border-color: rgba(209,213,219,0.55);
+      transform: translateY(-1px);
+      box-shadow: 0 14px 30px rgba(0,0,0,0.75);
+    }
+
+    .inst-title {
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    .inst-meta {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .inst-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      font-size: 10px;
+    }
+
+    .inst-tag {
+      padding: 2px 7px;
+      border-radius: var(--radius-pill);
+      background: rgba(15,23,42,0.9);
+      border: 1px solid rgba(148,163,184,0.4);
+      color: var(--text-muted);
+    }
+
+    .inst-footer {
+      margin-top: 2px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .inst-count {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .inst-link {
+      font-size: 11px;
+      padding: 5px 10px;
+      border-radius: var(--radius-pill);
+      border: 1px solid rgba(193,68,210,0.9);
+      background: radial-gradient(circle at top left, rgba(193,68,210,0.4), rgba(15,23,42,1));
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+    }
+
+    .inst-link span.arrow { font-size: 13px; margin-top: -1px; }
+
+    footer {
+      border-top: 1px solid #111827;
+      padding: 10px 16px 14px;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .footer-inner {
+      max-width: var(--max-width);
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    @media (max-width: 900px) {
+      .header-inner { padding: 10px 12px; }
+      .main-inner { padding: 14px 12px 28px; }
+
+      .filters {
+        grid-template-columns: minmax(0, 1fr);
+      }
+
+      .filter-chips { justify-content: flex-start; }
+
+      .inst-grid {
+        grid-template-columns: minmax(0, 1fr);
+      }
+    }
+  </style>
+</head>
+<body>
+<div class="page">
+  <header>
+    <div class="header-inner">
+      <div class="brand">
+        <img src="logo-horizonte-atlas.png" alt="Atlas" class="brand-logo" />
+        <div class="brand-labels">
+          <div class="brand-text-main">Atlas · Instituciones</div>
+          <div class="brand-text-sub">Selecciona una institución para ver su grafo</div>
+        </div>
+      </div>
+
+      <div class="nav-right">
+        <a href="atlas-home.html" class="nav-link">← Panel de <strong>Atlas</strong></a>
+        <span class="tag-app">
+          <span class="tag-dot"></span> Vista por institución
+        </span>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <div class="main-inner">
+      <section class="hero">
+        <div class="hero-eyebrow">Exploración</div>
+        <h1 class="hero-title">
+          Elige una <span>institución</span> para ver su mapa de cargos.
+        </h1>
+        <p class="hero-subtitle">
+          Piensa estas vistas como organigramas extendidos. Cada grafo mostrará
+          quién ha ocupado cargos y con qué conexiones políticas.
+        </p>
+
+        <div class="filters">
+          <div class="search-box">
+            <div class="search-icon"></div>
+            <input class="search-input" placeholder="Busca por nombre de institución, poder, municipio…" />
+          </div>
+          <div class="filter-chips">
+            <button class="chip active">Todas</button>
+            <button class="chip">Poder Ejecutivo</button>
+            <button class="chip">Poder Legislativo</button>
+            <button class="chip">Municipios</button>
+            <button class="chip">Universidades</button>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div class="section-header">
+          <h2 class="section-title">Instituciones principales (mockup)</h2>
+          <p class="section-subtitle">Ejemplo de cómo se vería el listado agrupado.</p>
+        </div>
+
+        <div class="inst-grid">
+          <!-- Inst 1 -->
+          <a href="grafo-institucion.html" class="inst-card">
+            <div class="inst-title">Poder Ejecutivo del Estado de Querétaro</div>
+            <div class="inst-meta">Ámbito estatal · Gobierno del estado</div>
+            <div class="inst-tags">
+              <span class="inst-tag">Secretarías</span>
+              <span class="inst-tag">Órganos desconcentrados</span>
+            </div>
+            <div class="inst-footer">
+              <span class="inst-count">≈ 25 personas registradas</span>
+              <span class="inst-link">
+                Ver grafo
+                <span class="arrow">↗</span>
+              </span>
+            </div>
+          </a>
+
+          <!-- Inst 2 -->
+          <a href="grafo-institucion.html" class="inst-card">
+            <div class="inst-title">Poder Legislativo del Estado de Querétaro</div>
+            <div class="inst-meta">Congreso local · LXI Legislatura y anteriores</div>
+            <div class="inst-tags">
+              <span class="inst-tag">Diputaciones</span>
+              <span class="inst-tag">Junta de Coordinación</span>
+            </div>
+            <div class="inst-footer">
+              <span class="inst-count">≈ 80 personas registradas</span>
+              <span class="inst-link">
+                Ver grafo
+                <span class="arrow">↗</span>
+              </span>
+            </div>
+          </a>
+
+          <!-- Inst 3 -->
+          <a href="grafo-institucion.html" class="inst-card">
+            <div class="inst-title">Municipio de Querétaro</div>
+            <div class="inst-meta">Gobierno municipal · Cabildo y dependencias</div>
+            <div class="inst-tags">
+              <span class="inst-tag">Ayuntamiento</span>
+              <span class="inst-tag">Secretarías municipales</span>
+            </div>
+            <div class="inst-footer">
+              <span class="inst-count">≈ 40 personas registradas</span>
+              <span class="inst-link">
+                Ver grafo
+                <span class="arrow">↗</span>
+              </span>
+            </div>
+          </a>
+
+          <!-- Inst 4 -->
+          <a href="grafo-institucion.html" class="inst-card">
+            <div class="inst-title">Universidad Autónoma de Querétaro</div>
+            <div class="inst-meta">Ámbito estatal · Educación superior</div>
+            <div class="inst-tags">
+              <span class="inst-tag">Rectoría</span>
+              <span class="inst-tag">Facultades</span>
+            </div>
+            <div class="inst-footer">
+              <span class="inst-count">≈ 15 personas registradas</span>
+              <span class="inst-link">
+                Ver grafo
+                <span class="arrow">↗</span>
+              </span>
+            </div>
+          </a>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <footer>
+    <div class="footer-inner">
+      <span>Atlas · Vista de instituciones.</span>
+      <span>Mockup estático · 2025</span>
+    </div>
+  </footer>
+</div>
+</body>
+</html>
