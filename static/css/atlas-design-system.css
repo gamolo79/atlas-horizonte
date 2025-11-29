@@ -688,6 +688,27 @@ header {
 .person-chip:hover {
   background: #2d2145;
   border-color: #6b4fa4;
+#related-people {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.person-chip {
+  font-size: 11px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: #111827;
+  border: 1px solid #1f2937;
+  color: var(--text-main);
+  cursor: pointer;
+  transition: background 150ms ease, border-color 150ms ease, transform 120ms ease;
+  white-space: nowrap;
+}
+
+.person-chip:hover {
+  background: #1f2937;
+  border-color: #4b5563;
   transform: translateY(-1px);
 }
 
