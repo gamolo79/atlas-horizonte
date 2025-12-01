@@ -175,6 +175,49 @@
   const relatedInstitutionsSection = document.getElementById("related-institutions-section");
   const relatedInstitutionsContainer = document.getElementById("related-institutions");
 
+  function mostrarErrorCarga(mensaje) {
+    console.error(mensaje);
+    panelTitle.textContent = "Error";
+    panelContent.innerHTML = `<p>${mensaje}</p>`;
+  }
+
+  function renderRelatedChips(personasRelacionadas, institucionesRelacionadas) {
+    relatedPeopleContainer.innerHTML = "";
+    relatedInstitutionsContainer.innerHTML = "";
+
+    if (personasRelacionadas.length) {
+      relatedPeopleSection.style.display = "block";
+      personasRelacionadas.forEach(p => {
+        const chip = document.createElement("button");
+        chip.type = "button";
+        chip.className = "person-chip";
+        chip.textContent = p.nombre_completo;
+        if (p.slug) {
+          chip.addEventListener("click", () => {
+            window.location.href = `/api/personas/${p.slug}/grafo-page/`;
+          });
+        }
+        relatedPeopleContainer.appendChild(chip);
+      });
+    } else {
+      relatedPeopleSection.style.display = "none";
+    }
+
+    if (institucionesRelacionadas.length) {
+      relatedInstitutionsSection.style.display = "block";
+      institucionesRelacionadas.forEach(inst => {
+        const chip = document.createElement("a");
+        chip.className = "chip-link";
+        const slug = inst.slug || inst.id;
+        chip.href = `/api/instituciones/${slug}/grafo-page/`;
+        chip.textContent = inst.nombre;
+        relatedInstitutionsContainer.appendChild(chip);
+      });
+    } else {
+      relatedInstitutionsSection.style.display = "none";
+    }
+  }
+
   let personasMap = {};
   let institucionesMap = {};
   let cy = null;
@@ -366,6 +409,21 @@
       const showEdge = matchesVista && matchesToggle && withinGrado && nodesVisible;
       edge.style("display", showEdge ? "element" : "none");
     });
+
+    cy.nodes().forEach(node => {
+      const grado = node.data("grado");
+      const withinGrado = grado == null ? true : grado <= gradoMax;
+      const isCentral = node.data("tipo") === "persona_central";
+
+      const hasVisibleEdges = node.connectedEdges().some(e => e.style("display") !== "none");
+      const shouldShow = withinGrado && (isCentral || hasVisibleEdges);
+
+      node.style("display", shouldShow ? "element" : "none");
+    });
+  }
+
+  function applyFilters() {
+    aplicarVista(getVistaActual());
   }
 
   function applyFilters() {
@@ -377,10 +435,17 @@
   fetch(API_URL)
     .then(res => {
       logDebug("Respuesta HTTP: " + res.status);
+      if (!res.ok) {
+        throw new Error(`Respuesta HTTP no exitosa: ${res.status}`);
+      }
       return res.json();
     })
     .then(data => {
       logDebug("Datos recibidos:", data);
+
+      if (!data || !data.persona_central) {
+        throw new Error("Datos del grafo no disponibles o incompletos.");
+      }
 
       const elements = [];
       personasMap = {};
@@ -709,38 +774,13 @@
 
       // Poblar chips de personas relacionadas
       const relacionadas = data.personas_conectadas || [];
-      if (relacionadas.length) {
-        relatedPeopleSection.style.display = "block";
-        relacionadas.forEach(p => {
-          const chip = document.createElement("button");
-          chip.type = "button";
-          chip.className = "person-chip";
-          chip.textContent = p.nombre_completo;
-          if (p.slug) {
-            chip.addEventListener("click", () => {
-              window.location.href = `/api/personas/${p.slug}/grafo-page/`;
-            });
-          }
-          relatedPeopleContainer.appendChild(chip);
-        });
-      }
 
       // Poblar chips de instituciones relacionadas con la persona central
       const institucionesRelacionadas = Array.from(instPadreCentral)
         .map(id => institucionesMap[id])
         .filter(Boolean);
 
-      if (institucionesRelacionadas.length) {
-        relatedInstitutionsSection.style.display = "block";
-        institucionesRelacionadas.forEach(inst => {
-          const chip = document.createElement("a");
-          chip.className = "chip-link";
-          const slug = inst.slug || inst.id;
-          chip.href = `/api/instituciones/${slug}/grafo-page/`;
-          chip.textContent = inst.nombre;
-          relatedInstitutionsContainer.appendChild(chip);
-        });
-      }
+      renderRelatedChips(relacionadas, institucionesRelacionadas);
 
       // Listeners de filtros
       toggleCargosEl.addEventListener("change", applyFilters);
@@ -756,7 +796,7 @@
     .catch(err => {
       console.error("Error cargando grafo:", err);
       logDebug("Error en fetch/grafo: " + err);
-      panelContent.innerHTML = "<p>Ocurrió un problema al cargar el grafo.</p>";
+      mostrarErrorCarga("Ocurrió un problema al cargar el grafo.");
     });
 </script>
 </body>
