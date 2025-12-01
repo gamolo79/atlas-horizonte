@@ -420,6 +420,21 @@
 
       node.style("display", shouldShow ? "element" : "none");
     });
+
+    cy.nodes().forEach(node => {
+      const grado = node.data("grado");
+      const withinGrado = grado == null ? true : grado <= gradoMax;
+      const isCentral = node.data("tipo") === "persona_central";
+
+      const hasVisibleEdges = node.connectedEdges().some(e => e.style("display") !== "none");
+      const shouldShow = withinGrado && (isCentral || hasVisibleEdges);
+
+      node.style("display", shouldShow ? "element" : "none");
+    });
+  }
+
+  function applyFilters() {
+    aplicarVista(getVistaActual());
   }
 
   function applyFilters() {
@@ -713,10 +728,15 @@
       });
 
       cy.ready(() => {
-        const bfs = cy.elements().bfs({ roots: `#p-${central.id}` });
+        const depthMap = {};
+        cy.elements().bfs({
+          roots: `#p-${central.id}`,
+          visit: (v, e, u, i, depth) => {
+            if (v.isNode()) depthMap[v.id()] = depth;
+          }
+        });
         cy.nodes().forEach(node => {
-          const depth = bfs.depthOf(node);
-          const grado = Number.isFinite(depth) ? depth : Infinity;
+          const grado = Number.isFinite(depthMap[node.id()]) ? depthMap[node.id()] : Infinity;
           node.data("grado", grado);
         });
         cy.fit();
