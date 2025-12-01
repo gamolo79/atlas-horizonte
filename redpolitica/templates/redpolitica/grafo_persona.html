@@ -74,6 +74,45 @@
               <span>Mostrar relaciones entre personas</span>
             </label>
           </div>
+          <div class="panel-subtitle" style="margin-top: 8px;">Vista</div>
+          <div class="toggle-list">
+            <label class="toggle-item">
+              <input type="radio" name="vista" value="instituciones">
+              <span>Instituciones</span>
+            </label>
+            <label class="toggle-item">
+              <input type="radio" name="vista" value="familiar">
+              <span>Red familiar</span>
+            </label>
+            <label class="toggle-item">
+              <input type="radio" name="vista" value="politica">
+              <span>Red política / afinidad</span>
+            </label>
+            <label class="toggle-item">
+              <input type="radio" name="vista" value="laboral">
+              <span>Red laboral</span>
+            </label>
+            <label class="toggle-item">
+              <input type="radio" name="vista" value="completa" checked>
+              <span>Vista completa</span>
+            </label>
+          </div>
+
+          <div class="panel-subtitle" style="margin-top: 8px;">Grado de conexión</div>
+          <div class="toggle-list">
+            <label class="toggle-item">
+              <input type="radio" name="grado" value="1">
+              <span>Grado 1</span>
+            </label>
+            <label class="toggle-item">
+              <input type="radio" name="grado" value="2">
+              <span>Grado 2</span>
+            </label>
+            <label class="toggle-item">
+              <input type="radio" name="grado" value="3" checked>
+              <span>Grado 3</span>
+            </label>
+          </div>
         </div>
 
         <!-- Leyenda -->
@@ -127,12 +166,51 @@
 
   const toggleCargosEl = document.getElementById("toggle-cargos");
   const toggleRelacionesEl = document.getElementById("toggle-relaciones");
+  const vistaRadios = document.querySelectorAll("input[name='vista']");
+  const gradoRadios = document.querySelectorAll("input[name='grado']");
 
   const relatedPeopleSection = document.getElementById("related-people-section");
   const relatedPeopleContainer = document.getElementById("related-people");
 
   const relatedInstitutionsSection = document.getElementById("related-institutions-section");
   const relatedInstitutionsContainer = document.getElementById("related-institutions");
+
+  function renderRelatedChips(personasRelacionadas, institucionesRelacionadas) {
+    relatedPeopleContainer.innerHTML = "";
+    relatedInstitutionsContainer.innerHTML = "";
+
+    if (personasRelacionadas.length) {
+      relatedPeopleSection.style.display = "block";
+      personasRelacionadas.forEach(p => {
+        const chip = document.createElement("button");
+        chip.type = "button";
+        chip.className = "person-chip";
+        chip.textContent = p.nombre_completo;
+        if (p.slug) {
+          chip.addEventListener("click", () => {
+            window.location.href = `/api/personas/${p.slug}/grafo-page/`;
+          });
+        }
+        relatedPeopleContainer.appendChild(chip);
+      });
+    } else {
+      relatedPeopleSection.style.display = "none";
+    }
+
+    if (institucionesRelacionadas.length) {
+      relatedInstitutionsSection.style.display = "block";
+      institucionesRelacionadas.forEach(inst => {
+        const chip = document.createElement("a");
+        chip.className = "chip-link";
+        const slug = inst.slug || inst.id;
+        chip.href = `/api/instituciones/${slug}/grafo-page/`;
+        chip.textContent = inst.nombre;
+        relatedInstitutionsContainer.appendChild(chip);
+      });
+    } else {
+      relatedInstitutionsSection.style.display = "none";
+    }
+  }
 
   let personasMap = {};
   let institucionesMap = {};
@@ -264,22 +342,82 @@
     return current;
   }
 
-  function applyFilters() {
+  function getVistaActual() {
+    const checked = Array.from(vistaRadios).find(r => r.checked);
+    return checked ? checked.value : "completa";
+  }
+
+  function getGradoMaximo() {
+    const checked = Array.from(gradoRadios).find(r => r.checked);
+    return checked ? parseInt(checked.value, 10) : 3;
+  }
+
+  function aplicarVista(vista) {
     if (!cy) return;
 
+    const gradoMax = getGradoMaximo();
     const showCargos = toggleCargosEl.checked;
     const showRelaciones = toggleRelacionesEl.checked;
+
+    const tiposPorVista = {
+      instituciones: ["cargo"],
+      familiar: ["familiar"],
+      politica: ["grupo_politico", "socio", "amistad"],
+      laboral: ["laboral"],
+      completa: [
+        "cargo",
+        "familiar",
+        "amistad",
+        "socio",
+        "grupo_politico",
+        "laboral",
+        "otro"
+      ]
+    };
+
+    const allowedTipos = tiposPorVista[vista] || tiposPorVista.completa;
+
+    cy.nodes().forEach(node => {
+      const grado = node.data("grado");
+      const visible = grado == null ? true : grado <= gradoMax;
+      node.style("display", visible ? "element" : "none");
+    });
 
     const allEdges = cy.edges();
 
     allEdges.forEach(edge => {
       const tipo = edge.data("tipo");
-      if (tipo === "cargo") {
-        edge.style("display", showCargos ? "element" : "none");
-      } else {
-        edge.style("display", showRelaciones ? "element" : "none");
-      }
+      const matchesVista = allowedTipos.includes(tipo);
+      const matchesToggle = tipo === "cargo" ? showCargos : showRelaciones;
+
+      const source = edge.source();
+      const target = edge.target();
+      const maxGrado = Math.max(
+        source.data("grado") ?? Infinity,
+        target.data("grado") ?? Infinity
+      );
+      const withinGrado = maxGrado <= gradoMax;
+      const nodesVisible =
+        source.style("display") !== "none" && target.style("display") !== "none";
+
+      const showEdge = matchesVista && matchesToggle && withinGrado && nodesVisible;
+      edge.style("display", showEdge ? "element" : "none");
     });
+
+    cy.nodes().forEach(node => {
+      const grado = node.data("grado");
+      const withinGrado = grado == null ? true : grado <= gradoMax;
+      const isCentral = node.data("tipo") === "persona_central";
+
+      const hasVisibleEdges = node.connectedEdges().some(e => e.style("display") !== "none");
+      const shouldShow = withinGrado && (isCentral || hasVisibleEdges);
+
+      node.style("display", shouldShow ? "element" : "none");
+    });
+  }
+
+  function applyFilters() {
+    aplicarVista(getVistaActual());
   }
 
   logDebug("Cargando grafo desde " + API_URL);
@@ -511,12 +649,61 @@
             style: {
               "width": 2.5
             }
+          },
+          {
+            selector: "edge[tipo = 'familiar']",
+            style: {
+              "line-color": "#f7931a",
+              "target-arrow-color": "#f7931a"
+            }
+          },
+          {
+            selector: "edge[tipo = 'amistad']",
+            style: {
+              "line-color": "#a855f7",
+              "target-arrow-color": "#a855f7"
+            }
+          },
+          {
+            selector: "edge[tipo = 'socio']",
+            style: {
+              "line-color": "#6366f1",
+              "target-arrow-color": "#6366f1"
+            }
+          },
+          {
+            selector: "edge[tipo = 'grupo_politico']",
+            style: {
+              "line-color": "#22c55e",
+              "target-arrow-color": "#22c55e"
+            }
+          },
+          {
+            selector: "edge[tipo = 'laboral']",
+            style: {
+              "line-color": "#ec4899",
+              "target-arrow-color": "#ec4899"
+            }
+          },
+          {
+            selector: "edge[tipo = 'cargo']",
+            style: {
+              "line-color": "#cbd5e1",
+              "target-arrow-color": "#cbd5e1"
+            }
           }
         ]
       });
 
       cy.ready(() => {
+        const bfs = cy.elements().bfs({ roots: `#p-${central.id}` });
+        cy.nodes().forEach(node => {
+          const depth = bfs.depthOf(node);
+          const grado = Number.isFinite(depth) ? depth : Infinity;
+          node.data("grado", grado);
+        });
         cy.fit();
+        aplicarVista(getVistaActual());
       });
 
       // Panel inicial: persona central
@@ -570,43 +757,22 @@
 
       // Poblar chips de personas relacionadas
       const relacionadas = data.personas_conectadas || [];
-      if (relacionadas.length) {
-        relatedPeopleSection.style.display = "block";
-        relacionadas.forEach(p => {
-          const chip = document.createElement("button");
-          chip.type = "button";
-          chip.className = "person-chip";
-          chip.textContent = p.nombre_completo;
-          if (p.slug) {
-            chip.addEventListener("click", () => {
-              window.location.href = `/api/personas/${p.slug}/grafo-page/`;
-            });
-          }
-          relatedPeopleContainer.appendChild(chip);
-        });
-      }
 
       // Poblar chips de instituciones relacionadas con la persona central
       const institucionesRelacionadas = Array.from(instPadreCentral)
         .map(id => institucionesMap[id])
         .filter(Boolean);
 
-      if (institucionesRelacionadas.length) {
-        relatedInstitutionsSection.style.display = "block";
-        institucionesRelacionadas.forEach(inst => {
-          const chip = document.createElement("a");
-          chip.className = "chip-link";
-          const slug = inst.slug || inst.id;
-          chip.href = `/api/instituciones/${slug}/grafo-page/`;
-          chip.textContent = inst.nombre;
-          relatedInstitutionsContainer.appendChild(chip);
-        });
-      }
+      renderRelatedChips(relacionadas, institucionesRelacionadas);
 
       // Listeners de filtros
       toggleCargosEl.addEventListener("change", applyFilters);
       toggleRelacionesEl.addEventListener("change", applyFilters);
-      applyFilters();
+      vistaRadios.forEach(radio => radio.addEventListener("change", () => {
+        aplicarVista(radio.value);
+      }));
+
+      gradoRadios.forEach(radio => radio.addEventListener("change", applyFilters));
 
       logDebug("Grafo dibujado.");
     })
