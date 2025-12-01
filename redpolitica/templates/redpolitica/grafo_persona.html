@@ -175,6 +175,12 @@
   const relatedInstitutionsSection = document.getElementById("related-institutions-section");
   const relatedInstitutionsContainer = document.getElementById("related-institutions");
 
+  function mostrarErrorCarga(mensaje) {
+    console.error(mensaje);
+    panelTitle.textContent = "Error";
+    panelContent.innerHTML = `<p>${mensaje}</p>`;
+  }
+
   function renderRelatedChips(personasRelacionadas, institucionesRelacionadas) {
     relatedPeopleContainer.innerHTML = "";
     relatedInstitutionsContainer.innerHTML = "";
@@ -425,10 +431,17 @@
   fetch(API_URL)
     .then(res => {
       logDebug("Respuesta HTTP: " + res.status);
+      if (!res.ok) {
+        throw new Error(`Respuesta HTTP no exitosa: ${res.status}`);
+      }
       return res.json();
     })
     .then(data => {
       logDebug("Datos recibidos:", data);
+
+      if (!data || !data.persona_central) {
+        throw new Error("Datos del grafo no disponibles o incompletos.");
+      }
 
       const elements = [];
       personasMap = {};
@@ -779,7 +792,7 @@
     .catch(err => {
       console.error("Error cargando grafo:", err);
       logDebug("Error en fetch/grafo: " + err);
-      panelContent.innerHTML = "<p>Ocurrió un problema al cargar el grafo.</p>";
+      mostrarErrorCarga("Ocurrió un problema al cargar el grafo.");
     });
 </script>
 </body>
