@@ -1,3 +1,5 @@
+from collections import deque
+
 from django.shortcuts import get_object_or_404, render
 from django.views.generic import ListView
 from rest_framework import generics
@@ -111,18 +113,37 @@ class PersonaGrafoView(APIView):
 
         persona_data = PersonaSerializer(persona).data
 
-        # Relaciones persona <-> persona donde interviene la persona central
-        relaciones = Relacion.objects.filter(
-            origen=persona
-        ) | Relacion.objects.filter(destino=persona)
-        relaciones = relaciones.distinct()
-        relaciones_data = RelacionSerializer(relaciones, many=True).data
+        # Relaciones persona <-> persona hasta grado 3 (BFS)
+        max_depth = 3
+        personas_ids = {persona.id}
+        relaciones_ids = set()
 
-        # Personas conectadas por esas relaciones
-        personas_ids = set()
-        for rel in relaciones:
-            personas_ids.add(rel.origen_id)
-            personas_ids.add(rel.destino_id)
+        relaciones_qs = Relacion.objects.all().select_related("origen", "destino")
+        adjacency = {}
+
+        for rel in relaciones_qs:
+            adjacency.setdefault(rel.origen_id, []).append(rel)
+            adjacency.setdefault(rel.destino_id, []).append(rel)
+
+        visitados = {persona.id: 0}
+        queue = deque([persona.id])
+
+        while queue:
+            actual_id = queue.popleft()
+            profundidad_actual = visitados[actual_id]
+            if profundidad_actual >= max_depth:
+                continue
+
+            for rel in adjacency.get(actual_id, []):
+                relaciones_ids.add(rel.id)
+                vecino_id = rel.destino_id if rel.origen_id == actual_id else rel.origen_id
+
+                if vecino_id not in visitados:
+                    visitados[vecino_id] = profundidad_actual + 1
+                    personas_ids.add(vecino_id)
+                    queue.append(vecino_id)
+                else:
+                    personas_ids.add(vecino_id)
 
         # Quitamos a la persona central del set
         personas_ids.discard(persona.id)
@@ -131,6 +152,9 @@ class PersonaGrafoView(APIView):
         personas_conectadas_data = PersonaSerializer(
             personas_conectadas, many=True
         ).data
+
+        relaciones = Relacion.objects.filter(id__in=relaciones_ids)
+        relaciones_data = RelacionSerializer(relaciones, many=True).data
 
         # === INSTITUCIONES RELACIONADAS (para cargos) ===
         instituciones_ids = set()
