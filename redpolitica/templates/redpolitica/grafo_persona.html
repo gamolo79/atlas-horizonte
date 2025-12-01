@@ -713,12 +713,22 @@
       });
 
       cy.ready(() => {
-        const bfs = cy.elements().bfs({ roots: `#p-${central.id}` });
-        cy.nodes().forEach(node => {
-          const depth = bfs.depthOf(node);
-          const grado = Number.isFinite(depth) ? depth : Infinity;
-          node.data("grado", grado);
+        cy.elements().bfs({
+          roots: `#p-${central.id}`,
+          directed: false,
+          visit: (node, _edge, _prev, _index, depth) => {
+            if (!node || !node.isNode()) return;
+            const grado = Number.isFinite(depth) ? depth : Infinity;
+            node.data("grado", grado);
+          }
         });
+
+        cy.nodes().forEach(node => {
+          if (node.data("grado") == null) {
+            node.data("grado", Infinity);
+          }
+        });
+
         cy.fit();
         aplicarVista(getVistaActual());
       });
