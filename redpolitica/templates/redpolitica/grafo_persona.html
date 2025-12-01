@@ -420,6 +420,25 @@
 
       node.style("display", shouldShow ? "element" : "none");
     });
+
+    cy.nodes().forEach(node => {
+      const grado = node.data("grado");
+      const withinGrado = grado == null ? true : grado <= gradoMax;
+      const isCentral = node.data("tipo") === "persona_central";
+
+      const hasVisibleEdges = node.connectedEdges().some(e => e.style("display") !== "none");
+      const shouldShow = withinGrado && (isCentral || hasVisibleEdges);
+
+      node.style("display", shouldShow ? "element" : "none");
+    });
+  }
+
+  function applyFilters() {
+    aplicarVista(getVistaActual());
+  }
+
+  function applyFilters() {
+    aplicarVista(getVistaActual());
   }
 
   function applyFilters() {
