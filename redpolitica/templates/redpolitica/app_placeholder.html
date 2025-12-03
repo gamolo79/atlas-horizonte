@@ -27,6 +27,8 @@
     .actions { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; }
     .btn { padding: 10px 14px; border-radius: 999px; border: 1px solid rgba(148,163,184,0.35); background: rgba(17,24,39,0.9); color: var(--text-main); font-size: 13px; text-decoration: none; }
     .btn-primary { background: linear-gradient(120deg, #c144d2, #fda24f); border-color: transparent; color: #0b0f18; font-weight: 600; }
+    .footer-note { color: var(--text-muted); font-size: 12px; margin-top: 14px; }
+    .footer-note a { color: var(--text-main); }
   </style>
 </head>
 <body>
@@ -38,6 +40,7 @@
       <a class="btn" href="/">← Volver al ecosistema</a>
       <a class="btn btn-primary" href="/apps/atlas/">Ir a Atlas</a>
     </div>
+    <div class="footer-note">Horizonte Digital · <a href="{% url 'privacy-notice' %}">Aviso de privacidad</a></div>
   </div>
 </body>
 </html>
