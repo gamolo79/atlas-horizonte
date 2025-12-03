@@ -14,6 +14,10 @@ def index_apps(request):
     return render(request, "redpolitica/index_apps.html")
 
 
+def privacy_notice(request):
+    return render(request, "redpolitica/aviso_privacidad.html")
+
+
 def atlas_home(request):
     return render(request, "redpolitica/atlas_home.html")
 
