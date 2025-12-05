@@ -18,6 +18,10 @@ def privacy_notice(request):
     return render(request, "redpolitica/aviso_privacidad.html")
 
 
+def terms_conditions(request):
+    return render(request, "redpolitica/terminos_condiciones.html")
+
+
 def atlas_home(request):
     return render(request, "redpolitica/atlas_home.html")
 

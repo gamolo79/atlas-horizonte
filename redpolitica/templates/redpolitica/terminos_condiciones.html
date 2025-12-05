@@ -1,0 +1,184 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Términos y Condiciones · Horizonte Digital</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/atlas-design-system.css' %}">
+</head>
+<body>
+  <div class="page">
+    <header>
+      <div class="header-inner">
+        <div class="brand">
+          <img src="{% static 'img/logo-horizonte-atlas.png' %}" alt="Horizonte Digital" class="brand-logo">
+          <div class="brand-texts">
+            <div class="brand-text-main">Términos y Condiciones de Uso</div>
+            <div class="brand-text-sub">Ecosistema Horizonte Digital</div>
+          </div>
+        </div>
+        <a class="btn" href="/">← Volver al ecosistema</a>
+      </div>
+    </header>
+
+    <main>
+      <div class="main-inner">
+        <section class="panel">
+          <div class="panel-title">Fecha de última actualización</div>
+          <p>4 de diciembre de 2025.</p>
+          <p>Bienvenido(a) al ecosistema de aplicaciones de Horizonte Digital, integrado por Atlas Horizonte, Monitor Horizonte y Social Horizonte (en adelante, “las Plataformas”). El uso de cualquiera de estas herramientas implica la aceptación plena y sin reservas de los presentes Términos y Condiciones. Si no está de acuerdo con ellos, deberá abstenerse de utilizar nuestros servicios.</p>
+        </section>
+
+        <section class="panel">
+          <div class="panel-title">1. Responsable del Servicio</div>
+          <p>Las Plataformas son operadas por:</p>
+          <ul class="panel-list">
+            <li>Gabriel Morales López</li>
+            <li>Nombre comercial: Horizonte Media</li>
+            <li>Domicilio: Av. Fray Luis de León 8002, Torre B, Piso 5, Centro Sur, Querétaro, Qro., C.P. 76090</li>
+            <li>Correo de contacto: <a href="mailto:contacto@horizonte.media">contacto@horizonte.media</a></li>
+          </ul>
+        </section>
+
+        <section class="panel">
+          <div class="panel-title">2. Descripción de las Plataformas</div>
+          <p>El ecosistema Horizonte Media incluye:</p>
+          <div class="panel-grid" style="grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px;">
+            <div class="card-link" style="padding: 16px;">
+              <div class="card-title">Atlas Horizonte</div>
+              <p class="card-desc">Herramienta de consulta y análisis de información pública proveniente de fuentes oficiales, bases de datos de transparencia, registros legislativos, comunicados institucionales y otros contenidos públicos difundidos por instituciones y actores relevantes.</p>
+            </div>
+            <div class="card-link" style="padding: 16px;">
+              <div class="card-title">Monitor Horizonte</div>
+              <p class="card-desc">Sistema de monitoreo y análisis de medios de comunicación mediante feeds RSS, notas informativas públicas, publicaciones abiertas y análisis automatizado de cobertura, frecuencia temática y tendencias.</p>
+            </div>
+            <div class="card-link" style="padding: 16px;">
+              <div class="card-title">Social Horizonte</div>
+              <p class="card-desc">Aplicación que analiza únicamente datos públicos de páginas (“fanpages”) de redes sociales, incluyendo contenido y metadatos accesibles a través de Meta Graph API y otras APIs que exponen información pública.</p>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-title">3. Uso permitido</div>
+          <p>El usuario se compromete a utilizar las Plataformas únicamente con fines lícitos y conforme a los presentes Términos. Queda estrictamente prohibido:</p>
+          <ul class="panel-list">
+            <li>Intentar acceder a información privada o restringida no expuesta por medios oficiales.</li>
+            <li>Utilizar prácticas de scraping en redes sociales o plataformas donde esté prohibido.</li>
+            <li>Elaborar perfiles individuales, vigilancia, segmentación o decisiones automatizadas sobre personas.</li>
+            <li>Comercializar, redistribuir o publicar información en violación de las políticas de terceros (Meta, X, Google, etc.).</li>
+            <li>Manipular o interferir con el funcionamiento técnico de las Plataformas.</li>
+          </ul>
+          <p style="margin-top: 12px;">Las Plataformas procesan exclusivamente información pública, proveniente de:</p>
+          <ul class="panel-list">
+            <li>Instituciones gubernamentales y sus obligaciones de transparencia.</li>
+            <li>Medios de comunicación.</li>
+            <li>Redes sociales que exponen información vía APIs oficiales.</li>
+            <li>Datos abiertos publicados por entidades públicas o actores que difunden sus contenidos de forma abierta.</li>
+          </ul>
+        </section>
+
+        <section class="panel">
+          <div class="panel-title">4. Intercambio de información entre plataformas del ecosistema</div>
+          <p>Para mejorar la experiencia del usuario y la calidad del análisis público, las Plataformas pueden compartir entre sí ciertos datos agregados, siempre que se trate únicamente de:</p>
+          <ul class="panel-list">
+            <li>Información pública proveniente de fuentes abiertas.</li>
+            <li>Métricas estadísticas.</li>
+            <li>Datos institucionales o legislativos disponibles legalmente.</li>
+            <li>Resultados derivados del análisis interno, sin incluir información privada o sensible.</li>
+          </ul>
+          <p style="margin-top: 12px;">Ninguna plataforma accede a datos privados de usuarios, ni se fusiona información que pueda identificar personas físicas más allá de lo ya disponible públicamente.</p>
+          <p>El intercambio entre módulos se realiza exclusivamente para:</p>
+          <ul class="panel-list">
+            <li>Enriquecer visualizaciones.</li>
+            <li>Mejorar la precisión de los análisis.</li>
+            <li>Permitir dashboards integrados de cobertura, actividad institucional y métricas públicas.</li>
+          </ul>
+          <p>Todo uso cumple las restricciones de cada API.</p>
+        </section>
+
+        <section class="panel">
+          <div class="panel-title">5. Acceso a datos públicos de redes sociales</div>
+          <div class="panel-subtitle">5.1 Social Horizonte</div>
+          <p>Accede únicamente a información pública proporcionada mediante APIs oficiales, como:</p>
+          <ul class="panel-list">
+            <li>Meta Graph API (Facebook/Instagram):</li>
+            <li>Metadatos de páginas públicas (nombre, ID, categoría, foto).</li>
+            <li>Publicaciones públicas y sus métricas agregadas (reacciones totales, comentarios totales, compartidos totales).</li>
+          </ul>
+          <p>No accede a perfiles personales, listas de usuarios, ni datos privados. No extrae ni almacena información mediante scraping.</p>
+          <div class="panel-subtitle" style="margin-top: 12px;">5.2 Restricciones por políticas de Meta</div>
+          <ul class="panel-list">
+            <li>No se crean perfiles de usuarios.</li>
+            <li>No se analiza comportamiento individual.</li>
+            <li>No se almacenan datos privados.</li>
+            <li>No se redistribuyen datos públicos con información que Meta considere sensible.</li>
+          </ul>
+        </section>
+
+        <section class="panel">
+          <div class="panel-title">6. Almacenamiento y conservación de datos</div>
+          <p>Las Plataformas pueden almacenar:</p>
+          <ul class="panel-list">
+            <li>Datos públicos institucionales.</li>
+            <li>Contenido informativo proveniente de medios y gobiernos.</li>
+            <li>Estadísticas agregadas de publicaciones y actividad pública.</li>
+            <li>Resultados generados por algoritmos de análisis.</li>
+          </ul>
+          <p style="margin-top: 12px;">No almacenamos datos privados de individuos. La información se conserva el tiempo necesario para fines de análisis y funcionamiento del ecosistema.</p>
+          <p style="margin-top: 12px;">Para información adicional, consulte nuestro Aviso de Privacidad en: <a href="{% url 'privacy-notice' %}">horizonte.digital/aviso-privacidad</a>.</p>
+        </section>
+
+        <section class="panel">
+          <div class="panel-title">7. Propiedad intelectual</div>
+          <p>El software, diseño, interfaz, logotipos, visualizaciones, sistemas analíticos y bases de datos generadas internamente por Horizonte Media son propiedad exclusiva del desarrollador.</p>
+          <p>La información pública analizada pertenece a sus titulares originales:</p>
+          <ul class="panel-list">
+            <li>Instituciones</li>
+            <li>Medios de comunicación</li>
+            <li>Plataformas de redes sociales</li>
+            <li>Actores públicos</li>
+          </ul>
+          <p>Horizonte Media solo la procesa y organiza conforme a las leyes aplicables.</p>
+        </section>
+
+        <section class="panel">
+          <div class="panel-title">8. Limitación de responsabilidad</div>
+          <p>Horizonte Media no se responsabiliza por:</p>
+          <ul class="panel-list">
+            <li>Caídas o cambios en APIs externas (Meta, X, Google, YouTube, etc.).</li>
+            <li>Modificaciones en políticas de terceros que limiten o eliminen acceso a datos públicos.</li>
+            <li>Errores derivados de contenido público generado por terceros.</li>
+            <li>Interpretaciones o usos que terceros hagan de la información procesada.</li>
+          </ul>
+          <p>Las Plataformas se ofrecen “tal cual están” y no se garantiza disponibilidad continua.</p>
+        </section>
+
+        <section class="panel">
+          <div class="panel-title">9. Modificaciones a los Términos</div>
+          <p>Horizonte Media puede actualizar estos Términos por cambios legales, técnicos u operativos. El uso continuado implica aceptación de dichas modificaciones.</p>
+        </section>
+
+        <section class="panel">
+          <div class="panel-title">10. Jurisdicción aplicable</div>
+          <p>Estos Términos se rigen por las leyes mexicanas. Cualquier disputa se resolverá ante tribunales competentes de Querétaro, México.</p>
+        </section>
+
+        <section class="panel">
+          <div class="panel-title">11. Contacto</div>
+          <p>Para aclaraciones relacionadas con estos Términos, escriba a:</p>
+          <ul class="panel-list">
+            <li><span aria-hidden="true">📧</span> <a href="mailto:contacto@horizonte.media">contacto@horizonte.media</a></li>
+          </ul>
+        </section>
+      </div>
+    </main>
+
+    <footer>
+      Horizonte Digital · <a href="{% url 'privacy-notice' %}">Aviso de privacidad</a> · <a href="{% url 'terms-conditions' %}">Términos y condiciones</a>
+    </footer>
+  </div>
+</body>
+</html>
