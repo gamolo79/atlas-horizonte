@@ -8,11 +8,13 @@ from .views import (
     monitor_placeholder,
     privacy_notice,
     social_placeholder,
+    terms_conditions,
 )
 
 urlpatterns = [
     path("", index_apps, name="index-apps"),
     path("aviso-privacidad/", privacy_notice, name="privacy-notice"),
+    path("terminos-condiciones/", terms_conditions, name="terms-conditions"),
     path("apps/atlas/", atlas_home, name="atlas-home"),
     path("apps/atlas/personas/", AtlasPersonasListView.as_view(), name="atlas-personas-list"),
     path(
