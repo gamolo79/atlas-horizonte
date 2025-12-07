@@ -331,6 +331,8 @@
 
         const nivelCentral = nivelesInstitucion[instCentral.id] ?? 0;
 
+        const nodeIds = new Set();
+
         // --- 3) Nodos de instituciones ---
         Object.values(institucionesMap).forEach(inst => {
           const nivel = nivelesInstitucion[inst.id];
@@ -349,6 +351,8 @@
               level: nivel
             }
           });
+
+          nodeIds.add(`i-${inst.id}`);
         });
 
         // --- 4) Nodos de personas (sólo con cargos en la central) ---
@@ -372,13 +376,22 @@
           if (!inst.padre) return;
           if (!institucionesMap[inst.padre]) return;
           const nivel = nivelesInstitucion[inst.id];
+          const nivelPadre = nivelesInstitucion[inst.padre];
           if (nivel == null || nivel > MAX_NIVEL_ORGANIGRAMA) return;
+          // Evita crear aristas hacia nodos filtrados del organigrama (solo tres niveles)
+          if (nivelPadre == null || nivelPadre > MAX_NIVEL_ORGANIGRAMA) return;
+
+          const sourceId = `i-${inst.padre}`;
+          const targetId = `i-${inst.id}`;
+
+          // Evita aristas cuando el nodo fuente o destino no se renderizó (por filtrado o datos incompletos)
+          if (!nodeIds.has(sourceId) || !nodeIds.has(targetId)) return;
 
           elements.push({
             data: {
               id: `rel-inst-${inst.padre}-${inst.id}`,
-              source: 'i-' + inst.padre,
-              target: 'i-' + inst.id,
+              source: sourceId,
+              target: targetId,
               tipo: "jerarquia",
               level: nivel
             }
