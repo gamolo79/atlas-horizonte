@@ -441,6 +441,8 @@
           levelWidth: () => 1
         };
 
+        let cy;
+
         function buildRadialLayout(maxNivel, graphInstance) {
           const graph = graphInstance || cy;
           const maxNivelVisible = Math.max(maxNivel, MAX_NIVEL_ORGANIGRAMA);
@@ -461,7 +463,7 @@
           };
         }
 
-        const cy = cytoscape({
+        cy = cytoscape({
           container: document.getElementById("cy"),
           elements,
           layout: buildRadialLayout(MAX_NIVEL_ORGANIGRAMA, null),
