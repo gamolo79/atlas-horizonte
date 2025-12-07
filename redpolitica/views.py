@@ -224,6 +224,8 @@ class InstitucionGrafoView(APIView):
       - institucion_central
       - institucion_padre (si existe)
       - instituciones (hijas directas)
+      - instituciones_nivel2 (hijas de las hijas)
+      - instituciones_ancestros (cadena hasta la raíz)
       - personas (con cargos en la institución central)
       - cargos (sólo en la institución central)
     """
@@ -236,6 +238,10 @@ class InstitucionGrafoView(APIView):
         # Hijas directas de la institución central
         hijas_qs = Institucion.objects.filter(padre=institucion).distinct()
         hijas_data = InstitucionSerializer(hijas_qs, many=True).data
+
+        # Nietas (hijas de las hijas) para nivel 3
+        nietas_qs = Institucion.objects.filter(padre__in=hijas_qs).distinct()
+        nietas_data = InstitucionSerializer(nietas_qs, many=True).data
 
         # Cargos sólo en la institución central
         cargos_qs = Cargo.objects.filter(institucion=institucion).select_related("persona")
@@ -266,13 +272,24 @@ class InstitucionGrafoView(APIView):
         if institucion.padre:
             institucion_padre_data = InstitucionSerializer(institucion.padre).data
 
+        # Ancestros hasta la raíz para dibujar organigrama
+        ancestros_data = []
+        actual = institucion.padre
+        visitados = set()
+        while actual and actual.id not in visitados:
+            ancestros_data.append(InstitucionSerializer(actual).data)
+            visitados.add(actual.id)
+            actual = actual.padre
+
         return Response(
             {
                 "institucion_central": institucion_central_data,
                 "institucion_padre": institucion_padre_data,
-                "instituciones": hijas_data,   # hijas
-                "personas": personas_data,     # personas con cargos en la central
-                "cargos": cargos_data,         # cargos en la central
+                "instituciones": hijas_data,          # hijas
+                "instituciones_nivel2": nietas_data,  # hijas de las hijas
+                "instituciones_ancestros": ancestros_data,  # cadena de padres
+                "personas": personas_data,              # personas con cargos en la central
+                "cargos": cargos_data,                  # cargos en la central
             }
         )
 
