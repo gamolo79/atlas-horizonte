@@ -75,6 +75,15 @@
               <input type="checkbox" id="toggle-personas" checked />
               <span>Mostrar personas con cargos</span>
             </label>
+            <div class="toggle-label">Niveles del organigrama</div>
+            <label class="toggle-item">
+              <input type="radio" name="nivel-organigrama" value="2" checked />
+              <span>2 niveles</span>
+            </label>
+            <label class="toggle-item">
+              <input type="radio" name="nivel-organigrama" value="3" />
+              <span>3 niveles</span>
+            </label>
           </div>
         </div>
 
@@ -87,8 +96,12 @@
               <span>Institución central</span>
             </div>
             <div class="legend-item">
+              <span class="legend-color inst-padre"></span>
+              <span>Institución raíz / padre</span>
+            </div>
+            <div class="legend-item">
               <span class="legend-color inst-hija"></span>
-              <span>Instituciones hijas</span>
+              <span>Instituciones descendientes</span>
             </div>
             <div class="legend-item">
               <span class="legend-color personas"></span>
@@ -130,6 +143,7 @@
     const panelTitle = document.getElementById("panel-title");
     const panelContent = document.getElementById("panel-content");
     const togglePersonas = document.getElementById("toggle-personas");
+    const nivelToggles = document.querySelectorAll("input[name='nivel-organigrama']");
     const chipsContainer = document.getElementById("institutions-chips");
     const peopleChipsSection = document.getElementById("people-chips-section");
     const peopleChips = document.getElementById("people-chips");
@@ -237,22 +251,30 @@
         institucionesMap[instCentral.id] = instCentral;
 
         // Resto de instituciones relacionadas
-        (data.instituciones || []).forEach(inst => {
-          if (inst.id == null) return;
+        const hijas = data.instituciones || [];
+        const nietas = data.instituciones_nivel2 || [];
+        const ancestros = data.instituciones_ancestros || [];
+        const institucionPadre = data.institucion_padre || null;
+
+        const institucionesTodas = [
+          ...ancestros,
+          ...(institucionPadre ? [institucionPadre] : []),
+          instCentral,
+          ...hijas,
+          ...nietas
+        ];
+
+        institucionesTodas.forEach(inst => {
+          if (!inst || inst.id == null) return;
           institucionesMap[inst.id] = inst;
         });
 
-// Hijas directas de la central
-const hijas = Object.values(institucionesMap).filter(
-  inst => inst.padre === instCentral.id
-);
-
-// Institución padre (viene directa en el JSON si existe)
-let institucionPadre = data.institucion_padre || null;
-if (institucionPadre && institucionPadre.id != null) {
-  // La agregamos al mapa para poder usarla en el panel si hiciera falta
-  institucionesMap[institucionPadre.id] = institucionPadre;
-}
+        let institucionRaiz = instCentral;
+        if (ancestros.length) {
+          institucionRaiz = ancestros[ancestros.length - 1];
+        } else if (institucionPadre) {
+          institucionRaiz = institucionPadre;
+        }
 
         // Personas
         (data.personas || []).forEach(p => {
@@ -272,32 +294,51 @@ if (institucionPadre && institucionPadre.id != null) {
           }
         });
 
-        // --- 2) Nodos de instituciones ---
-        // Institución central en el centro
-        elements.push({
-          data: {
-            id: `i-${instCentral.id}`,
-            institucion_id: instCentral.id,
-            label: instCentral.nombre,
-            tipo: "institucion_central",
-            level: 0
-          }
+        // --- 2) Niveles para organigrama ---
+        const nivelesInstitucion = {};
+
+        function obtenerNivel(instId, stack = new Set()) {
+          if (instId == null || !institucionRaiz) return null;
+          if (instId === institucionRaiz.id) return 0;
+          if (nivelesInstitucion[instId] != null) return nivelesInstitucion[instId];
+          const inst = institucionesMap[instId];
+          if (!inst || inst.padre == null || stack.has(instId)) return null;
+          stack.add(instId);
+          const nivelPadre = obtenerNivel(inst.padre, stack);
+          stack.delete(instId);
+          if (nivelPadre == null) return null;
+          nivelesInstitucion[instId] = nivelPadre + 1;
+          return nivelesInstitucion[instId];
+        }
+
+        Object.values(institucionesMap).forEach(inst => {
+          const nivel = obtenerNivel(inst.id);
+          if (nivel != null) nivelesInstitucion[inst.id] = nivel;
         });
 
-        // Instituciones hijas
-        hijas.forEach(inst => {
+        const nivelCentral = nivelesInstitucion[instCentral.id] ?? 0;
+
+        // --- 3) Nodos de instituciones ---
+        Object.values(institucionesMap).forEach(inst => {
+          const nivel = nivelesInstitucion[inst.id];
+          if (nivel == null) return;
+
+          let tipo = "institucion_descendiente";
+          if (inst.id === instCentral.id) tipo = "institucion_central";
+          if (institucionRaiz && inst.id === institucionRaiz.id) tipo = "institucion_padre";
+
           elements.push({
             data: {
               id: `i-${inst.id}`,
               institucion_id: inst.id,
               label: inst.nombre,
-              tipo: "institucion_hija",
-              level: 1
+              tipo,
+              level: nivel
             }
           });
         });
 
-        // --- 3) Nodos de personas (sólo con cargos en la central) ---
+        // --- 4) Nodos de personas (sólo con cargos en la central) ---
         personasConCargoCentral.forEach(personaId => {
           const p = personasMap[personaId];
           if (!p) return;
@@ -308,24 +349,30 @@ if (institucionPadre && institucionPadre.id != null) {
               persona_id: p.id,
               label: p.nombre_completo,
               tipo: "persona",
-              level: 2
+              level: nivelCentral + 1
             }
           });
         });
 
-        // --- 4) Aristas institución central → hijas ---
-        hijas.forEach(inst => {
+        // --- 5) Aristas jerárquicas (padre → hija) ---
+        Object.values(institucionesMap).forEach(inst => {
+          if (!inst.padre) return;
+          if (!institucionesMap[inst.padre]) return;
+          const nivel = nivelesInstitucion[inst.id];
+          if (nivel == null) return;
+
           elements.push({
             data: {
-              id: `rel-inst-${instCentral.id}-${inst.id}`,
-              source: `i-${instCentral.id}`,
-              target: `i-${inst.id}`,
-              tipo: "jerarquia"
+              id: `rel-inst-${inst.padre}-${inst.id}`,
+              source: 'i-' + inst.padre,
+              target: 'i-' + inst.id,
+              tipo: "jerarquia",
+              level: nivel
             }
           });
         });
 
-        // --- 5) Aristas de cargos persona → institución central ---
+        // --- 6) Aristas de cargos persona → institución central ---
         cargos.forEach(c => {
           if (c.persona_id == null || c.institucion_id == null) return;
           if (c.institucion_id !== instCentral.id) return;
@@ -359,17 +406,12 @@ if (institucionPadre && institucionPadre.id != null) {
           container: document.getElementById("cy"),
           elements,
           layout: {
-            name: "concentric",
+            name: "breadthfirst",
             animate: false,
-            padding: 40,
-            minNodeSpacing: 40,
-            concentric: function (node) {
-              const level = node.data("level") ?? 2;
-              return 100 - level; // 0 centro, 1 anillo siguiente, 2 más afuera
-            },
-            levelWidth: function () {
-              return 1;
-            }
+            padding: 60,
+            roots: institucionRaiz ? [`#i-${institucionRaiz.id}`] : undefined,
+            directed: true,
+            spacingFactor: 1.08
           },
           style: [
             {
@@ -392,6 +434,24 @@ if (institucionPadre && institucionPadre.id != null) {
               }
             },
             {
+              selector: "node[tipo = 'institucion_padre']",
+              style: {
+                "shape": "round-rectangle",
+                "background-color": "#0f172a",
+                "border-width": 1,
+                "border-color": "#1f2937",
+                "color": "#ffffff",
+                "width": 190,
+                "height": 48,
+                "font-size": 12,
+                "font-weight": "600",
+                "text-wrap": "wrap",
+                "text-max-width": 170,
+                "text-background-color": "#0c1220",
+                "text-background-opacity": 0.9
+              }
+            },
+            {
               selector: "node[tipo = 'institucion_central']",
               style: {
                 "shape": "round-rectangle",
@@ -410,7 +470,7 @@ if (institucionPadre && institucionPadre.id != null) {
               }
             },
             {
-              selector: "node[tipo = 'institucion_hija']",
+              selector: "node[tipo = 'institucion_descendiente']",
               style: {
                 "shape": "round-rectangle",
                 "background-color": "#1a1025",
@@ -460,7 +520,9 @@ if (institucionPadre && institucionPadre.id != null) {
             {
               selector: "edge[tipo = 'jerarquia']",
               style: {
-                "line-style": "solid"
+                "line-style": "solid",
+                "target-arrow-shape": "triangle",
+                "target-arrow-color": "#9aa0a6"
               }
             }
           ]
@@ -499,11 +561,12 @@ if (institucionPadre && institucionPadre.id != null) {
             chipsContainer.appendChild(row);
           }
 
-          if (institucionPadre) {
-            addGroup("Institución padre", [institucionPadre]);
+          if (institucionRaiz && institucionRaiz.id !== instCentral.id) {
+            addGroup("Institución raíz", [institucionRaiz]);
           }
 
           addGroup("Instituciones hijas", hijas);
+          addGroup("Instituciones en 2º nivel", nietas);
         }
 
         // Chips de personas con cargos para navegar a sus grafos
@@ -542,12 +605,52 @@ if (institucionPadre && institucionPadre.id != null) {
           });
         }
 
+        // --- Toggle de niveles del organigrama ---
+        const organigramaRootSelector = institucionRaiz ? `#i-${institucionRaiz.id}` : undefined;
+
+        function applyOrganigramaLevel(maxLevel) {
+          cy.batch(() => {
+            cy.nodes("[tipo ^= 'institucion']").forEach(node => {
+              const nivel = node.data("level") ?? 0;
+              const mostrar = nivel <= maxLevel;
+              node.style("display", mostrar ? "element" : "none");
+            });
+
+            cy.edges("[tipo = 'jerarquia']").forEach(edge => {
+              const nivel = edge.data("level") ?? 0;
+              const mostrar = nivel <= maxLevel;
+              edge.style("display", mostrar ? "element" : "none");
+            });
+          });
+
+          cy.layout({
+            name: "breadthfirst",
+            animate: false,
+            padding: 60,
+            roots: organigramaRootSelector ? [organigramaRootSelector] : undefined,
+            directed: true,
+            spacingFactor: 1.08
+          }).run();
+        }
+
+        let nivelOrganigrama = 2;
+        applyOrganigramaLevel(nivelOrganigrama);
+
+        nivelToggles.forEach(toggle => {
+          toggle.addEventListener("change", (e) => {
+            if (!e.target.checked) return;
+            const nuevoNivel = parseInt(e.target.value, 10) || 2;
+            nivelOrganigrama = nuevoNivel;
+            applyOrganigramaLevel(nivelOrganigrama);
+          });
+        });
+
         // Click en nodos
         cy.on("tap", "node", evt => {
           const node = evt.target;
           const tipo = node.data("tipo");
 
-          if (tipo === "institucion_central" || tipo === "institucion_hija") {
+          if (tipo === "institucion_central" || tipo === "institucion_padre" || tipo === "institucion_descendiente") {
             const instId = node.data("institucion_id");
             const inst = institucionesMap[instId];
             if (inst) setPanelForInstitucion(inst);
@@ -576,7 +679,7 @@ if (institucionPadre && institucionPadre.id != null) {
           setPanelForCargo(cargo);
         });
 
-        logDebug("Grafo institucional dibujado (central + hijas + personas central).");
+        logDebug("Grafo institucional dibujado como organigrama con niveles dinámicos.");
       })
       .catch(err => {
         console.error("Error cargando grafo de institución:", err);
