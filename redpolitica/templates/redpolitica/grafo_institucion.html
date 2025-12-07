@@ -366,7 +366,7 @@
               persona_id: p.id,
               label: p.nombre_completo,
               tipo: "persona",
-              level: nivelCentral + 1
+              level: nivelCentral + MAX_NIVEL_ORGANIGRAMA + 1
             }
           });
         });
@@ -428,22 +428,43 @@
 
         logDebug("Elementos generados para Cytoscape:", elements);
 
-        const organigramaLayout = {
-          // Layout jerárquico para instituciones (organigrama)
-          name: "breadthfirst",
+        const organigramaRootSelector = institucionRaiz ? `#i-${institucionRaiz.id}` : undefined;
+        const baseRadialLayout = {
+          name: "concentric",
           animate: false,
-          padding: 80,
-          roots: institucionRaiz ? [`#i-${institucionRaiz.id}`] : undefined,
-          directed: true,
-          spacingFactor: 1.2,
+          padding: 100,
+          startAngle: -Math.PI / 2,
+          clockwise: true,
           avoidOverlap: true,
-          nodeDimensionsIncludeLabels: true
+          nodeDimensionsIncludeLabels: true,
+          minNodeSpacing: 30,
+          levelWidth: () => 1
         };
+
+        function buildRadialLayout(maxNivel, graphInstance) {
+          const graph = graphInstance || cy;
+          const maxNivelVisible = Math.max(maxNivel, MAX_NIVEL_ORGANIGRAMA);
+          const visibleElements = graph
+            ? graph.elements().filter(ele => ele.style("display") !== "none")
+            : undefined;
+
+          return {
+            ...baseRadialLayout,
+            roots: organigramaRootSelector ? [organigramaRootSelector] : undefined,
+            concentric: (node) => {
+              const nivel = node.data("level");
+              if (nivel == null) return maxNivelVisible + 2;
+              const nivelAjustado = Math.min(nivel, maxNivelVisible + 1);
+              return maxNivelVisible + 2 - nivelAjustado;
+            },
+            eles: visibleElements
+          };
+        }
 
         const cy = cytoscape({
           container: document.getElementById("cy"),
           elements,
-          layout: organigramaLayout,
+          layout: buildRadialLayout(MAX_NIVEL_ORGANIGRAMA, null),
           style: [
             {
               selector: "node",
@@ -638,8 +659,6 @@
         }
 
         // --- Toggle de niveles del organigrama ---
-        const organigramaRootSelector = institucionRaiz ? `#i-${institucionRaiz.id}` : undefined;
-
         function applyOrganigramaLevel(maxLevel) {
           const nivelVisible = Math.min(maxLevel, MAX_NIVEL_ORGANIGRAMA);
 
@@ -657,11 +676,7 @@
             });
           });
 
-          cy.layout({
-            ...organigramaLayout,
-            roots: organigramaRootSelector ? [organigramaRootSelector] : organigramaLayout.roots,
-            padding: 90
-          }).run();
+          cy.layout(buildRadialLayout(nivelVisible)).run();
         }
 
         let nivelOrganigrama = 2;
