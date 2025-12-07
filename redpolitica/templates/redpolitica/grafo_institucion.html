@@ -372,7 +372,10 @@
           if (!inst.padre) return;
           if (!institucionesMap[inst.padre]) return;
           const nivel = nivelesInstitucion[inst.id];
+          const nivelPadre = nivelesInstitucion[inst.padre];
           if (nivel == null || nivel > MAX_NIVEL_ORGANIGRAMA) return;
+          // Evita crear aristas hacia nodos filtrados del organigrama (solo tres niveles)
+          if (nivelPadre == null || nivelPadre > MAX_NIVEL_ORGANIGRAMA) return;
 
           elements.push({
             data: {
