@@ -42,7 +42,7 @@ load_env_file(BASE_DIR / ".env")
 SECRET_KEY = os.environ.get("SECRET_KEY", "change-me")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get("DEBUG", "False").lower() == "true"
 
 ALLOWED_HOSTS = [
     "64.23.143.101",
