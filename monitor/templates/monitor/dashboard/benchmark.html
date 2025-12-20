@@ -1,0 +1,90 @@
+{% extends "monitor/dashboard/base.html" %}
+{% block title %}Benchmark · Monitor{% endblock %}
+{% block content %}
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Benchmark de personas</h1>
+      <p class="muted">Comparativa de cobertura mediática.</p>
+    </div>
+    <a class="actions" href="/monitor/dashboard/personas/">Explorar personas</a>
+  </div>
+
+  <form method="get" class="card" style="margin-bottom: 20px;">
+    <div class="form-row">
+      <div>
+        <label class="muted">Persona A</label><br>
+        <select class="input" name="a">
+          <option value="">Selecciona</option>
+          {% for persona in personas %}
+            <option value="{{ persona.id }}" {% if persona_a and persona_a.id == persona.id %}selected{% endif %}>
+              {{ persona.nombre_completo }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label class="muted">Persona B</label><br>
+        <select class="input" name="b">
+          <option value="">Selecciona</option>
+          {% for persona in personas %}
+            <option value="{{ persona.id }}" {% if persona_b and persona_b.id == persona.id %}selected{% endif %}>
+              {{ persona.nombre_completo }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label class="muted">Días</label><br>
+        <input class="input" type="number" name="days" value="{{ days }}" min="1" max="365">
+      </div>
+      <div class="actions" style="align-self: flex-end;">
+        <button type="submit">Comparar</button>
+      </div>
+    </div>
+  </form>
+
+  <section class="grid grid-2">
+    <div class="card">
+      <h3>{{ persona_a.nombre_completo|default:"Persona A" }}</h3>
+      {% if metrics_a %}
+        <p class="muted">Menciones: {{ metrics_a.mentions_count }}</p>
+        <p class="muted">Artículos: {{ metrics_a.articles_count }}</p>
+      {% else %}
+        <p class="table-empty">Selecciona una persona para ver métricas.</p>
+      {% endif %}
+    </div>
+    <div class="card">
+      <h3>{{ persona_b.nombre_completo|default:"Persona B" }}</h3>
+      {% if metrics_b %}
+        <p class="muted">Menciones: {{ metrics_b.mentions_count }}</p>
+        <p class="muted">Artículos: {{ metrics_b.articles_count }}</p>
+      {% else %}
+        <p class="table-empty">Selecciona una persona para ver métricas.</p>
+      {% endif %}
+    </div>
+  </section>
+
+  <section class="card" style="margin-top: 20px;">
+    <h3>Medios combinados más activos</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Medio</th>
+          <th>Presencia total</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for outlet, total in top_outlets %}
+          <tr>
+            <td>{{ outlet }}</td>
+            <td>{{ total }}</td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="2" class="table-empty">Aún no hay datos para comparar.</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+{% endblock %}

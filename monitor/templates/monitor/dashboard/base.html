@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <title>{% block title %}Monitor Dashboard{% endblock %}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f6f7fb;
+        --surface: #ffffff;
+        --text: #1f2937;
+        --muted: #6b7280;
+        --primary: #1d4ed8;
+        --border: #e5e7eb;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: "Inter", system-ui, -apple-system, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+      }
+      .layout {
+        display: grid;
+        grid-template-columns: 240px 1fr;
+        min-height: 100vh;
+      }
+      .sidebar {
+        background: #111827;
+        color: #f9fafb;
+        padding: 24px 18px;
+      }
+      .sidebar h2 {
+        margin: 0 0 24px;
+        font-size: 20px;
+      }
+      .nav a {
+        display: block;
+        padding: 10px 12px;
+        color: #e5e7eb;
+        text-decoration: none;
+        border-radius: 8px;
+        margin-bottom: 6px;
+      }
+      .nav a:hover {
+        background: rgba(255, 255, 255, 0.08);
+      }
+      .content {
+        padding: 32px;
+      }
+      .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 24px;
+      }
+      .page-title {
+        margin: 0;
+        font-size: 28px;
+      }
+      .grid {
+        display: grid;
+        gap: 16px;
+      }
+      .grid-2 { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+      .grid-3 { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+      .card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 16px 18px;
+        box-shadow: 0 4px 10px rgba(15, 23, 42, 0.04);
+      }
+      .kpi {
+        font-size: 26px;
+        font-weight: 700;
+        margin: 10px 0 0;
+      }
+      .muted {
+        color: var(--muted);
+        font-size: 14px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      th, td {
+        text-align: left;
+        padding: 10px 8px;
+        border-bottom: 1px solid var(--border);
+        font-size: 14px;
+      }
+      .tag {
+        display: inline-block;
+        padding: 4px 10px;
+        border-radius: 999px;
+        background: #e0e7ff;
+        color: #1e40af;
+        font-size: 12px;
+        font-weight: 600;
+      }
+      .actions a, .actions button {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 12px;
+        border-radius: 8px;
+        background: var(--primary);
+        color: #fff;
+        text-decoration: none;
+        border: none;
+        cursor: pointer;
+        font-size: 14px;
+      }
+      .actions a.secondary {
+        background: #e5e7eb;
+        color: #111827;
+      }
+      .form-row {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+        margin-bottom: 12px;
+      }
+      .input {
+        padding: 10px 12px;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        min-width: 220px;
+      }
+      .table-empty {
+        padding: 18px;
+        color: var(--muted);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="layout">
+      <aside class="sidebar">
+        <h2>Monitor</h2>
+        <nav class="nav">
+          <a href="/monitor/dashboard/">Home</a>
+          <a href="/monitor/dashboard/personas/">Personas</a>
+          <a href="/monitor/dashboard/benchmark/">Benchmark</a>
+          <a href="/monitor/dashboard/ingest/">Ingest/Digest</a>
+          <a href="/monitor/dashboard/clients/">Clientes</a>
+          {% if request.user.is_staff %}
+            <a href="/monitor/dashboard/ops/">Ops</a>
+          {% endif %}
+        </nav>
+      </aside>
+      <main class="content">
+        {% block content %}{% endblock %}
+      </main>
+    </div>
+  </body>
+</html>

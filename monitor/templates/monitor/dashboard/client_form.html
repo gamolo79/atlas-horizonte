@@ -1,14 +1,33 @@
-<!doctype html>
-<html>
-  <body>
-    <h1>Cliente</h1>
-    <p>ID: {{ client.id }}</p>
-    <p>{{ client }}</p>
+{% extends "monitor/dashboard/base.html" %}
+{% block title %}{{ client.name }} · Monitor{% endblock %}
+{% block content %}
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">{{ client.name }}</h1>
+      <p class="muted">Detalle de configuración del cliente.</p>
+    </div>
+    <div class="actions">
+      <a class="secondary" href="/monitor/dashboard/clients/">Volver</a>
+      <a href="/monitor/dashboard/clients/{{ client.id }}/generate/">Generar digest</a>
+    </div>
+  </div>
 
-    <p>
-      <a href="/monitor/dashboard/clients/{{client.id}}/generate/">Generar digest</a>
-    </p>
-
-    <p><a href="/monitor/dashboard/clients/">Volver</a></p>
-  </body>
-</html>
+  <section class="grid grid-2">
+    <div class="card">
+      <h3>Información general</h3>
+      <p><strong>ID:</strong> {{ client.id }}</p>
+      <p><strong>Slug:</strong> {{ client.slug }}</p>
+      <p><strong>Estado:</strong> {% if client.is_active %}Activo{% else %}Inactivo{% endif %}</p>
+    </div>
+    <div class="card">
+      <h3>Configuración de digest</h3>
+      {% if client.config %}
+        <p><strong>Título:</strong> {{ client.config.title }}</p>
+        <p><strong>Top N:</strong> {{ client.config.top_n }}</p>
+        <p><strong>Últimas horas:</strong> {{ client.config.hours }}</p>
+      {% else %}
+        <p class="table-empty">Sin configuración asociada.</p>
+      {% endif %}
+    </div>
+  </section>
+{% endblock %}

@@ -1,0 +1,92 @@
+{% extends "monitor/dashboard/base.html" %}
+{% block title %}Ingest/Digest · Monitor{% endblock %}
+{% block content %}
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Ingest & Digest</h1>
+      <p class="muted">Control operativo del pipeline y generación de síntesis.</p>
+    </div>
+    <div class="actions">
+      <a class="secondary" href="/monitor/dashboard/">Home</a>
+    </div>
+  </div>
+
+  <section class="grid grid-3">
+    <div class="card">
+      <div class="muted">Ingestas totales</div>
+      <div class="kpi">{{ stats.ingest_total }}</div>
+    </div>
+    <div class="card">
+      <div class="muted">Ingestas fallidas</div>
+      <div class="kpi">{{ stats.ingest_failed }}</div>
+    </div>
+    <div class="card">
+      <div class="muted">Clusters totales</div>
+      <div class="kpi">{{ stats.clusters_total }}</div>
+    </div>
+  </section>
+
+  <section class="grid grid-2" style="margin-top: 20px;">
+    <div class="card">
+      <h3>Ejecutar acciones</h3>
+      <form method="post">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <div class="actions">
+          <button type="submit">Ejecutar</button>
+        </div>
+      </form>
+    </div>
+    <div class="card">
+      <h3>Digests recientes</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Fecha</th>
+            <th>Título</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for digest in digests %}
+            <tr>
+              <td>{{ digest.date }}</td>
+              <td>{{ digest.title }}</td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="2" class="table-empty">No hay digests recientes.</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="card" style="margin-top: 20px;">
+    <h3>Últimas ingestas</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Status</th>
+          <th>Ventana</th>
+          <th>Resultados</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for run in ingest_runs %}
+          <tr>
+            <td>#{{ run.id }}</td>
+            <td><span class="tag">{{ run.get_status_display }}</span></td>
+            <td>{{ run.time_window_start|date:"d M H:i" }} → {{ run.time_window_end|date:"d M H:i" }}</td>
+            <td>{{ run.stats_total_fetched }} / {{ run.stats_total_parsed }}</td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="4" class="table-empty">No hay ingestas registradas.</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+{% endblock %}
