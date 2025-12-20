@@ -1,0 +1,152 @@
+from django.shortcuts import render, redirect
+from django.contrib import messages
+from django.contrib.admin.views.decorators import staff_member_required
+from django.core.management import call_command
+
+from .forms_dashboard import OpsForm
+
+
+@staff_member_required
+def ops_run(request):
+    if request.method == "POST":
+        form = OpsForm(request.POST)
+
+        if form.is_valid():
+            action = form.cleaned_data.get("action")
+
+            try:
+                if action == "fetch_sources":
+                    call_command("fetch_sources", limit=50)
+                    messages.success(request, "Ingesta RSS ejecutada.")
+
+                elif action == "fetch_article_bodies":
+                    call_command("fetch_article_bodies", limit=80)
+                    messages.success(request, "Cuerpos de artículos obtenidos.")
+
+                elif action == "embed_articles":
+                    call_command("embed_articles", limit=200)
+                    messages.success(request, "Embeddings generados.")
+
+                elif action == "cluster_articles_ai":
+                    call_command(
+                        "cluster_articles_ai",
+                        hours=72,
+                        limit=400,
+                        threshold=0.86
+                    )
+                    messages.success(request, "Clustering ejecutado.")
+
+                elif action == "link_atlas_entities":
+                    call_command(
+                        "link_atlas_entities",
+                        hours=120,
+                        limit=2000
+                    )
+                    messages.success(request, "Entidades enlazadas.")
+
+                elif action == "pipeline_full":
+                    call_command("fetch_sources", limit=50)
+                    call_command("fetch_article_bodies", limit=80)
+                    call_command("embed_articles", limit=200)
+                    call_command(
+                        "cluster_articles_ai",
+                        hours=72,
+                        limit=400,
+                        threshold=0.86
+                    )
+                    call_command(
+                        "link_atlas_entities",
+                        hours=120,
+                        limit=2000
+                    )
+                    messages.success(request, "Pipeline completo ejecutado.")
+
+                else:
+                    messages.error(
+                        request,
+                        f"Acción no reconocida: '{action}'."
+                    )
+
+            except Exception as e:
+                messages.error(request, f"Error al ejecutar operación: {e}")
+
+            return redirect("monitor:dashboard_ops")
+
+    else:
+        form = OpsForm()
+
+    return render(
+        request,
+        "monitor/dashboard/ops.html",
+        {
+            "form": form,
+        }
+    )
+from django.shortcuts import render
+from django.contrib.admin.views.decorators import staff_member_required
+
+
+@staff_member_required
+def dashboard_home(request):
+    return render(
+        request,
+        "monitor/dashboard/home.html",
+        {}
+    )
+from django.shortcuts import render
+from django.contrib.admin.views.decorators import staff_member_required
+
+
+@staff_member_required
+def dashboard_home(request):
+    return render(request, "monitor/dashboard/home.html")
+
+
+@staff_member_required
+def client_create(request):
+    return render(request, "monitor/dashboard/client_form.html")
+
+
+@staff_member_required
+def client_list(request):
+    return render(request, "monitor/dashboard/client_list.html")
+
+
+from django.shortcuts import render
+from django.contrib.admin.views.decorators import staff_member_required
+
+
+@staff_member_required
+def client_edit(request, client_id):
+    return render(
+        request,
+        "monitor/dashboard/client_form.html",
+        {
+            "client_id": client_id,
+            "mode": "edit",
+        },
+    )
+from django.shortcuts import render, redirect
+from django.contrib import messages
+from django.contrib.admin.views.decorators import staff_member_required
+
+
+@staff_member_required
+def client_generate_digest(request, client_id):
+    messages.info(
+        request,
+        f"Generación de digest para cliente {client_id} (stub)."
+    )
+    return redirect("monitor_dashboard_client_edit", client_id=client_id)
+
+
+@staff_member_required
+def digest_view(request, digest_id):
+    digest = get_object_or_404(Digest, id=digest_id)
+    return render(
+        request,
+        "monitor/dashboard/digest_view.html",
+        {
+            "digest": digest
+        }
+    )

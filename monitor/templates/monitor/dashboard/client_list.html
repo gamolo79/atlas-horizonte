@@ -1,0 +1,15 @@
+<!doctype html>
+<html>
+  <body>
+    <h1>Clientes</h1>
+    <ul>
+      {% for c in clients %}
+        <li><a href="/monitor/dashboard/clients/{{c.id}}/">{{ c }}</a></li>
+      {% empty %}
+        <li>No hay clientes aún.</li>
+      {% endfor %}
+    </ul>
+
+    <p><a href="/monitor/dashboard/">Volver</a></p>
+  </body>
+</html>

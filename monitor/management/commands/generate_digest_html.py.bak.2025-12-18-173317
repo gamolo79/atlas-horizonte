@@ -1,0 +1,210 @@
+from datetime import date
+
+from django.core.management.base import BaseCommand
+from django.db import transaction
+from django.utils.html import escape
+
+from monitor.models import (
+    StoryCluster,
+    Digest,
+    DigestSection,
+    DigestItem,
+)
+
+
+class Command(BaseCommand):
+    help = "Generate daily digest in HTML and JSON format"
+
+    def add_arguments(self, parser):
+        parser.add_argument("--date", type=str, help="YYYY-MM-DD (default: today)")
+        parser.add_argument("--title", type=str, default="Síntesis diaria de prensa")
+        parser.add_argument("--top", type=int, default=5)
+
+    def handle(self, *args, **opts):
+        # --------------------
+        # Fecha y parámetros
+        # --------------------
+        raw_date = opts["date"]
+        title = opts["title"]
+        top_n = opts["top"]
+
+        if raw_date:
+            y, m, d = map(int, raw_date.split("-"))
+            target_date = date(y, m, d)
+        else:
+            target_date = date.today()
+
+        # --------------------
+        # Cargar clusters
+        # --------------------
+        clusters = list(
+            StoryCluster.objects.all()
+            .order_by("-created_at")
+            .prefetch_related(
+                "mentions__media_outlet",
+                "mentions__article__sentiment",
+                "mentions__article__content_classification",
+            )
+        )
+
+        if not clusters:
+            self.stdout.write(self.style.WARNING("No hay historias para generar digest"))
+            return
+
+        clusters_sorted = sorted(
+            clusters,
+            key=lambda c: c.mentions.count(),
+            reverse=True,
+        )
+
+        priority = clusters_sorted[:top_n]
+        general = clusters_sorted[top_n:]
+
+        # --------------------
+        # Crear digest
+        # --------------------
+        with transaction.atomic():
+            digest, _ = Digest.objects.update_or_create(
+                date=target_date,
+                title=title,
+                defaults={
+                    "html_content": "",
+                    "json_content": {},
+                },
+            )
+
+            digest.sections.all().delete()
+
+            sec_priority = DigestSection.objects.create(
+                digest=digest,
+                section_type=DigestSection.SectionType.PRIORITY,
+                label="Enfoque / Prioridad",
+                order=1,
+            )
+
+            sec_general = DigestSection.objects.create(
+                digest=digest,
+                section_type=DigestSection.SectionType.GENERAL,
+                label="Notas generales",
+                order=2,
+            )
+
+            for i, c in enumerate(priority, start=1):
+                DigestItem.objects.create(section=sec_priority, cluster=c, order=i)
+
+            for i, c in enumerate(general, start=1):
+                DigestItem.objects.create(section=sec_general, cluster=c, order=i)
+
+            # --------------------
+            # Construir JSON
+            # --------------------
+            digest_json = {
+                "date": str(target_date),
+                "title": title,
+                "sections": [],
+            }
+
+            # --------------------
+            # Construir HTML
+            # --------------------
+            html = []
+            html.append(f"<h1>{escape(title)}</h1>")
+            html.append(f"<p><strong>Fecha:</strong> {target_date}</p>")
+
+            for section in digest.sections.all().order_by("order"):
+                sec_obj = {
+                    "label": section.label,
+                    "type": section.section_type,
+                    "items": [],
+                }
+
+                html.append(f"<h2>{escape(section.label)}</h2>")
+
+                for item in section.items.select_related("cluster").order_by("order"):
+                    cluster = item.cluster
+                    headline = item.custom_headline or cluster.headline
+                    lead = item.custom_lead or (cluster.lead or "")
+                    mentions = cluster.mentions.all()
+
+                    volume = len(mentions)
+
+                    pos = neu = neg = 0
+                    opinion = informative = 0
+
+                    outlets = []
+
+                    for m in mentions:
+                        outlets.append(m.media_outlet.name)
+                        art = m.article
+
+                        if hasattr(art, "sentiment"):
+                            if art.sentiment.sentiment == "positivo":
+                                pos += 1
+                            elif art.sentiment.sentiment == "negativo":
+                                neg += 1
+                            else:
+                                neu += 1
+
+                        if hasattr(art, "content_classification"):
+                            if art.content_classification.content_type == "opinion":
+                                opinion += 1
+                            else:
+                                informative += 1
+
+                    sec_obj["items"].append(
+                        {
+                            "headline": headline,
+                            "lead": lead,
+                            "volume": volume,
+                            "sentiment": {
+                                "positivo": pos,
+                                "neutro": neu,
+                                "negativo": neg,
+                            },
+                            "content_type": {
+                                "informativo": informative,
+                                "opinion": opinion,
+                            },
+                            "media_outlets": outlets,
+                        }
+                    )
+
+                    # HTML
+                    html.append("<hr>")
+                    html.append(f"<h3>{escape(headline)}</h3>")
+                    html.append(f"<p><strong>Volumen:</strong> {volume} notas</p>")
+                    html.append(
+                        f"<p><strong>Sentimiento:</strong> "
+                        f"{pos} positivo · {neu} neutro · {neg} negativo</p>"
+                    )
+                    html.append(
+                        f"<p><strong>Tipo:</strong> "
+                        f"{informative} informativo · {opinion} opinión</p>"
+                    )
+
+                    if lead:
+                        html.append(f"<p>{escape(lead)}</p>")
+
+                   html.append("<ul>")
+                    for m in mentions:
+                        outlet_name = m.media_outlet.name
+                        url = m.article.url
+                    html.append(
+                        f'<li><a href="{escape(url)}" target="_blank" rel="noopener noreferrer">{escape(outlet_name)}</a></li>'
+                    )
+                    html.append("</ul>")
+
+                digest_json["sections"].append(sec_obj)
+
+            # --------------------
+            # Guardar
+            # --------------------
+            digest.html_content = "\n".join(html)
+            digest.json_content = digest_json
+            digest.save(update_fields=["html_content", "json_content"])
+
+        self.stdout.write(
+            self.style.SUCCESS(
+                "Digest creado/actualizado correctamente (HTML + JSON)"
+            )
+        )
