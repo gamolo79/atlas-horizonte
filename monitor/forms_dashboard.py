@@ -72,8 +72,8 @@ class OpsForm(forms.Form):
         required=False,
         initial=False,
         widget=forms.CheckboxInput(),
-        label="force (solo bodies)",
-        help_text="Si activas force, vuelve a bajar body aunque ya exista.",
+        label="force (bodies/embeddings)",
+        help_text="Si activas force, vuelve a bajar body o recalcula embeddings.",
     )
 
     # cluster_articles_ai / link_atlas_entities

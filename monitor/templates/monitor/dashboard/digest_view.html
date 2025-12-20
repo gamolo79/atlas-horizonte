@@ -1,8 +1,20 @@
 <!doctype html>
 <html>
   <body>
-    <h1>Digest</h1>
-    <pre>{{ digest }}</pre>
-    <p><a href="/monitor/dashboard/">Volver</a></p>
+    <h1>{{ digest.title }}</h1>
+    <p><strong>Fecha:</strong> {{ digest.date }}</p>
+
+    {% if messages %}
+      <ul>
+        {% for message in messages %}
+          <li>{{ message }}</li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+    <hr>
+    <div>
+      {{ digest.html_content|safe }}
+    </div>
+    <p><a href="{% url 'monitor_dashboard_home' %}">Volver</a></p>
   </body>
 </html>

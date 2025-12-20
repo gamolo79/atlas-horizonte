@@ -2,9 +2,26 @@
 <html>
   <body>
     <h1>Monitor Dashboard</h1>
+
+    {% if messages %}
+      <ul>
+        {% for message in messages %}
+          <li>{{ message }}</li>
+        {% endfor %}
+      </ul>
+    {% endif %}
     <ul>
-      <li><a href="/monitor/dashboard/clients/">Clientes</a></li>
-      <li><a href="/monitor/dashboard/ops/">Ops</a></li>
+      <li><a href="{% url 'monitor_dashboard_client_list' %}">Clientes</a></li>
+      <li><a href="{% url 'monitor_dashboard_ops' %}">Ops</a></li>
+    </ul>
+
+    <h2>Digests recientes</h2>
+    <ul>
+      {% for d in recent_digests %}
+        <li><a href="{% url 'monitor_dashboard_digest_view' d.id %}">{{ d }}</a></li>
+      {% empty %}
+        <li>No hay digests aún.</li>
+      {% endfor %}
     </ul>
   </body>
 </html>

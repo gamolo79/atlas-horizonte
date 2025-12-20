@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>Cliente · {{ client.name }}</title>
+  <title>Cliente · {% if client %}{{ client.name }}{% else %}Nuevo{% endif %}</title>
   <style>
     body { font-family: system-ui; margin: 24px; }
     .row { display:flex; gap: 24px; align-items:flex-start; }
@@ -13,7 +13,21 @@
 </head>
 <body>
   <p><a href="{% url 'monitor_dashboard_home' %}">← Dashboard</a></p>
-  <h1>{{ client.name }}</h1>
+  <h1>
+    {% if client %}
+      {{ client.name }}
+    {% else %}
+      Nuevo cliente
+    {% endif %}
+  </h1>
+
+  {% if messages %}
+    <ul>
+      {% for message in messages %}
+        <li>{{ message }}</li>
+      {% endfor %}
+    </ul>
+  {% endif %}
 
   <div class="row">
     <div class="card">
@@ -28,20 +42,33 @@
       </form>
 
       <hr>
-      <h2>Acciones</h2>
-      <p>
-        <a href="{% url 'monitor_dashboard_client_generate' client.id %}">▶ Generar digest ahora</a>
-      </p>
-      <p class="muted">Esto llama al comando <code>generate_client_digest</code> con tu configuración.</p>
+      {% if client %}
+        <h2>Acciones</h2>
+        <p>
+          <a href="{% url 'monitor_dashboard_client_generate' client.id %}">▶ Generar digest ahora</a>
+        </p>
+        <p class="muted">Esto llama al comando <code>generate_client_digest</code> con tu configuración.</p>
+      {% endif %}
     </div>
 
     <div class="card">
-      <h2>Último digest</h2>
+      <h2>Digests</h2>
       {% if last_digest %}
         <p><b>{{ last_digest.title }}</b> <span class="muted">({{ last_digest.date }})</span></p>
         <p><a href="{% url 'monitor_dashboard_digest_view' last_digest.id %}">Ver digest</a></p>
       {% else %}
         <p class="muted">Aún no hay digest generado para este título.</p>
+      {% endif %}
+
+      {% if digests %}
+        <hr>
+        <ul>
+          {% for d in digests %}
+            <li>
+              <a href="{% url 'monitor_dashboard_digest_view' d.id %}">{{ d.date }} · {{ d.title }}</a>
+            </li>
+          {% endfor %}
+        </ul>
       {% endif %}
     </div>
   </div>

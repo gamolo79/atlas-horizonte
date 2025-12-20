@@ -2,14 +2,28 @@
 <html>
   <body>
     <h1>Clientes</h1>
+
+    {% if messages %}
+      <ul>
+        {% for message in messages %}
+          <li>{{ message }}</li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+    <p><a href="{% url 'monitor_dashboard_client_create' %}">+ Nuevo cliente</a></p>
     <ul>
-      {% for c in clients %}
-        <li><a href="/monitor/dashboard/clients/{{c.id}}/">{{ c }}</a></li>
+      {% for row in client_rows %}
+        <li>
+          <a href="{% url 'monitor_dashboard_client_edit' row.client.id %}">{{ row.client }}</a>
+          {% if row.last_digest %}
+            · <a href="{% url 'monitor_dashboard_digest_view' row.last_digest.id %}">Último digest</a>
+          {% endif %}
+        </li>
       {% empty %}
         <li>No hay clientes aún.</li>
       {% endfor %}
     </ul>
 
-    <p><a href="/monitor/dashboard/">Volver</a></p>
+    <p><a href="{% url 'monitor_dashboard_home' %}">Volver</a></p>
   </body>
 </html>
