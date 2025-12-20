@@ -1,14 +1,13 @@
-<!doctype html>
-<html>
-  <body>
-    <h1>Ops</h1>
-
-    <form method="post">
-      {% csrf_token %}
-      {{ form.as_p }}
-      <button type="submit">Ejecutar</button>
-    </form>
-
-    <p><a href="/monitor/dashboard/">Volver</a></p>
-  </body>
-</html>
+{% extends "monitor/dashboard/base.html" %}
+{% block title %}Ops · Monitor{% endblock %}
+{% block content %}
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Ops</h1>
+      <p class="muted">Este panel fue reemplazado por Ingest/Digest.</p>
+    </div>
+    <div class="actions">
+      <a href="/monitor/dashboard/ingest/">Ir a Ingest/Digest</a>
+    </div>
+  </div>
+{% endblock %}

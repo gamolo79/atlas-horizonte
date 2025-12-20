@@ -11,6 +11,10 @@ urlpatterns = [
 
     # Dashboard
     path("dashboard/", views_dashboard.dashboard_home, name="monitor_dashboard_home"),
+    path("dashboard/personas/", views_dashboard.personas_list, name="monitor_dashboard_personas"),
+    path("dashboard/personas/<int:persona_id>/", views_dashboard.persona_dashboard, name="monitor_dashboard_persona"),
+    path("dashboard/benchmark/", views_dashboard.benchmark_dashboard, name="monitor_dashboard_benchmark"),
+    path("dashboard/ingest/", views_dashboard.ingest_dashboard, name="monitor_dashboard_ingest"),
 
     # Clientes
     path("dashboard/clients/", views_dashboard.client_list, name="monitor_dashboard_client_list"),

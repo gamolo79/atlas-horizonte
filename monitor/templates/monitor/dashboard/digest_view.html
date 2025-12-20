@@ -1,8 +1,17 @@
-<!doctype html>
-<html>
-  <body>
-    <h1>Digest</h1>
+{% extends "monitor/dashboard/base.html" %}
+{% block title %}Digest · Monitor{% endblock %}
+{% block content %}
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Digest</h1>
+      <p class="muted">Vista rápida del digest generado.</p>
+    </div>
+    <div class="actions">
+      <a class="secondary" href="/monitor/dashboard/">Volver</a>
+    </div>
+  </div>
+
+  <div class="card">
     <pre>{{ digest }}</pre>
-    <p><a href="/monitor/dashboard/">Volver</a></p>
-  </body>
-</html>
+  </div>
+{% endblock %}
