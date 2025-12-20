@@ -68,6 +68,7 @@ INSTALLED_APPS = [
 # apps de Django…
     "rest_framework",   # si no lo agregaste antes
     "redpolitica",      # <- nuestra app
+    "monitor",
 ]
 
 MIDDLEWARE = [
@@ -148,10 +149,16 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
+# Static files (CSS, JavaScript, Images)
 STATIC_URL = "/static/"
-STATIC_ROOT = "/srv/atlas/static/"
-STATICFILES_DIRS = [BASE_DIR / "static"]
 
+# Fuente de estáticos del proyecto (tu carpeta con css/js propios)
+STATICFILES_DIRS = [
+    BASE_DIR / "static_src",
+]
+
+# Carpeta DESTINO donde collectstatic copia TODO (admin + tus assets)
+STATIC_ROOT = "/srv/atlas/staticfiles"
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
