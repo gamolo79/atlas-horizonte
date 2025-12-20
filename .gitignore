@@ -10,6 +10,16 @@ venv/
 .env.*
 !.env.example
 
+__pycache__/
+*.pyc
+*.log
+
+media/
+staticfiles/
+
+_digest_*.html
+public/
+
 # Logs y temporales
 *.log
 *.tmp
