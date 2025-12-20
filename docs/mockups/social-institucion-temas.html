@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Horizonte Digital Social · Temas institución</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --bg:#000000;--card-bg:#11151d;--card-soft:#05070b;--card-border:#262c38;
+      --accent:#22a7ff;--text-main:#ffffff;--text-muted:#a6bec8;
+      --shadow-soft:0 18px 45px rgba(0,0,0,0.6);
+      --radius-lg:18px;--radius-pill:999px;
+    }
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{
+      font-family:"Lexend",system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+      background:var(--bg);color:var(--text-main);
+      min-height:100vh;display:flex;flex-direction:column;
+    }
+    .page{min-height:100vh;display:flex;flex-direction:column;}
+    header{
+      border-bottom:1px solid #111827;
+      background:radial-gradient(circle at top left,rgba(34,167,255,0.18),transparent 55%);
+    }
+    .header-inner{
+      padding:10px 16px;
+      display:flex;align-items:center;justify-content:space-between;gap:12px;
+    }
+    .brand{display:flex;align-items:center;gap:10px;}
+    .brand-logo{height:28px;width:auto;}
+    .brand-labels{display:flex;flex-direction:column;gap:1px;}
+    .brand-text-main{font-size:16px;font-weight:600;letter-spacing:0.02em;}
+    .brand-text-sub{font-size:10px;text-transform:uppercase;letter-spacing:0.18em;color:var(--text-muted);}
+    .nav-right{
+      display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end;
+    }
+    .chip-select,.chip-input{
+      border-radius:var(--radius-pill);border:1px solid #1f2933;
+      background:rgba(5,7,11,0.95);color:var(--text-main);
+      font-size:12px;padding:6px 10px;min-width:170px;
+    }
+
+    main{
+      flex:1;display:flex;min-height:0;
+      background:radial-gradient(circle at top left,rgba(34,167,255,0.18),#020617 45%,#000000 100%);
+    }
+    .layout{
+      flex:1;max-width:1200px;margin:0 auto;
+      padding:14px 16px 24px;
+      display:flex;flex-direction:column;gap:14px;
+    }
+    .grid{display:grid;gap:14px;}
+    .grid-4{grid-template-columns:repeat(4,minmax(0,1fr));}
+    .grid-2{grid-template-columns:2fr 1.1fr;}
+    @media(max-width:960px){.grid-4,.grid-2{grid-template-columns:1fr;}}
+
+    .card{
+      background:var(--card-bg);
+      border-radius:var(--radius-lg);
+      border:1px solid var(--card-border);
+      box-shadow:var(--shadow-soft);
+      padding:14px 14px 12px;
+    }
+    .card-soft{
+      background:var(--card-soft);
+      border-radius:var(--radius-lg);
+      border:1px solid #181e29;
+      box-shadow:0 14px 38px rgba(0,0,0,0.7);
+      padding:14px 14px 12px;
+    }
+
+    .kpi-label{font-size:11px;text-transform:uppercase;letter-spacing:0.16em;color:var(--text-muted);margin-bottom:6px;}
+    .kpi-value{font-size:22px;font-weight:600;}
+
+    .section-header{
+      display:flex;align-items:center;justify-content:space-between;
+      gap:8px;margin-bottom:6px;
+    }
+    .section-title{font-size:14px;font-weight:600;}
+    .section-caption{font-size:11px;color:var(--text-muted);}
+
+    .chart{
+      margin-top:4px;border-radius:14px;border:1px dashed #262c38;
+      background:radial-gradient(circle at top left,rgba(34,167,255,0.14),#020617);
+      color:#64748b;font-size:12px;padding:10px;height:210px;
+      display:flex;align-items:center;justify-content:center;text-align:center;
+    }
+
+    .table-wrap{margin-top:6px;overflow-x:auto;}
+    table{width:100%;border-collapse:separate;border-spacing:0 6px;font-size:12px;}
+    th{text-align:left;color:var(--text-muted);font-weight:500;padding:4px 6px;}
+    td{padding:6px 6px;}
+    .row{background:#020617;border-radius:12px;border:1px solid #1f2933;}
+
+    .chip{
+      padding:3px 8px;border-radius:var(--radius-pill);
+      font-size:11px;background:#050814;
+      border:1px solid rgba(148,163,184,0.6);
+      color:#e5e7eb;display:inline-flex;align-items:center;gap:4px;
+    }
+
+    .two-col{display:grid;grid-template-columns:1.2fr 1fr;gap:14px;}
+    @media(max-width:960px){.two-col{grid-template-columns:1fr;}}
+
+    .list{display:flex;flex-direction:column;gap:8px;font-size:12px;}
+    .item{
+      padding:9px 10px;border-radius:14px;
+      background:radial-gradient(circle at top left,rgba(34,167,255,0.14),rgba(5,7,11,0.96));
+      border:1px solid #1f2933;
+    }
+  </style>
+</head>
+<body>
+<div class="page">
+  <header>
+    <div class="header-inner">
+      <div class="brand">
+        <img src="logo-horizonte-social.png" alt="Horizonte Digital Social" class="brand-logo" />
+        <div class="brand-labels">
+          <div class="brand-text-main">Social · Temas institución</div>
+          <div class="brand-text-sub">Mapa de conversación de la institución</div>
+        </div>
+      </div>
+      <div class="nav-right">
+        <select class="chip-select">
+          <option>AMEQ</option>
+          <option>Secretaría de Movilidad Qro</option>
+        </select>
+        <select class="chip-select">
+          <option>Todas las redes</option>
+          <option>Facebook</option>
+          <option>Instagram</option>
+          <option>TikTok</option>
+          <option>X</option>
+        </select>
+        <input class="chip-input" value="Últimos 30 días" />
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <div class="layout">
+
+      <!-- KPIs -->
+      <section class="grid grid-4">
+        <article class="card">
+          <div class="kpi-label">Temas detectados</div>
+          <div class="kpi-value" style="color:var(--accent);">10</div>
+        </article>
+        <article class="card">
+          <div class="kpi-label">Menciones totales</div>
+          <div class="kpi-value" style="color:#22c55e;">6,540</div>
+          <div class="section-caption">Posts + comentarios</div>
+        </article>
+        <article class="card">
+          <div class="kpi-label">Interacciones</div>
+          <div class="kpi-value">31,900</div>
+        </article>
+        <article class="card">
+          <div class="kpi-label">Tema dominante</div>
+          <div class="kpi-value" style="font-size:18px;">Transporte público</div>
+          <div class="section-caption">38% de la conversación</div>
+        </article>
+      </section>
+
+      <!-- Bubble de temas -->
+      <section>
+        <article class="card">
+          <div class="section-header">
+            <div>
+              <div class="section-title">Mapa de temas institucionales</div>
+              <div class="section-caption">Tamaño = volumen · color = sentimiento</div>
+            </div>
+          </div>
+          <div class="chart">
+            Bubble / circle packing · cada círculo es un tema (“tarifa”, “rutas”, “incidentes”, “campañas de prevención”…).
+          </div>
+        </article>
+      </section>
+
+      <!-- Tabla de temas -->
+      <section>
+        <article class="card-soft">
+          <div class="section-header">
+            <div>
+              <div class="section-title">Detalle por tema</div>
+              <div class="section-caption">Ordenado por volumen de conversación</div>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Tema</th>
+                  <th style="text-align:right;">Menciones</th>
+                  <th style="text-align:right;">Interacciones</th>
+                  <th style="text-align:right;">Engagement</th>
+                  <th style="text-align:right;">Sentimiento</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr class="row">
+                  <td>Transporte público</td>
+                  <td style="text-align:right;">2,210</td>
+                  <td style="text-align:right;">12,890</td>
+                  <td style="text-align:right;">11.7%</td>
+                  <td style="text-align:right;">
+                    <span class="chip" style="border-color:#f97373;color:#fecaca;">Mayormente negativo</span>
+                  </td>
+                </tr>
+                <tr class="row">
+                  <td>Campañas de seguridad vial</td>
+                  <td style="text-align:right;">890</td>
+                  <td style="text-align:right;">5,620</td>
+                  <td style="text-align:right;">14.2%</td>
+                  <td style="text-align:right;">
+                    <span class="chip" style="border-color:#22c55e;color:#bbf7d0;">Balance positivo</span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </article>
+      </section>
+
+      <!-- Evolución + redes -->
+      <section class="two-col">
+        <article class="card">
+          <div class="section-header">
+            <div class="section-title">Evolución de un tema</div>
+            <select class="chip-select" style="padding:4px 8px;font-size:11px;min-width:auto;">
+              <option>Transporte público</option>
+              <option>Campañas de seguridad vial</option>
+              <option>Tarifas</option>
+            </select>
+          </div>
+          <div class="chart">
+            Stacked line chart · eje X días · eje Y interacciones · capas por red (FB, IG, TikTok, X, YouTube).
+          </div>
+        </article>
+
+        <article class="card-soft">
+          <div class="section-header">
+            <div>
+              <div class="section-title">Distribución por red</div>
+              <div class="section-caption">Posts vs comentarios</div>
+            </div>
+          </div>
+          <div class="chart">
+            Columnas apiladas · redes vs volumen de participación sobre el tema seleccionado.
+          </div>
+        </article>
+      </section>
+
+      <!-- Nube + publicaciones clave -->
+      <section class="two-col">
+        <article class="card">
+          <div class="section-header">
+            <div>
+              <div class="section-title">Nube de palabras del tema</div>
+              <div class="section-caption">Texto de posts y respuestas ciudadanas</div>
+            </div>
+          </div>
+          <div class="chart">
+            Word cloud · palabras frecuentes en conversaciones del tema (“ruta”, “camión”, “tiempo de espera”…).
+          </div>
+        </article>
+
+        <article class="card-soft">
+          <div class="section-header">
+            <div class="section-title">Publicaciones clave</div>
+          </div>
+          <div class="list">
+            <div class="item">
+              <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+                <div class="section-caption">Facebook · 19 nov 2025</div>
+                <span class="chip">Transporte público</span>
+              </div>
+              <div style="font-size:13px;margin-bottom:2px;">
+                “A partir de mañana se incrementa la frecuencia en la ruta T01 en horas pico…”
+              </div>
+              <div class="section-caption">Interacciones 1,980 · comentarios 420</div>
+            </div>
+          </div>
+        </article>
+      </section>
+
+    </div>
+  </main>
+</div>
+</body>
+</html>

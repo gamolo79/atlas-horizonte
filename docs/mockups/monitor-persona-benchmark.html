@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Horizonte Digital Monitor · Benchmark</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --bg: #000000;
+      --card-bg: #11151d;
+      --card-border: #262c38;
+      --accent: #16a34a;
+      --text-main: #ffffff;
+      --text-muted: #a6bec8;
+      --shadow-soft: 0 18px 45px rgba(0,0,0,0.6);
+      --radius-lg: 18px;
+      --radius-pill: 999px;
+    }
+
+    * { margin:0; padding:0; box-sizing:border-box; }
+
+    body {
+      font-family: "Lexend", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .page { min-height: 100vh; display:flex; flex-direction:column; }
+
+    header {
+      border-bottom: 1px solid #111827;
+      background: radial-gradient(circle at top left, rgba(22,163,74,0.2), transparent 55%);
+    }
+
+    .header-inner {
+      padding: 10px 16px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+    }
+
+    .brand { display:flex; align-items:center; gap:10px; }
+    .brand-logo { height:28px; width:auto; }
+    .brand-labels { display:flex; flex-direction:column; gap:1px; }
+    .brand-text-main { font-size:16px; font-weight:600; letter-spacing:0.02em; }
+    .brand-text-sub { font-size:10px; text-transform:uppercase; letter-spacing:0.18em; color:var(--text-muted); }
+
+    .nav-right {
+      display:flex;
+      align-items:center;
+      gap:8px;
+      flex-wrap:wrap;
+      justify-content:flex-end;
+    }
+
+    .chip-select,
+    .chip-input {
+      border-radius:var(--radius-pill);
+      border:1px solid #1f2933;
+      background:rgba(5,7,11,0.95);
+      color:var(--text-main);
+      font-size:12px;
+      padding:6px 10px;
+      min-width:170px;
+    }
+
+    main {
+      flex:1;
+      display:flex;
+      min-height:0;
+      background:radial-gradient(circle at top left, rgba(22,163,74,0.18), #020617 45%, #000000 100%);
+    }
+
+    .layout {
+      flex:1;
+      max-width:1200px;
+      margin:0 auto;
+      padding:14px 16px 24px;
+      display:flex;
+      flex-direction:column;
+      gap:14px;
+    }
+
+    .grid { display:grid; gap:14px; }
+    .grid-2 { grid-template-columns:repeat(2,minmax(0,1fr)); }
+    .grid-3 { grid-template-columns:2fr 1.1fr; }
+
+    @media(max-width:960px){
+      .grid-2,.grid-3{grid-template-columns:1fr;}
+    }
+
+    .card {
+      background:var(--card-bg);
+      border-radius:var(--radius-lg);
+      border:1px solid var(--card-border);
+      box-shadow:var(--shadow-soft);
+      padding:14px 14px 12px;
+    }
+
+    .section-header {
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:8px;
+      margin-bottom:6px;
+    }
+
+    .section-title { font-size:14px; font-weight:600; }
+    .section-caption { font-size:11px; color:var(--text-muted); }
+
+    .kpi-grid {
+      font-size:12px;
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      row-gap:5px;
+    }
+
+    .chart {
+      margin-top:4px;
+      border-radius:14px;
+      border:1px dashed #262c38;
+      background:radial-gradient(circle at top left, rgba(22,163,74,0.18), #020617);
+      color:#64748b;
+      font-size:12px;
+      padding:10px;
+      height:210px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      text-align:center;
+    }
+
+    .note-grid {
+      display:grid;
+      grid-template-columns:repeat(2,minmax(0,1fr));
+      gap:10px;
+      font-size:12px;
+    }
+
+    @media(max-width:960px){.note-grid{grid-template-columns:1fr;}}
+
+    .note {
+      padding:9px 10px;
+      border-radius:14px;
+      background:radial-gradient(circle at top left, rgba(22,163,74,0.2), rgba(5,7,11,0.96));
+      border:1px solid #1f2933;
+    }
+
+    .badge {
+      padding:3px 8px;
+      border-radius:var(--radius-pill);
+      font-size:11px;
+      background:rgba(15,23,42,0.95);
+      border:1px solid rgba(148,163,184,0.6);
+      color:#e5e7eb;
+      display:inline-flex;
+      align-items:center;
+      gap:4px;
+    }
+  </style>
+</head>
+<body>
+<div class="page">
+  <header>
+    <div class="header-inner">
+      <div class="brand">
+        <img src="logo-horizonte-monitor.png" alt="Horizonte Digital Monitor" class="brand-logo" />
+        <div class="brand-labels">
+          <div class="brand-text-main">Monitor · Benchmark</div>
+          <div class="brand-text-sub">Comparativo de cobertura en medios</div>
+        </div>
+      </div>
+
+      <div class="nav-right">
+        <select class="chip-select">
+          <option>Gerardo Gabriel Cuanalo Santos</option>
+        </select>
+        <span style="font-size:12px;color:#9ca3af;">vs</span>
+        <select class="chip-select">
+          <option>Enrique Antonio Correa Sada</option>
+        </select>
+        <input class="chip-input" value="Últimos 30 días" />
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <div class="layout">
+
+      <!-- KPIs -->
+      <section class="grid grid-2">
+        <article class="card">
+          <div class="section-header">
+            <div class="section-title">Personaje A</div>
+            <div class="section-caption">Gerardo G. Cuanalo Santos</div>
+          </div>
+          <div class="kpi-grid">
+            <span>Notas</span><span style="text-align:right;color:var(--accent);font-weight:600;">28</span>
+            <span>Medios</span><span style="text-align:right;">16</span>
+            <span>Portadas</span><span style="text-align:right;">4</span>
+            <span>Sent. positivo</span><span style="text-align:right;color:#22c55e;">14%</span>
+          </div>
+        </article>
+
+        <article class="card">
+          <div class="section-header">
+            <div class="section-title">Personaje B</div>
+            <div class="section-caption">Enrique A. Correa Sada</div>
+          </div>
+          <div class="kpi-grid">
+            <span>Notas</span><span style="text-align:right;color:var(--accent);font-weight:600;">21</span>
+            <span>Medios</span><span style="text-align:right;">12</span>
+            <span>Portadas</span><span style="text-align:right;">2</span>
+            <span>Sent. positivo</span><span style="text-align:right;color:#22c55e;">22%</span>
+          </div>
+        </article>
+      </section>
+
+      <!-- Evolución notas -->
+      <section>
+        <article class="card">
+          <div class="section-header">
+            <div>
+              <div class="section-title">Notas por día</div>
+              <div class="section-caption">Líneas sólidas (A) vs punteadas (B)</div>
+            </div>
+          </div>
+          <div class="chart" id="chart-monitor-benchmark-lines">
+            Multi-line chart · eje X días · eje Y número de notas · una línea por personaje.
+          </div>
+        </article>
+      </section>
+
+      <!-- Medios y temas -->
+      <section class="grid grid-3">
+        <article class="card">
+          <div class="section-header">
+            <div>
+              <div class="section-title">Notas por tipo de medio</div>
+              <div class="section-caption">Prensa, portales, radio, TV</div>
+            </div>
+          </div>
+          <div class="chart" id="chart-monitor-benchmark-medium">
+            Columnas agrupadas · para cada tipo de medio: barra A y barra B · altura = número de notas.
+          </div>
+        </article>
+
+        <article class="card">
+          <div class="section-header">
+            <div>
+              <div class="section-title">Temas principales</div>
+              <div class="section-caption">Movilidad, seguridad vial, Qrobús…</div>
+            </div>
+          </div>
+          <div class="chart" id="chart-monitor-benchmark-topics">
+            Barras agrupadas · eje X temas · altura = menciones · color distinto para A y B.
+          </div>
+        </article>
+      </section>
+
+      <!-- Sentimiento y notas clave -->
+      <section>
+        <article class="card">
+          <div class="section-header">
+            <div class="section-title">Sentimiento comparado</div>
+            <div class="section-caption">Porcentaje de notas positivas / neutras / negativas</div>
+          </div>
+          <div class="chart" id="chart-monitor-benchmark-sentiment">
+            Stacked bar chart · dos barras (A y B) · segmentos rojo / amarillo / verde según sentimiento.
+          </div>
+        </article>
+      </section>
+
+      <section class="grid grid-2">
+        <article class="card">
+          <div class="section-header">
+            <div class="section-title">Notas más influyentes</div>
+          </div>
+          <div class="note-grid">
+            <div class="note">
+              <div class="section-caption" style="margin-bottom:3px;">A · Diario de Querétaro</div>
+              <div style="font-size:13px;margin-bottom:3px;">“Vecinos reclaman retrasos en rutas de Qrobús…”</div>
+              <div class="section-caption">Sent. negativo · comparte 45 veces</div>
+            </div>
+            <div class="note">
+              <div class="section-caption" style="margin-bottom:3px;">B · El Queretano</div>
+              <div style="font-size:13px;margin-bottom:3px;">“Diputado plantea reforma de seguridad vial en Santa Rosa…”</div>
+              <div class="section-caption">Sent. positivo · replicada en 3 medios</div>
+            </div>
+          </div>
+        </article>
+
+        <article class="card">
+          <div class="section-header">
+            <div class="section-title">Resumen automático</div>
+          </div>
+          <p class="section-caption" style="margin-top:4px;line-height:1.6;">
+            A lidera en volumen bruto de notas y presencia en portadas, pero concentra más cobertura negativa
+            ligada a incidentes en Qrobús. B tiene menos notas, aunque con mayor proporción de tratamiento positivo
+            asociada a propuestas legislativas en seguridad vial.
+          </p>
+        </article>
+      </section>
+
+    </div>
+  </main>
+</div>
+</body>
+</html>
