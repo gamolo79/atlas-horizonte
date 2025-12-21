@@ -1,5 +1,20 @@
 from django.contrib import admin
+
+from monitor.models import InstitucionAlias, PersonaAlias
+
 from .models import Persona, Institucion, Cargo, Relacion
+
+
+class PersonaAliasInline(admin.TabularInline):
+    model = PersonaAlias
+    extra = 1
+    fields = ("alias",)
+
+
+class InstitucionAliasInline(admin.TabularInline):
+    model = InstitucionAlias
+    extra = 1
+    fields = ("alias",)
 
 
 @admin.register(Persona)
@@ -7,6 +22,7 @@ class PersonaAdmin(admin.ModelAdmin):
     list_display = ("nombre_completo", "fecha_nacimiento", "lugar_nacimiento")
     search_fields = ("nombre_completo", "slug", "lugar_nacimiento")
     prepopulated_fields = {"slug": ("nombre_completo",)}
+    inlines = (PersonaAliasInline,)
 
 
 @admin.register(Institucion)
@@ -25,6 +41,7 @@ class InstitucionAdmin(admin.ModelAdmin):
     search_fields = ("nombre", "slug")
     prepopulated_fields = {"slug": ("nombre",)}
     autocomplete_fields = ("padre",)
+    inlines = (InstitucionAliasInline,)
 
 
 @admin.register(Cargo)
