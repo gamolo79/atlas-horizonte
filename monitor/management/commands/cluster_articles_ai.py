@@ -147,6 +147,7 @@ class Command(BaseCommand):
         parser.add_argument("--max-clusters", type=int, default=12)
         parser.add_argument("--seed", type=int, default=42)
         parser.add_argument("--cohesion-threshold", type=float, default=0.55)
+        parser.add_argument("--threshold", type=float, default=None, help="Alias de --cohesion-threshold")
         parser.add_argument("--ai-model", type=str, default="gpt-4o-mini")
         parser.add_argument("--skip-ai", action="store_true")
         parser.add_argument("--dry-run", action="store_true")
@@ -164,6 +165,8 @@ class Command(BaseCommand):
         max_clusters = opts["max_clusters"]
         seed = opts["seed"]
         cohesion_threshold = opts["cohesion_threshold"]
+        if opts.get("threshold") is not None:
+            cohesion_threshold = opts["threshold"]
         ai_model = opts["ai_model"]
         skip_ai = opts["skip_ai"]
         dry = opts["dry_run"]
