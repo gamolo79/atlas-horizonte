@@ -1,10 +1,18 @@
 import math
+import sys
 from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.utils import timezone
 from django.db.models import Count
 
-from monitor.models import Article, StoryCluster, StoryMention
+from monitor.models import (
+    Article,
+    ArticleEntity,
+    ArticleInstitucionMention,
+    ArticlePersonaMention,
+    StoryCluster,
+    StoryMention,
+)
 
 
 def cosine(a, b):
@@ -28,12 +36,20 @@ class Command(BaseCommand):
         parser.add_argument("--limit", type=int, default=400)
         parser.add_argument("--threshold", type=float, default=0.86)
         parser.add_argument("--dry-run", action="store_true")
+        parser.add_argument("--entity-boost", type=float, default=0.03)
+        parser.add_argument("--entity-penalty", type=float, default=0.07)
+        parser.add_argument("--skip-entity-guard", action="store_true")
 
     def handle(self, *args, **opts):
+        self.stdout.write(self.style.WARNING(f"[DEBUG] cluster_articles_ai file: {__file__}"))
+        self.stdout.write(self.style.WARNING(f"[DEBUG] sys.path[0]: {sys.path[0]}"))
         hours = opts["hours"]
         limit = opts["limit"]
         threshold = opts["threshold"]
         dry = opts["dry_run"]
+        entity_boost = opts["entity_boost"]
+        entity_penalty = opts["entity_penalty"]
+        skip_entity_guard = opts["skip_entity_guard"]
 
         since = timezone.now() - timezone.timedelta(hours=hours)
 
@@ -54,6 +70,9 @@ class Command(BaseCommand):
             StoryMention.objects.filter(article__in=articles).values_list("article_id", flat=True)
         )
 
+        article_ids = [a.id for a in articles]
+        entity_map = self._build_entity_map(article_ids)
+
         existing_clusters = []
         for cluster in (
             StoryCluster.objects.filter(created_at__gte=since)
@@ -63,11 +82,13 @@ class Command(BaseCommand):
             base_article = cluster.base_article
             if not base_article or not base_article.embedding:
                 continue
+            base_entities = entity_map.get(base_article.id, set())
             existing_clusters.append(
                 {
                     "cluster": cluster,
                     "centroid": base_article.embedding,
                     "count": max(cluster.mention_count or 0, 1),
+                    "entities": base_entities,
                 }
             )
 
@@ -98,11 +119,20 @@ class Command(BaseCommand):
                 if art.id in existing_mentions:
                     continue
                 vec = art.embedding
+                art_entities = entity_map.get(art.id, set())
                 best = None
                 best_score = -1.0
 
                 for c in clusters:
                     score = cosine(vec, c["centroid"])
+                    if not skip_entity_guard:
+                        score = self._apply_entity_guard(
+                            score,
+                            art_entities,
+                            c.get("entities", set()),
+                            entity_boost,
+                            entity_penalty,
+                        )
                     if score > best_score:
                         best_score = score
                         best = c
@@ -120,12 +150,16 @@ class Command(BaseCommand):
                         cluster_key=f"emb:{art.id}",
                         base_article=art,
                     )
-                    clusters.append({"cluster": cluster_obj, "centroid": vec, "count": 1})
+                    clusters.append(
+                        {"cluster": cluster_obj, "centroid": vec, "count": 1, "entities": art_entities}
+                    )
                     add_mention(cluster_obj, art)
                 else:
                     # añadir al mejor cluster
                     best["centroid"] = update_centroid(best["centroid"], best["count"], vec)
                     best["count"] += 1
+                    if best.get("entities") is not None:
+                        best["entities"] = best["entities"] | art_entities
                     if not dry:
                         add_mention(best["cluster"], art)
 
@@ -135,3 +169,23 @@ class Command(BaseCommand):
             self.stdout.write(self.style.SUCCESS(
                 f"Created clusters: {created_clusters} · Created mentions: {created_mentions}"
             ))
+
+    def _build_entity_map(self, article_ids):
+        entity_map = {article_id: set() for article_id in article_ids}
+        for entry in ArticleEntity.objects.filter(article_id__in=article_ids):
+            key = f"{entry.entity_type}:{entry.entity_id}"
+            entity_map.setdefault(entry.article_id, set()).add(key)
+        for mention in ArticlePersonaMention.objects.filter(article_id__in=article_ids):
+            key = f"PERSON:{mention.persona_id}"
+            entity_map.setdefault(mention.article_id, set()).add(key)
+        for mention in ArticleInstitucionMention.objects.filter(article_id__in=article_ids):
+            key = f"INSTITUTION:{mention.institucion_id}"
+            entity_map.setdefault(mention.article_id, set()).add(key)
+        return entity_map
+
+    def _apply_entity_guard(self, score, article_entities, cluster_entities, boost, penalty):
+        if not article_entities or not cluster_entities:
+            return score
+        if article_entities & cluster_entities:
+            return score + boost
+        return score - penalty
