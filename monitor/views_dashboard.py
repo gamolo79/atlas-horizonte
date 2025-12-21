@@ -235,7 +235,8 @@ def _persona_metrics(persona, days: int):
 
     top_clusters = (
         StoryCluster.objects.filter(mentions__article__person_mentions__persona=persona, created_at__gte=since)
-        .annotate(total=Count("mentions"))
+        .distinct()
+        .annotate(total=Count("mentions", distinct=True))
         .order_by("-total")[:6]
     )
 
@@ -285,7 +286,8 @@ def _institucion_metrics(institucion, days: int):
             mentions__article__institution_mentions__institucion=institucion,
             created_at__gte=since,
         )
-        .annotate(total=Count("mentions"))
+        .distinct()
+        .annotate(total=Count("mentions", distinct=True))
         .order_by("-total")[:6]
     )
 
