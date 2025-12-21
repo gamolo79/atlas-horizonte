@@ -7,6 +7,8 @@ from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.utils import timezone
 
+from openai import OpenAI
+
 from monitor.linking import (
     choose_winner,
     extract_mentions,
