@@ -7,7 +7,8 @@
       <p class="muted">Configura las síntesis por cliente.</p>
     </div>
     <div class="actions">
-      <a class="secondary" href="/monitor/dashboard/">Volver</a>
+      <a class="secondary" href="{% url 'monitor_dashboard_home' %}">Volver</a>
+      <a href="{% url 'monitor_dashboard_client_create' %}">Nuevo cliente</a>
     </div>
   </div>
 
@@ -32,7 +33,9 @@
               {% endif %}
             </td>
             <td class="actions">
-              <a href="/monitor/dashboard/clients/{{ c.id }}/">Detalle</a>
+              <a href="{% url 'monitor_dashboard_client_edit' c.id %}">Editar</a>
+              <a class="secondary" href="{% url 'monitor_dashboard_client_digests' c.id %}">Historial</a>
+              <a class="danger" href="{% url 'monitor_dashboard_client_delete' c.id %}">Eliminar</a>
             </td>
           </tr>
         {% empty %}

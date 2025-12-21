@@ -10,7 +10,7 @@ from django.utils import timezone
 
 from redpolitica.models import Persona
 
-from .forms_dashboard import OpsForm
+from .forms_dashboard import DigestClientConfigForm, DigestClientForm, OpsForm
 from .models import (
     Article,
     ArticlePersonaMention,
@@ -50,15 +50,91 @@ def client_list(request):
 
 @staff_member_required
 def client_create(request):
-    # MVP: por ahora solo muestra pantalla (sin formulario real)
-    messages.info(request, "client_create: pendiente de integrar formulario/modelo.")
-    return redirect("monitor_dashboard_client_list")
+    if request.method == "POST":
+        form_client = DigestClientForm(request.POST)
+        form_cfg = DigestClientConfigForm(request.POST)
+        if form_client.is_valid() and form_cfg.is_valid():
+            client = form_client.save()
+            config = form_cfg.save(commit=False)
+            config.client = client
+            config.save()
+            form_cfg.save_m2m()
+            messages.success(request, "Cliente creado correctamente.")
+            return redirect("monitor_dashboard_client_edit", client_id=client.id)
+    else:
+        form_client = DigestClientForm()
+        form_cfg = DigestClientConfigForm()
+
+    return render(
+        request,
+        "monitor/dashboard/client_form.html",
+        {
+            "form_client": form_client,
+            "form_cfg": form_cfg,
+            "is_edit": False,
+        },
+    )
 
 
 @staff_member_required
 def client_edit(request, client_id: int):
     client = get_object_or_404(DigestClient, id=client_id)
-    return render(request, "monitor/dashboard/client_form.html", {"client": client})
+    config, _ = DigestClientConfig.objects.get_or_create(client=client)
+
+    if request.method == "POST":
+        form_client = DigestClientForm(request.POST, instance=client)
+        form_cfg = DigestClientConfigForm(request.POST, instance=config)
+        if form_client.is_valid() and form_cfg.is_valid():
+            form_client.save()
+            form_cfg.save()
+            messages.success(request, "Cliente actualizado correctamente.")
+            return redirect("monitor_dashboard_client_edit", client_id=client.id)
+    else:
+        form_client = DigestClientForm(instance=client)
+        form_cfg = DigestClientConfigForm(instance=config)
+
+    digests = Digest.objects.filter(title=config.title).order_by("-date", "-id")[:5]
+    return render(
+        request,
+        "monitor/dashboard/client_form.html",
+        {
+            "client": client,
+            "config": config,
+            "form_client": form_client,
+            "form_cfg": form_cfg,
+            "digests": digests,
+            "is_edit": True,
+        },
+    )
+
+
+@staff_member_required
+def client_delete(request, client_id: int):
+    client = get_object_or_404(DigestClient, id=client_id)
+    if request.method == "POST":
+        client.delete()
+        messages.success(request, "Cliente eliminado.")
+        return redirect("monitor_dashboard_client_list")
+    return render(request, "monitor/dashboard/client_delete.html", {"client": client})
+
+
+@staff_member_required
+def client_digest_history(request, client_id: int):
+    client = get_object_or_404(DigestClient, id=client_id)
+    config = getattr(client, "config", None)
+    if config:
+        digests = Digest.objects.filter(title=config.title).order_by("-date", "-id")
+    else:
+        digests = Digest.objects.none()
+    return render(
+        request,
+        "monitor/dashboard/client_digest_history.html",
+        {
+            "client": client,
+            "config": config,
+            "digests": digests,
+        },
+    )
 
 
 @staff_member_required
@@ -96,7 +172,8 @@ def client_generate_digest(request, client_id: int):
 
 @staff_member_required
 def digest_view(request, digest_id: int):
-    return render(request, "monitor/dashboard/digest_view.html", {"digest": f"Digest ID: {digest_id}"})
+    digest = get_object_or_404(Digest, id=digest_id)
+    return render(request, "monitor/dashboard/digest_view.html", {"digest": digest})
 
 @staff_member_required
 def personas_list(request):

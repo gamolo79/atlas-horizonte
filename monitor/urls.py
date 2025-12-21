@@ -20,6 +20,8 @@ urlpatterns = [
     path("dashboard/clients/", views_dashboard.client_list, name="monitor_dashboard_client_list"),
     path("dashboard/clients/new/", views_dashboard.client_create, name="monitor_dashboard_client_create"),
     path("dashboard/clients/<int:client_id>/", views_dashboard.client_edit, name="monitor_dashboard_client_edit"),
+    path("dashboard/clients/<int:client_id>/delete/", views_dashboard.client_delete, name="monitor_dashboard_client_delete"),
+    path("dashboard/clients/<int:client_id>/digests/", views_dashboard.client_digest_history, name="monitor_dashboard_client_digests"),
     path("dashboard/clients/<int:client_id>/generate/", views_dashboard.client_generate_digest, name="monitor_dashboard_client_generate"),
 
     # Digests
