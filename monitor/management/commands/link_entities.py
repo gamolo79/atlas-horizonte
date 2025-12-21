@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import sys
 from datetime import timedelta
 
 from django.core.management.base import BaseCommand
@@ -48,18 +49,11 @@ class Command(BaseCommand):
         parser.add_argument("--skip-ai-verify", action="store_true")
         parser.add_argument("--ai-model", type=str, default="gpt-4o-mini")
         parser.add_argument("--ai-threshold", type=float, default=0.6)
-        parser.add_argument(
-            "--mode",
-            choices=["rules", "ai", "hybrid"],
-            default="rules",
-            help="rules = reglas actuales; ai = NER IA + validación IA; hybrid = IA con fallback a reglas.",
-        )
-        parser.add_argument("--ner-model", type=str, default="gpt-4o-mini")
-        parser.add_argument("--ner-max-entities", type=int, default=40)
-        parser.add_argument("--fallback-linked-threshold", type=float, default=0.9)
-        parser.add_argument("--fallback-proposed-threshold", type=float, default=0.7)
 
     def handle(self, *args, **options):
+        self.stdout.write(self.style.WARNING(f"[DEBUG] link_entities file: {__file__}"))
+        self.stdout.write(self.style.WARNING(f"[DEBUG] monitor.linking file: {sys.modules.get('monitor.linking').__file__}"))
+        self.stdout.write(self.style.WARNING(f"[DEBUG] sys.path[0]: {sys.path[0]}"))
         since = parse_since(options["since"])
         limit = options["limit"]
         dry_run = options["dry_run"]
@@ -68,11 +62,6 @@ class Command(BaseCommand):
         skip_ai_verify = options["skip_ai_verify"]
         ai_model = options["ai_model"]
         ai_threshold = options["ai_threshold"]
-        mode = options["mode"]
-        ner_model = options["ner_model"]
-        ner_max_entities = options["ner_max_entities"]
-        fallback_linked_threshold = options["fallback_linked_threshold"]
-        fallback_proposed_threshold = options["fallback_proposed_threshold"]
 
         since_dt = timezone.now() - since
         articles = list(
@@ -94,14 +83,14 @@ class Command(BaseCommand):
         }
 
         ai_client = None
-        if mode in ("ai", "hybrid") or not skip_ai_verify:
+        if not skip_ai_verify:
             if not os.environ.get("OPENAI_API_KEY"):
-                self.stdout.write(self.style.WARNING("OPENAI_API_KEY no está configurada."))
+                self.stdout.write(self.style.WARNING("OPENAI_API_KEY no está configurada. Se omite verificación IA."))
             else:
                 try:
                     from openai import OpenAI
                 except ImportError:
-                    self.stdout.write(self.style.WARNING("Paquete openai no disponible."))
+                    self.stdout.write(self.style.WARNING("Paquete openai no disponible. Se omite verificación IA."))
                 else:
                     ai_client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"), timeout=15)
 
@@ -115,99 +104,33 @@ class Command(BaseCommand):
                 if not Mention.objects.filter(article=article).exists():
                     extract_mentions(article)
 
-                mentions = Mention.objects.filter(
-                    article=article,
-                    entity_kind__in=[Mention.EntityKind.PERSON, Mention.EntityKind.ORG],
-                )
-                for mention in mentions:
-                    totals["mentions_analyzed"] += 1
-                    candidates = retrieve_candidates(mention, scope=scope)
-                    if not candidates:
-                        totals["no_candidates"] += 1
-                        continue
-                    scored = score_candidates(mention, candidates)
-                    winner = choose_winner(scored)
-                    if not winner:
-                        totals["ambiguous"] += 1
-                        continue
-                    if ai_client and not self._ai_verify(ai_client, ai_model, ai_threshold, mention, winner):
-                        totals["ai_rejected"] += 1
-                        continue
-                    link, action = persist_link(mention, winner, dry_run=dry_run)
-                    if not link:
-                        continue
-                    if link.status == EntityLink.Status.PROPOSED:
-                        totals["proposed"] += 1
-                    elif action == "updated":
-                        totals["links_updated"] += 1
-                    elif action == "created":
-                        totals["links_created"] += 1
-                continue
-
-            ai_failed = False
-            if not ai_client:
-                ai_failed = True
-            else:
-                _, _, error = extract_mentions_ai(
-                    article,
-                    ai_client,
-                    model=ner_model,
-                    max_entities=ner_max_entities,
-                )
-                if error:
-                    ai_failed = True
-
-            if not ai_failed:
-                mentions = Mention.objects.filter(
-                    article=article,
-                    method="ai_ner",
-                    entity_kind__in=[Mention.EntityKind.PERSON, Mention.EntityKind.ORG],
-                )
-                resolver_version = f"ai_ner_v1:{ner_model}"[:60]
-                stats, ai_error = link_mentions(
-                    mentions,
-                    scope=scope,
-                    ai_client=ai_client,
-                    ai_model=ai_model,
-                    ai_threshold=ai_threshold,
-                    require_ai_validation=True,
-                    resolver_version=resolver_version,
-                    dry_run=dry_run,
-                )
-                for key, value in stats.items():
-                    totals[key] += value
-                if ai_error:
-                    ai_failed = True
-
-            if ai_failed and mode == "hybrid":
-                extract_mentions(article, method="alias_regex_hybrid")
-                mentions = Mention.objects.filter(
-                    article=article,
-                    method="alias_regex_hybrid",
-                    entity_kind__in=[Mention.EntityKind.PERSON, Mention.EntityKind.ORG],
-                )
-                fallback_thresholds = {
-                    "linked": fallback_linked_threshold,
-                    "proposed": fallback_proposed_threshold,
-                }
-                resolver_version = "hybrid_rules_v1"
-                extra_reason = {
-                    "rule": "fallback_rules",
-                    "value": "ai_failed",
-                    "score_delta": 0.0,
-                }
-                stats, _ = link_mentions(
-                    mentions,
-                    scope=scope,
-                    thresholds=fallback_thresholds,
-                    resolver_version=resolver_version,
-                    dry_run=dry_run,
-                    extra_reason=extra_reason,
-                )
-                for key, value in stats.items():
-                    totals[key] += value
-            elif ai_failed and mode == "ai":
-                self.stdout.write(self.style.WARNING(f"IA falló en artículo {article.id}; sin fallback."))
+            mentions = Mention.objects.filter(
+                article=article,
+                entity_kind__in=[Mention.EntityKind.PERSON, Mention.EntityKind.ORG],
+            )
+            for mention in mentions:
+                totals["mentions_analyzed"] += 1
+                candidates = retrieve_candidates(mention, scope=scope)
+                if not candidates:
+                    totals["no_candidates"] += 1
+                    continue
+                scored = score_candidates(mention, candidates)
+                winner = choose_winner(scored)
+                if not winner:
+                    totals["ambiguous"] += 1
+                    continue
+                if ai_client and not self._ai_verify(ai_client, ai_model, ai_threshold, mention, winner):
+                    totals["ai_rejected"] += 1
+                    continue
+                link, action = persist_link(mention, winner, dry_run=dry_run)
+                if not link:
+                    continue
+                if link.status == EntityLink.Status.PROPOSED:
+                    totals["proposed"] += 1
+                elif action == "updated":
+                    totals["links_updated"] += 1
+                elif action == "created":
+                    totals["links_created"] += 1
 
         self.stdout.write(
             self.style.SUCCESS(

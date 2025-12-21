@@ -640,13 +640,3 @@ def _should_skip_surface(surface: str) -> bool:
     if normalized in MENTION_STOP_WORDS:
         return True
     return False
-
-
-def _find_surface_span(surface, text):
-    if not surface or not text:
-        return None, None
-    pattern = re.escape(surface.strip())
-    match = re.search(pattern, text, flags=re.IGNORECASE)
-    if not match:
-        return None, None
-    return match.start(), match.end()

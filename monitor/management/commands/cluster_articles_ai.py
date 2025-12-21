@@ -1,17 +1,10 @@
 import hashlib
 import json
 import math
-import os
-import random
-import importlib
-import importlib.util
-from collections import Counter
-
+import sys
 from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.utils import timezone
-
-from openai import OpenAI
 
 from monitor.models import (
     Article,
@@ -21,47 +14,6 @@ from monitor.models import (
     StoryCluster,
     StoryMention,
 )
-
-
-STOPWORDS = {
-    "el",
-    "la",
-    "los",
-    "las",
-    "un",
-    "una",
-    "unos",
-    "unas",
-    "de",
-    "del",
-    "al",
-    "y",
-    "o",
-    "u",
-    "en",
-    "por",
-    "para",
-    "con",
-    "sin",
-    "que",
-    "se",
-    "a",
-    "su",
-    "sus",
-    "es",
-    "son",
-    "fue",
-    "será",
-    "hoy",
-    "ayer",
-    "este",
-    "esta",
-    "estos",
-    "estas",
-    "ante",
-    "tras",
-    "sobre",
-}
 
 
 def cosine(a, b):
@@ -198,8 +150,13 @@ class Command(BaseCommand):
         parser.add_argument("--ai-model", type=str, default="gpt-4o-mini")
         parser.add_argument("--skip-ai", action="store_true")
         parser.add_argument("--dry-run", action="store_true")
+        parser.add_argument("--entity-boost", type=float, default=0.03)
+        parser.add_argument("--entity-penalty", type=float, default=0.07)
+        parser.add_argument("--skip-entity-guard", action="store_true")
 
     def handle(self, *args, **opts):
+        self.stdout.write(self.style.WARNING(f"[DEBUG] cluster_articles_ai file: {__file__}"))
+        self.stdout.write(self.style.WARNING(f"[DEBUG] sys.path[0]: {sys.path[0]}"))
         hours = opts["hours"]
         limit = opts["limit"]
         method = opts["method"]
@@ -210,6 +167,9 @@ class Command(BaseCommand):
         ai_model = opts["ai_model"]
         skip_ai = opts["skip_ai"]
         dry = opts["dry_run"]
+        entity_boost = opts["entity_boost"]
+        entity_penalty = opts["entity_penalty"]
+        skip_entity_guard = opts["skip_entity_guard"]
 
         since = timezone.now() - timezone.timedelta(hours=hours)
 
@@ -228,23 +188,26 @@ class Command(BaseCommand):
         )
         unclustered = [article for article in articles if article.id not in existing_mentions]
 
-        if not unclustered:
-            self.stdout.write(self.style.WARNING("Todos los artículos ya están clusterizados."))
-            return
-
-        article_ids = [article.id for article in unclustered]
+        article_ids = [a.id for a in articles]
         entity_map = self._build_entity_map(article_ids)
-        keyword_map = {
-            article.id: build_keywords(article.title, article.lead, article.body_text)
-            for article in unclustered
-        }
 
-        embeddings = [article.embedding for article in unclustered]
-        initial_clusters = self._initial_stage(embeddings, method, min_cluster_size, max_clusters, seed)
-
-        self.stdout.write(
-            self.style.MIGRATE_HEADING(
-                f"Stage A · {len(initial_clusters)} clusters iniciales ({len(unclustered)} artículos)"
+        existing_clusters = []
+        for cluster in (
+            StoryCluster.objects.filter(created_at__gte=since)
+            .select_related("base_article")
+            .annotate(mention_count=Count("mentions"))
+        ):
+            base_article = cluster.base_article
+            if not base_article or not base_article.embedding:
+                continue
+            base_entities = entity_map.get(base_article.id, set())
+            existing_clusters.append(
+                {
+                    "cluster": cluster,
+                    "centroid": base_article.embedding,
+                    "count": max(cluster.mention_count or 0, 1),
+                    "entities": base_entities,
+                }
             )
         )
 
@@ -298,222 +261,60 @@ class Command(BaseCommand):
             return
 
         with transaction.atomic():
-            for entry in final_clusters:
-                cluster_articles = entry["articles"]
-                ai_meta = entry["ai"]
-                metrics = self._compute_cluster_metrics(cluster_articles, entity_map, keyword_map)
+            for art in articles:
+                if art.id in existing_mentions:
+                    continue
+                vec = art.embedding
+                art_entities = entity_map.get(art.id, set())
+                best = None
+                best_score = -1.0
 
-                base_article, centroid = self._select_base_article(cluster_articles)
-                article_ids = sorted([article.id for article in cluster_articles])
-                cluster_key = self._cluster_key(article_ids)
+                for c in clusters:
+                    score = cosine(vec, c["centroid"])
+                    if not skip_entity_guard:
+                        score = self._apply_entity_guard(
+                            score,
+                            art_entities,
+                            c.get("entities", set()),
+                            entity_boost,
+                            entity_penalty,
+                        )
+                    if score > best_score:
+                        best_score = score
+                        best = c
 
-                topic_label = metrics["topic_label"]
-                cluster_summary = metrics["cluster_summary"]
-
-                if ai_meta:
-                    topic_label = ai_meta.get("topic_label") or topic_label
-                    cluster_summary = ai_meta.get("cluster_summary") or cluster_summary
-
-                cluster, created = StoryCluster.objects.get_or_create(
-                    cluster_key=cluster_key,
-                    defaults={
-                        "headline": base_article.title,
-                        "lead": base_article.lead or "",
-                        "base_article": base_article,
-                        "confidence": metrics["cohesion_score"],
-                        "topic_label": topic_label,
-                        "cohesion_score": metrics["cohesion_score"],
-                        "cluster_summary": cluster_summary,
-                    },
-                )
-                if created:
+                if best is None or best_score < threshold:
+                    # nuevo cluster
                     created_clusters += 1
+                    if dry:
+                        clusters.append({"cluster": None, "centroid": vec, "count": 1})
+                        continue
+
+                    cluster_obj = StoryCluster.objects.create(
+                        headline=art.title,
+                        lead=getattr(art, "lead", "") or "",
+                        cluster_key=f"emb:{art.id}",
+                        base_article=art,
+                    )
+                    clusters.append(
+                        {"cluster": cluster_obj, "centroid": vec, "count": 1, "entities": art_entities}
+                    )
+                    add_mention(cluster_obj, art)
                 else:
-                    StoryCluster.objects.filter(id=cluster.id).update(
-                        headline=base_article.title,
-                        lead=base_article.lead or "",
-                        base_article=base_article,
-                        confidence=metrics["cohesion_score"],
-                        topic_label=topic_label,
-                        cohesion_score=metrics["cohesion_score"],
-                        cluster_summary=cluster_summary,
-                    )
+                    # añadir al mejor cluster
+                    best["centroid"] = update_centroid(best["centroid"], best["count"], vec)
+                    best["count"] += 1
+                    if best.get("entities") is not None:
+                        best["entities"] = best["entities"] | art_entities
+                    if not dry:
+                        add_mention(best["cluster"], art)
 
-                for article in cluster_articles:
-                    match_score = cosine(article.embedding, centroid) if centroid else 0.0
-                    _, was_created = StoryMention.objects.get_or_create(
-                        cluster=cluster,
-                        article=article,
-                        defaults={
-                            "media_outlet": article.media_outlet,
-                            "match_score": match_score,
-                            "is_base_candidate": article.id == base_article.id,
-                        },
-                    )
-                    if was_created:
-                        created_mentions += 1
-
-        self.stdout.write(
-            self.style.SUCCESS(
-                "Created clusters: {} · Created mentions: {} · IA splits: {} · heuristic splits: {}".format(
-                    created_clusters,
-                    created_mentions,
-                    ai_splits,
-                    heuristic_splits,
-                )
-            )
-        )
-
-    def _cluster_key(self, article_ids):
-        digest = hashlib.sha1("-".join(map(str, article_ids)).encode("utf-8")).hexdigest()
-        return f"ai2:{digest[:16]}"
-
-    def _select_base_article(self, articles):
-        embeddings = [article.embedding for article in articles]
-        centroid = average_vectors(embeddings)
-        best_article = articles[0]
-        best_score = -1.0
-        for article in articles:
-            score = cosine(article.embedding, centroid)
-            if score > best_score:
-                best_score = score
-                best_article = article
-        return best_article, centroid
-
-    def _initial_stage(self, embeddings, method, min_cluster_size, max_clusters, seed):
-        total = len(embeddings)
-        if total == 0:
-            return []
-        if total <= min_cluster_size:
-            return [[idx] for idx in range(total)]
-
-        hdbscan_module = load_optional_module("hdbscan")
-
-        if method == "auto" and hdbscan_module:
-            method = "hdbscan"
-        if method == "hdbscan" and not hdbscan_module:
-            self.stdout.write(self.style.WARNING("HDBSCAN no disponible, usando KMeans."))
-            method = "kmeans"
-
-        if method == "hdbscan" and hdbscan_module:
-            clusterer = hdbscan_module.HDBSCAN(min_cluster_size=min_cluster_size, metric="euclidean")
-            labels = clusterer.fit_predict(embeddings)
-            clusters = {}
-            for idx, label in enumerate(labels):
-                clusters.setdefault(label, []).append(idx)
-            results = [group for label, group in clusters.items() if label != -1]
-            noise = clusters.get(-1, [])
-            results.extend([[idx] for idx in noise])
-            return results
-
-        cluster_count = min(max_clusters, max(1, int(math.sqrt(total))))
-        return kmeans_clusters(embeddings, cluster_count, seed=seed)
-
-    def _compute_cluster_metrics(self, articles, entity_map, keyword_map):
-        embeddings = [article.embedding for article in articles]
-        centroid = average_vectors(embeddings)
-        thematic_scores = [cosine(article.embedding, centroid) for article in articles]
-        thematic_similarity = sum(thematic_scores) / len(thematic_scores) if thematic_scores else 0.0
-
-        entity_sets = [entity_map.get(article.id, set()) for article in articles]
-        keyword_sets = [keyword_map.get(article.id, set()) for article in articles]
-
-        entity_overlap = compute_overlap_score(entity_sets)
-        keyword_overlap = compute_overlap_score(keyword_sets)
-
-        cohesion_score = 0.5 * thematic_similarity + 0.25 * entity_overlap + 0.25 * keyword_overlap
-
-        keywords_counter = Counter()
-        for keywords in keyword_sets:
-            keywords_counter.update(keywords)
-        topic_label = build_topic_label([word for word, _ in keywords_counter.most_common(5)])
-        example_title = articles[0].title if articles else ""
-        cluster_summary = build_cluster_summary(topic_label, len(articles), example_title)
-
-        return {
-            "cohesion_score": cohesion_score,
-            "topic_label": topic_label,
-            "cluster_summary": cluster_summary,
-        }
-
-    def _ai_split_cluster(self, client, model, articles, entity_map, keyword_map):
-        payload = []
-        for idx, article in enumerate(articles):
-            payload.append(
-                {
-                    "index": idx,
-                    "title": (article.title or "")[:180],
-                    "lead": (article.lead or "")[:240],
-                    "keywords": sorted(keyword_map.get(article.id, []))[:10],
-                    "entities": sorted(entity_map.get(article.id, []))[:10],
-                }
-            )
-
-        prompt = (
-            "Revisa si el cluster de noticias es coherente. "
-            "Si es coherente, responde con is_coherent=true y un topic_label y cluster_summary. "
-            "Si no es coherente, divide en grupos coherentes y entrega los índices por grupo. "
-            "Responde SOLO JSON con llaves: is_coherent (true/false), topic_label, cluster_summary, "
-            "groups (lista de objetos con indices, topic_label, cluster_summary). "
-            "Usa los índices tal como se entregan."
-        )
-
-        try:
-            response = client.chat.completions.create(
-                model=model,
-                messages=[
-                    {"role": "system", "content": "Eres un analista editorial. Responde SOLO JSON."},
-                    {"role": "user", "content": f"{prompt}\n\nArtículos: {json.dumps(payload, ensure_ascii=False)}"},
-                ],
-                temperature=0.2,
-                response_format={"type": "json_object"},
-            )
-        except Exception as exc:
-            self.stdout.write(self.style.WARNING(f"Error OpenAI (cluster validation): {exc}"))
-            return None
-
-        content = response.choices[0].message.content
-        try:
-            result = json.loads(content)
-        except json.JSONDecodeError:
-            self.stdout.write(self.style.WARNING("JSON inválido en validación IA."))
-            return None
-
-        if not isinstance(result, dict):
-            return None
-
-        if result.get("is_coherent") is True:
-            return None
-
-        raw_groups = result.get("groups") or []
-        groups = []
-        for group in raw_groups:
-            indices = group.get("indices") or []
-            indices = [idx for idx in indices if isinstance(idx, int) and 0 <= idx < len(articles)]
-            if not indices:
-                continue
-            group_articles = [articles[idx] for idx in indices]
-            groups.append(
-                {
-                    "articles": group_articles,
-                    "topic_label": group.get("topic_label") or "",
-                    "cluster_summary": group.get("cluster_summary") or "",
-                }
-            )
-
-        if not groups:
-            return None
-
-        return {"groups": groups}
-
-    def _heuristic_split(self, articles, seed):
-        if len(articles) < 4:
-            return None
-        embeddings = [article.embedding for article in articles]
-        clusters = kmeans_clusters(embeddings, 2, seed=seed)
-        if len(clusters) < 2:
-            return None
-        return [[articles[idx] for idx in cluster] for cluster in clusters]
+        if dry:
+            self.stdout.write(self.style.SUCCESS(f"Dry run OK · Candidate clusters: {created_clusters}"))
+        else:
+            self.stdout.write(self.style.SUCCESS(
+                f"Created clusters: {created_clusters} · Created mentions: {created_mentions}"
+            ))
 
     def _build_entity_map(self, article_ids):
         entity_map = {article_id: set() for article_id in article_ids}
@@ -527,3 +328,10 @@ class Command(BaseCommand):
             key = f"INSTITUTION:{mention.institucion_id}"
             entity_map.setdefault(mention.article_id, set()).add(key)
         return entity_map
+
+    def _apply_entity_guard(self, score, article_entities, cluster_entities, boost, penalty):
+        if not article_entities or not cluster_entities:
+            return score
+        if article_entities & cluster_entities:
+            return score + boost
+        return score - penalty
