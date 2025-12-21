@@ -8,11 +8,12 @@ from django.db.models import Count
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
-from redpolitica.models import Persona
+from redpolitica.models import Institucion, Persona
 
 from .forms_dashboard import DigestClientConfigForm, DigestClientForm, OpsForm
 from .models import (
     Article,
+    ArticleInstitucionMention,
     ArticlePersonaMention,
     Digest,
     DigestClient,
@@ -193,6 +194,24 @@ def personas_list(request):
     )
 
 
+@staff_member_required
+def instituciones_list(request):
+    query = request.GET.get("q", "").strip()
+    instituciones = Institucion.objects.all()
+    if query:
+        instituciones = instituciones.filter(nombre__icontains=query)
+    instituciones = instituciones.order_by("nombre")[:200]
+
+    return render(
+        request,
+        "monitor/dashboard/instituciones_list.html",
+        {
+            "instituciones": instituciones,
+            "query": query,
+        },
+    )
+
+
 def _persona_metrics(persona, days: int):
     since = timezone.now() - timedelta(days=days)
     mentions = ArticlePersonaMention.objects.filter(
@@ -230,6 +249,56 @@ def _persona_metrics(persona, days: int):
     }
 
 
+def _institucion_metrics(institucion, days: int):
+    since = timezone.now() - timedelta(days=days)
+    mentions = ArticleInstitucionMention.objects.filter(
+        institucion=institucion,
+        article__published_at__gte=since,
+    ).select_related("article", "article__media_outlet")
+
+    articles = Article.objects.filter(
+        institution_mentions__institucion=institucion,
+        published_at__gte=since,
+    ).distinct()
+    sentiments = (
+        Article.objects.filter(
+            institution_mentions__institucion=institucion,
+            sentiment__isnull=False,
+            published_at__gte=since,
+        )
+        .values("sentiment__sentiment")
+        .annotate(total=Count("id"))
+    )
+    sentiment_summary = {row["sentiment__sentiment"]: row["total"] for row in sentiments}
+
+    outlets = (
+        MediaOutlet.objects.filter(
+            article__institution_mentions__institucion=institucion,
+            article__published_at__gte=since,
+        )
+        .annotate(total=Count("article"))
+        .order_by("-total")[:8]
+    )
+
+    top_clusters = (
+        StoryCluster.objects.filter(
+            mentions__article__institution_mentions__institucion=institucion,
+            created_at__gte=since,
+        )
+        .annotate(total=Count("mentions"))
+        .order_by("-total")[:6]
+    )
+
+    return {
+        "mentions_count": mentions.count(),
+        "articles_count": articles.count(),
+        "outlets": outlets,
+        "sentiment_summary": sentiment_summary,
+        "clusters": top_clusters,
+        "since": since,
+    }
+
+
 @staff_member_required
 def persona_dashboard(request, persona_id: int):
     persona = get_object_or_404(Persona, id=persona_id)
@@ -241,6 +310,19 @@ def persona_dashboard(request, persona_id: int):
         "metrics": _persona_metrics(persona, days),
     }
     return render(request, "monitor/dashboard/persona_dashboard.html", context)
+
+
+@staff_member_required
+def institucion_dashboard(request, institucion_id: int):
+    institucion = get_object_or_404(Institucion, id=institucion_id)
+    days = int(request.GET.get("days", 30))
+
+    context = {
+        "institucion": institucion,
+        "days": days,
+        "metrics": _institucion_metrics(institucion, days),
+    }
+    return render(request, "monitor/dashboard/institucion_dashboard.html", context)
 
 
 @staff_member_required
@@ -286,6 +368,51 @@ def benchmark_dashboard(request):
         "personas": Persona.objects.order_by("nombre_completo")[:200],
     }
     return render(request, "monitor/dashboard/benchmark.html", context)
+
+
+@staff_member_required
+def institucion_benchmark_dashboard(request):
+    institucion_a = None
+    institucion_b = None
+    days = int(request.GET.get("days", 30))
+
+    institucion_a_id = request.GET.get("a")
+    institucion_b_id = request.GET.get("b")
+
+    if institucion_a_id:
+        institucion_a = get_object_or_404(Institucion, id=institucion_a_id)
+    if institucion_b_id:
+        institucion_b = get_object_or_404(Institucion, id=institucion_b_id)
+
+    metrics_a = _institucion_metrics(institucion_a, days) if institucion_a else None
+    metrics_b = _institucion_metrics(institucion_b, days) if institucion_b else None
+
+    top_outlets = []
+    if institucion_a and institucion_b:
+        since = timezone.now() - timedelta(days=days)
+        outlets_a = MediaOutlet.objects.filter(
+            article__institution_mentions__institucion=institucion_a,
+            article__published_at__gte=since,
+        )
+        outlets_b = MediaOutlet.objects.filter(
+            article__institution_mentions__institucion=institucion_b,
+            article__published_at__gte=since,
+        )
+        outlet_counts = Counter(outlets_a.values_list("name", flat=True)) + Counter(
+            outlets_b.values_list("name", flat=True)
+        )
+        top_outlets = outlet_counts.most_common(6)
+
+    context = {
+        "institucion_a": institucion_a,
+        "institucion_b": institucion_b,
+        "metrics_a": metrics_a,
+        "metrics_b": metrics_b,
+        "days": days,
+        "top_outlets": top_outlets,
+        "instituciones": Institucion.objects.order_by("nombre")[:200],
+    }
+    return render(request, "monitor/dashboard/institucion_benchmark.html", context)
 
 
 @staff_member_required

@@ -158,21 +158,21 @@ class Command(BaseCommand):
                     if lead:
                         html.append(f"<p>{escape(lead)}</p>")
 
-                    html.append("<ul>")
+                    html.append("<div class='digest-chips'>")
                     chips = []
                     for mention in cluster.mentions.select_related("media_outlet", "article").all():
                         mo = mention.media_outlet.name if mention.media_outlet else "Medio"
                         url = mention.article.url if mention.article else ""
                         if url:
                             html.append(
-                                f"<li><a href='{escape(url)}' target='_blank' rel='noopener noreferrer'>{escape(mo)}</a></li>"
+                                f"<a class='digest-chip' href='{escape(url)}' target='_blank' rel='noopener noreferrer'>{escape(mo)}</a>"
                             )
                         else:
-                            html.append(f"<li>{escape(mo)}</li>")
+                            html.append(f"<span class='digest-chip'>{escape(mo)}</span>")
 
                         chips.append({"media_outlet": mo, "url": url})
 
-                    html.append("</ul>")
+                    html.append("</div>")
 
                     sec_json["items"].append({
                         "cluster_id": cluster.id,

@@ -1,0 +1,75 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Monitor · Horizonte Digital</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/monitor-design-system.css' %}">
+</head>
+<body>
+  <div class="page">
+    <header>
+      <div class="header-inner">
+        <div class="brand">
+          <img src="{% static 'img/logo-horizonte-monitor.png' %}" alt="Monitor" class="brand-logo">
+          <div class="brand-texts">
+            <div class="brand-text-main">Monitor</div>
+            <div class="brand-text-sub">Cobertura · Benchmark · Alertas</div>
+          </div>
+        </div>
+        <a class="btn" href="/">← Ecosistema</a>
+      </div>
+    </header>
+
+    <main>
+      <div class="main-inner">
+        <section class="hero panel">
+          <div>
+            <h1 class="hero-title">Sigue la cobertura de actores públicos y temas emergentes.</h1>
+            <p class="hero-subtitle">Monitor concentra dashboards de cobertura, comparativos y digests con alertas configurables para personas e instituciones.</p>
+          </div>
+          <div>
+            <img src="{% static 'img/logo-horizonte-monitor.png' %}" alt="Logo Monitor" style="max-width: 220px; width: 100%; display: block; margin: 0 auto;">
+            <div class="hero-pills" style="justify-content: center;">
+              <a class="pill" href="/monitor/dashboard/">Home</a>
+              <a class="pill" href="/monitor/dashboard/personas/">Personas</a>
+              <a class="pill" href="/monitor/dashboard/benchmark/">Benchmark</a>
+              <a class="pill" href="/monitor/dashboard/instituciones/">Instituciones</a>
+              <a class="pill" href="/monitor/dashboard/ingest/">Ingest/Digest</a>
+              <a class="pill" href="/monitor/dashboard/clients/">Clientes</a>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-title">Entrar rápido</div>
+          <div class="panel-grid">
+            <a class="card-link" href="/monitor/dashboard/personas/">
+              <div class="card-title">Cobertura por persona</div>
+              <div class="card-desc">Explora menciones, medios y clusters por actor.</div>
+            </a>
+            <a class="card-link" href="/monitor/dashboard/benchmark/">
+              <div class="card-title">Benchmark entre dos personas</div>
+              <div class="card-desc">Compara presencia mediática entre dos actores.</div>
+            </a>
+            <a class="card-link" href="/monitor/dashboard/instituciones/">
+              <div class="card-title">Cobertura por institución</div>
+              <div class="card-desc">Revisa menciones de instituciones y tendencias.</div>
+            </a>
+            <a class="card-link" href="/monitor/dashboard/instituciones/benchmark/">
+              <div class="card-title">Benchmark por institución</div>
+              <div class="card-desc">Contrasta la cobertura entre dos instituciones.</div>
+            </a>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <footer>
+      Horizonte Digital · Monitor · <a href="{% url 'privacy-notice' %}">Aviso de privacidad</a> · <a href="{% url 'terms-conditions' %}">Términos y condiciones</a>
+    </footer>
+  </div>
+</body>
+</html>

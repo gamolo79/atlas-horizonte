@@ -1,0 +1,78 @@
+{% extends "monitor/dashboard/base.html" %}
+{% block title %}{{ institucion.nombre }} · Monitor{% endblock %}
+{% block content %}
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">{{ institucion.nombre }}</h1>
+      <p class="muted">Resumen de cobertura en los últimos {{ days }} días.</p>
+    </div>
+    <div class="actions">
+      <a class="secondary" href="/monitor/dashboard/instituciones/benchmark/?a={{ institucion.id }}">Comparar</a>
+      <a href="/monitor/dashboard/instituciones/">Volver</a>
+    </div>
+  </div>
+
+  <section class="grid grid-3">
+    <div class="card">
+      <div class="muted">Menciones</div>
+      <div class="kpi">{{ metrics.mentions_count }}</div>
+    </div>
+    <div class="card">
+      <div class="muted">Artículos únicos</div>
+      <div class="kpi">{{ metrics.articles_count }}</div>
+    </div>
+    <div class="card">
+      <div class="muted">Sentimientos</div>
+      <div class="kpi">{{ metrics.sentiment_summary|length }}</div>
+    </div>
+  </section>
+
+  <section class="grid grid-2" style="margin-top: 20px;">
+    <div class="card">
+      <h3>Top medios</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Medio</th>
+            <th>Menciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for outlet in metrics.outlets %}
+            <tr>
+              <td>{{ outlet.name }}</td>
+              <td>{{ outlet.total }}</td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="2" class="table-empty">Sin datos de medios.</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="card">
+      <h3>Clusters destacados</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Titular</th>
+            <th>Actividad</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for cluster in metrics.clusters %}
+            <tr>
+              <td>{{ cluster.headline|truncatechars:80 }}</td>
+              <td>{{ cluster.total }}</td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="2" class="table-empty">Sin clusters recientes.</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+{% endblock %}

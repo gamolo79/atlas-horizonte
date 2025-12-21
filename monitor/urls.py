@@ -14,6 +14,21 @@ urlpatterns = [
     path("dashboard/personas/", views_dashboard.personas_list, name="monitor_dashboard_personas"),
     path("dashboard/personas/<int:persona_id>/", views_dashboard.persona_dashboard, name="monitor_dashboard_persona"),
     path("dashboard/benchmark/", views_dashboard.benchmark_dashboard, name="monitor_dashboard_benchmark"),
+    path(
+        "dashboard/instituciones/",
+        views_dashboard.instituciones_list,
+        name="monitor_dashboard_instituciones",
+    ),
+    path(
+        "dashboard/instituciones/<int:institucion_id>/",
+        views_dashboard.institucion_dashboard,
+        name="monitor_dashboard_institucion",
+    ),
+    path(
+        "dashboard/instituciones/benchmark/",
+        views_dashboard.institucion_benchmark_dashboard,
+        name="monitor_dashboard_instituciones_benchmark",
+    ),
     path("dashboard/ingest/", views_dashboard.ingest_dashboard, name="monitor_dashboard_ingest"),
 
     # Clientes
