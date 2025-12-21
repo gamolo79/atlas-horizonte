@@ -4,12 +4,14 @@
   <div class="page-header">
     <div>
       <h1 class="page-title">Benchmark de personas</h1>
-      <p class="muted">Comparativa de cobertura mediática.</p>
+      <p class="page-subtitle">Comparativo de cobertura y tono editorial entre dos actores.</p>
     </div>
-    <a class="actions" href="/monitor/dashboard/personas/">Explorar personas</a>
+    <div class="actions">
+      <a class="secondary" href="/monitor/dashboard/personas/">Explorar personas</a>
+    </div>
   </div>
 
-  <form method="get" class="card" style="margin-bottom: 20px;">
+  <form method="get" class="panel" style="margin-bottom: 20px;">
     <div class="form-row">
       <div>
         <label class="muted">Persona A</label><br>
@@ -41,39 +43,60 @@
         <button type="submit">Comparar</button>
       </div>
     </div>
+    <div class="muted small">Selecciona dos actores para habilitar comparativos y gráficos agrupados.</div>
   </form>
 
   <section class="grid grid-2">
     <div class="card">
-      <h3>{{ persona_a.nombre_completo|default:"Persona A" }}</h3>
+      <h3 class="card-title">{{ persona_a.nombre_completo|default:"Persona A" }}</h3>
       {% if metrics_a %}
-        <p class="muted">Menciones: {{ metrics_a.mentions_count }}</p>
-        <p class="muted">Artículos: {{ metrics_a.articles_count }}</p>
+        <div class="kpi-label">Menciones</div>
+        <div class="kpi-value" style="color: var(--primary-soft);">{{ metrics_a.mentions_count }}</div>
+        <div class="kpi-label" style="margin-top: 12px;">Artículos</div>
+        <div class="kpi-value">{{ metrics_a.articles_count }}</div>
+        <div class="data-note">Sentimiento: {{ metrics_a.sentiment_summary.positivo }} pos · {{ metrics_a.sentiment_summary.neutro }} neu · {{ metrics_a.sentiment_summary.negativo }} neg</div>
       {% else %}
         <p class="table-empty">Selecciona una persona para ver métricas.</p>
       {% endif %}
     </div>
     <div class="card">
-      <h3>{{ persona_b.nombre_completo|default:"Persona B" }}</h3>
+      <h3 class="card-title">{{ persona_b.nombre_completo|default:"Persona B" }}</h3>
       {% if metrics_b %}
-        <p class="muted">Menciones: {{ metrics_b.mentions_count }}</p>
-        <p class="muted">Artículos: {{ metrics_b.articles_count }}</p>
+        <div class="kpi-label">Menciones</div>
+        <div class="kpi-value" style="color: var(--primary-soft);">{{ metrics_b.mentions_count }}</div>
+        <div class="kpi-label" style="margin-top: 12px;">Artículos</div>
+        <div class="kpi-value">{{ metrics_b.articles_count }}</div>
+        <div class="data-note">Sentimiento: {{ metrics_b.sentiment_summary.positivo }} pos · {{ metrics_b.sentiment_summary.neutro }} neu · {{ metrics_b.sentiment_summary.negativo }} neg</div>
       {% else %}
         <p class="table-empty">Selecciona una persona para ver métricas.</p>
       {% endif %}
     </div>
   </section>
 
-  <section class="grid" style="margin-top: 20px;">
+  <section class="grid grid-2" style="margin-top: 20px;">
     <div class="card chart-card">
       <div class="chart-header">
         <h3 class="chart-title">Comparativo de métricas</h3>
-        <div class="chart-subtitle">Menciones y artículos en la ventana seleccionada.</div>
+        <div class="chart-subtitle">Barras agrupadas para contrastar menciones y artículos.</div>
       </div>
       <div class="chart-container">
         <canvas id="personaBenchmarkChart" aria-label="Comparativo de métricas" role="img"></canvas>
       </div>
+      <div class="data-note">Ambos actores en la misma escala para lectura inmediata.</div>
     </div>
+    <div class="card chart-card">
+      <div class="chart-header">
+        <h3 class="chart-title">Sentimiento comparado</h3>
+        <div class="chart-subtitle">Barras agrupadas por tono editorial.</div>
+      </div>
+      <div class="chart-container">
+        <canvas id="personaSentimentBenchmarkChart" aria-label="Sentimiento comparado" role="img"></canvas>
+      </div>
+      <div class="data-note">Mide el balance positivo, neutro y negativo.</div>
+    </div>
+  </section>
+
+  <section class="grid grid-2" style="margin-top: 20px;">
     <div class="card chart-card">
       <div class="chart-header">
         <h3 class="chart-title">Top medios combinados</h3>
@@ -82,31 +105,32 @@
       <div class="chart-container">
         <canvas id="personaOutletsBenchmarkChart" aria-label="Top medios combinados" role="img"></canvas>
       </div>
+      <div class="data-note">Lista comparativa para priorizar medios clave.</div>
     </div>
-  </section>
-
-  <section class="card" style="margin-top: 20px;">
-    <h3>Medios combinados más activos</h3>
-    <table>
-      <thead>
-        <tr>
-          <th>Medio</th>
-          <th>Presencia total</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for outlet, total in top_outlets %}
+    <div class="card">
+      <h3 class="card-title">Medios combinados más activos</h3>
+      <p class="card-desc">Lista de outlets con mayor volumen sumado de menciones.</p>
+      <table>
+        <thead>
           <tr>
-            <td>{{ outlet }}</td>
-            <td>{{ total }}</td>
+            <th>Medio</th>
+            <th>Presencia total</th>
           </tr>
-        {% empty %}
-          <tr>
-            <td colspan="2" class="table-empty">Aún no hay datos para comparar.</td>
-          </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {% for outlet, total in top_outlets %}
+            <tr>
+              <td>{{ outlet }}</td>
+              <td>{{ total }}</td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="2" class="table-empty">Aún no hay datos para comparar.</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
   </section>
 {% endblock %}
 
@@ -118,6 +142,17 @@
     const personaBLabel = "{{ persona_b.nombre_completo|default:'Persona B'|escapejs }}";
     const personaAData = [{{ metrics_a.mentions_count|default:0 }}, {{ metrics_a.articles_count|default:0 }}];
     const personaBData = [{{ metrics_b.mentions_count|default:0 }}, {{ metrics_b.articles_count|default:0 }}];
+    const sentimentLabels = ["Positivo", "Neutro", "Negativo"];
+    const sentimentAData = [
+      {{ metrics_a.sentiment_summary.positivo|default:0 }},
+      {{ metrics_a.sentiment_summary.neutro|default:0 }},
+      {{ metrics_a.sentiment_summary.negativo|default:0 }},
+    ];
+    const sentimentBData = [
+      {{ metrics_b.sentiment_summary.positivo|default:0 }},
+      {{ metrics_b.sentiment_summary.neutro|default:0 }},
+      {{ metrics_b.sentiment_summary.negativo|default:0 }},
+    ];
 
     new Chart(document.getElementById("personaBenchmarkChart"), {
       type: "bar",
@@ -132,6 +167,34 @@
           {
             label: personaBLabel,
             data: personaBData,
+            backgroundColor: "rgba(56, 189, 248, 0.7)",
+          },
+        ],
+      },
+      options: {
+        scales: {
+          x: { ticks: { color: "#cbd5f5" } },
+          y: { ticks: { color: "#cbd5f5" } },
+        },
+        plugins: {
+          legend: { labels: { color: "#e2e8f0" } },
+        },
+      },
+    });
+
+    new Chart(document.getElementById("personaSentimentBenchmarkChart"), {
+      type: "bar",
+      data: {
+        labels: sentimentLabels,
+        datasets: [
+          {
+            label: `${personaALabel} (sentimiento)`,
+            data: sentimentAData,
+            backgroundColor: "rgba(34, 197, 94, 0.7)",
+          },
+          {
+            label: `${personaBLabel} (sentimiento)`,
+            data: sentimentBData,
             backgroundColor: "rgba(56, 189, 248, 0.7)",
           },
         ],
