@@ -30,6 +30,25 @@ class Command(BaseCommand):
         persona_aliases = list(PersonaAlias.objects.select_related("persona").all())
         inst_aliases = list(InstitucionAlias.objects.select_related("institucion").all())
 
+        def build_alias_regex(alias_objs):
+            alias_map = {}
+            alias_values = []
+            for alias_obj in alias_objs:
+                alias = (alias_obj.alias or "").strip()
+                if not alias:
+                    continue
+                alias_lower = alias.lower()
+                alias_map.setdefault(alias_lower, []).append(alias_obj)
+                alias_values.append(alias_lower)
+            if not alias_values:
+                return alias_map, None
+            unique_aliases = sorted(set(alias_values), key=len, reverse=True)
+            pattern = r"(?<!\w)(" + "|".join(map(re.escape, unique_aliases)) + r")(?!\w)"
+            return alias_map, re.compile(pattern, re.IGNORECASE)
+
+        persona_map, persona_regex = build_alias_regex(persona_aliases)
+        inst_map, inst_regex = build_alias_regex(inst_aliases)
+
         created_p = 0
         created_i = 0
 
@@ -41,34 +60,30 @@ class Command(BaseCommand):
             ]).lower()
 
             # Personas
-            for pa in persona_aliases:
-                alias = (pa.alias or "").strip()
-                if not alias:
-                    continue
-                pattern = r"(?<!\w)" + re.escape(alias.lower()) + r"(?!\w)"
-                if re.search(pattern, text):
-                    _, was_created = ArticlePersonaMention.objects.get_or_create(
-                        article=a,
-                        persona=pa.persona,
-                        defaults={"matched_alias": alias},
-                    )
-                    if was_created:
-                        created_p += 1
+            if persona_regex:
+                for match in persona_regex.finditer(text):
+                    matched_alias = match.group(1).lower()
+                    for pa in persona_map.get(matched_alias, []):
+                        _, was_created = ArticlePersonaMention.objects.get_or_create(
+                            article=a,
+                            persona=pa.persona,
+                            defaults={"matched_alias": pa.alias},
+                        )
+                        if was_created:
+                            created_p += 1
 
             # Instituciones
-            for ia in inst_aliases:
-                alias = (ia.alias or "").strip()
-                if not alias:
-                    continue
-                pattern = r"(?<!\w)" + re.escape(alias.lower()) + r"(?!\w)"
-                if re.search(pattern, text):
-                    _, was_created = ArticleInstitucionMention.objects.get_or_create(
-                        article=a,
-                        institucion=ia.institucion,
-                        defaults={"matched_alias": alias},
-                    )
-                    if was_created:
-                        created_i += 1
+            if inst_regex:
+                for match in inst_regex.finditer(text):
+                    matched_alias = match.group(1).lower()
+                    for ia in inst_map.get(matched_alias, []):
+                        _, was_created = ArticleInstitucionMention.objects.get_or_create(
+                            article=a,
+                            institucion=ia.institucion,
+                            defaults={"matched_alias": ia.alias},
+                        )
+                        if was_created:
+                            created_i += 1
 
         self.stdout.write(self.style.SUCCESS(
             f"Done. Created persona mentions: {created_p} · institution mentions: {created_i}"

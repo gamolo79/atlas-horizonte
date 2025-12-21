@@ -93,6 +93,7 @@ class Article(models.Model):
     source = models.ForeignKey(MediaSource, null=True, blank=True, on_delete=models.SET_NULL)
 
     url = models.URLField(max_length=1000, unique=True)
+    guid = models.CharField(max_length=500, blank=True, db_index=True)
 
     title = models.TextField()
     lead = models.TextField(blank=True)
