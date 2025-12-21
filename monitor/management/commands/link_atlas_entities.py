@@ -3,6 +3,7 @@ from django.core.management.base import BaseCommand
 from django.db import connection
 from django.utils import timezone
 
+from atlas_core.text_utils import normalize_name
 from monitor.models import (
     Article,
     PersonaAlias,
@@ -43,12 +44,23 @@ class Command(BaseCommand):
         persona_aliases = list(PersonaAlias.objects.select_related("persona").all())
         inst_aliases = list(InstitucionAlias.objects.select_related("institucion").all())
 
+        def should_skip_alias(alias_value):
+            cleaned = (alias_value or "").strip()
+            if len(cleaned) <= 2:
+                return True
+            normalized = normalize_name(cleaned)
+            if not normalized or normalized.isdigit():
+                return True
+            if normalized in {"de", "del", "la", "el", "los", "las"}:
+                return True
+            return False
+
         def build_alias_regex(alias_entries):
             alias_map = {}
             alias_values = []
             for alias, entity in alias_entries:
                 alias = (alias or "").strip()
-                if not alias:
+                if not alias or should_skip_alias(alias):
                     continue
                 alias_lower = alias.lower()
                 alias_map.setdefault(alias_lower, []).append((entity, alias))
