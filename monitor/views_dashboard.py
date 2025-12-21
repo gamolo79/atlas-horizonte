@@ -16,6 +16,7 @@ from .models import (
     ArticlePersonaMention,
     Digest,
     DigestClient,
+    DigestClientConfig,
     IngestRun,
     MediaOutlet,
     StoryCluster,
@@ -63,8 +64,31 @@ def client_edit(request, client_id: int):
 @staff_member_required
 def client_generate_digest(request, client_id: int):
     # MVP: comando existente en tu repo (lo vimos en management/commands)
+    client = get_object_or_404(DigestClient, id=client_id)
     try:
-        call_command("generate_client_digest", "--client-id", str(client_id))
+        try:
+            config = client.config
+        except DigestClientConfig.DoesNotExist:
+            messages.error(request, "El cliente no tiene configuración de digest.")
+            return redirect("monitor_dashboard_client_edit", client_id=client_id)
+
+        person_ids = list(config.personas.values_list("id", flat=True))
+        institution_ids = list(config.instituciones.values_list("id", flat=True))
+        if not person_ids and not institution_ids:
+            messages.error(request, "La configuración no tiene personas ni instituciones.")
+            return redirect("monitor_dashboard_client_edit", client_id=client_id)
+
+        cmd_args = [
+            "--title", config.title,
+            "--top", str(config.top_n),
+            "--hours", str(config.hours),
+        ]
+        for pid in person_ids:
+            cmd_args.extend(["--person-id", str(pid)])
+        for iid in institution_ids:
+            cmd_args.extend(["--institution-id", str(iid)])
+
+        call_command("generate_client_digest", *cmd_args)
         messages.success(request, "Digest generado.")
     except Exception as e:
         messages.error(request, f"Error generando digest: {e}")
@@ -198,20 +222,49 @@ def ingest_dashboard(request):
 
             try:
                 if action == "fetch_sources":
-                    call_command("fetch_sources", "--limit", str(limit))
+                    source_id = form.cleaned_data.get("source_id")
+                    cmd_args = ["--limit", str(limit)]
+                    if source_id:
+                        cmd_args.extend(["--source-id", str(source_id)])
+                    call_command("fetch_sources", *cmd_args)
                     messages.success(request, "fetch_sources OK")
 
                 elif action == "fetch_article_bodies":
-                    call_command("fetch_article_bodies", "--limit", str(limit))
+                    force = form.cleaned_data.get("force")
+                    cmd_args = ["--limit", str(limit)]
+                    if force:
+                        cmd_args.append("--force")
+                    call_command("fetch_article_bodies", *cmd_args)
                     messages.success(request, "fetch_article_bodies OK")
 
                 elif action == "embed_articles":
-                    call_command("embed_articles")
+                    call_command("embed_articles", "--limit", str(limit))
                     messages.success(request, "embed_articles OK")
 
                 elif action == "cluster_articles_ai":
-                    call_command("cluster_articles_ai")
+                    hours = form.cleaned_data.get("hours")
+                    threshold = form.cleaned_data.get("threshold")
+                    dry_run = form.cleaned_data.get("dry_run")
+                    cmd_args = [
+                        "--limit", str(limit),
+                        "--hours", str(hours),
+                        "--threshold", str(threshold),
+                    ]
+                    if dry_run:
+                        cmd_args.append("--dry-run")
+                    call_command("cluster_articles_ai", *cmd_args)
                     messages.success(request, "cluster_articles_ai OK")
+
+                elif action == "link_atlas_entities":
+                    hours = form.cleaned_data.get("hours")
+                    call_command(
+                        "link_atlas_entities",
+                        "--limit",
+                        str(limit),
+                        "--hours",
+                        str(hours),
+                    )
+                    messages.success(request, "link_atlas_entities OK")
 
                 else:
                     messages.error(request, f"Acción no reconocida: {action}")
