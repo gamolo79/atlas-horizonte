@@ -113,6 +113,9 @@ class Article(models.Model):
 
     entities_extracted = models.JSONField(default=dict, blank=True)
     quality_score = models.FloatField(default=0.0)
+    topics = models.JSONField(default=list, blank=True)
+    topics_model = models.CharField(max_length=60, blank=True, default="")
+    topics_justification = models.TextField(blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -132,6 +135,12 @@ class StoryCluster(models.Model):
 
     headline = models.TextField()
     lead = models.TextField(blank=True)
+    topic_label = models.CharField(max_length=200, blank=True, default="")
+    cohesion_score = models.FloatField(default=0.0)
+    cluster_summary = models.TextField(blank=True, default="")
+    sentiment_summary = models.JSONField(default=dict, blank=True)
+    topic_summary = models.JSONField(default=list, blank=True)
+    entity_summary = models.JSONField(default=list, blank=True)
 
     base_article = models.ForeignKey(Article, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
     confidence = models.FloatField(default=0.0)

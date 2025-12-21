@@ -1,3 +1,4 @@
+import json
 import logging
 import re
 
@@ -62,15 +63,24 @@ STATUS_THRESHOLDS = {
 }
 
 
-def extract_mentions(article, method="alias_regex", window_size=200):
+AI_NER_MAX_ENTITIES = 40
+
+
+def build_article_text(article, max_chars=8000):
     text = "\n".join(
         [
             article.title or "",
             getattr(article, "lead", "") or "",
             getattr(article, "body_text", "") or "",
         ]
-    )
-    normalized_text = text
+    ).strip()
+    if max_chars and len(text) > max_chars:
+        return text[:max_chars]
+    return text
+
+
+def extract_mentions(article, method="alias_regex", window_size=200):
+    normalized_text = build_article_text(article, max_chars=None)
     personas = list(PersonaAlias.objects.select_related("persona").all())
     instituciones = list(InstitucionAlias.objects.select_related("institucion").all())
 
@@ -115,6 +125,94 @@ def extract_mentions(article, method="alias_regex", window_size=200):
                 mention.method = method
                 mention.save(update_fields=["surface", "context_window", "method", "normalized_surface"])
     return created_mentions
+
+
+def extract_mentions_ai(
+    article,
+    client,
+    model="gpt-4o-mini",
+    max_entities=AI_NER_MAX_ENTITIES,
+    method="ai_ner",
+    window_size=240,
+):
+    text = build_article_text(article, max_chars=12000)
+    if not text:
+        return [], 0, None
+    prompt = (
+        "Extrae entidades PERSON y ORG del texto (title + lead + body). "
+        "Responde SOLO JSON válido con llave entities (lista). "
+        "Cada entity: surface, kind (PERSON u ORG). "
+        f"Máximo {max_entities} entidades distintas."
+        f"\n\nTexto:\n{text}"
+    )
+    try:
+        response = client.chat.completions.create(
+            model=model,
+            messages=[
+                {"role": "system", "content": "Eres un extractor NER. Responde SOLO JSON."},
+                {"role": "user", "content": prompt},
+            ],
+            temperature=0.2,
+            response_format={"type": "json_object"},
+        )
+    except Exception as exc:
+        LOGGER.warning("Error OpenAI (NER): %s", exc)
+        return [], 0, "ai_error"
+
+    content = response.choices[0].message.content
+    try:
+        result = json.loads(content)
+    except json.JSONDecodeError:
+        LOGGER.warning("JSON inválido en respuesta NER IA.")
+        return [], 0, "invalid_json"
+
+    entities = result.get("entities") if isinstance(result, dict) else None
+    if not isinstance(entities, list):
+        LOGGER.warning("Respuesta NER IA sin lista de entidades.")
+        return [], 0, "invalid_payload"
+
+    created_mentions = 0
+    mentions = []
+    for entry in entities[:max_entities]:
+        if not isinstance(entry, dict):
+            continue
+        surface = (entry.get("surface") or entry.get("text") or entry.get("name") or "").strip()
+        if _should_skip_surface(surface):
+            continue
+        kind_raw = (entry.get("kind") or entry.get("type") or "").strip().upper()
+        if kind_raw in ("PERSON", "PER"):
+            kind = Mention.EntityKind.PERSON
+        elif kind_raw in ("ORG", "ORGANIZATION", "INSTITUTION"):
+            kind = Mention.EntityKind.ORG
+        else:
+            continue
+        span_start, span_end = _find_surface_span(surface, text)
+        context_window = ""
+        if span_start is not None and span_end is not None:
+            context_start = max(span_start - window_size // 2, 0)
+            context_end = min(span_end + window_size // 2, len(text))
+            context_window = text[context_start:context_end]
+        mention, created = Mention.objects.get_or_create(
+            article=article,
+            entity_kind=kind,
+            span_start=span_start,
+            span_end=span_end,
+            normalized_surface=normalize_name(surface),
+            defaults={
+                "surface": surface,
+                "context_window": context_window,
+                "method": method,
+            },
+        )
+        if created:
+            created_mentions += 1
+        elif mention.surface != surface or mention.context_window != context_window or mention.method != method:
+            mention.surface = surface
+            mention.context_window = context_window
+            mention.method = method
+            mention.save(update_fields=["surface", "context_window", "method", "normalized_surface"])
+        mentions.append(mention)
+    return mentions, created_mentions, None
 
 
 def retrieve_candidates(mention, limit=10, scope=None):
@@ -230,14 +328,15 @@ def score_candidates(mention, candidates):
     return scored
 
 
-def choose_winner(scored_candidates):
+def choose_winner(scored_candidates, thresholds=None):
     if not scored_candidates:
         return None
+    thresholds = thresholds or STATUS_THRESHOLDS
     winner = scored_candidates[0]
     confidence = winner["confidence"]
-    if confidence >= STATUS_THRESHOLDS["linked"]:
+    if confidence >= thresholds["linked"]:
         status = EntityLink.Status.LINKED
-    elif confidence >= STATUS_THRESHOLDS["proposed"]:
+    elif confidence >= thresholds["proposed"]:
         status = EntityLink.Status.PROPOSED
     else:
         return None
@@ -304,6 +403,133 @@ def persist_link(mention, winner, resolver_version="linker_v1", dry_run=False):
             return existing_proposed, "updated"
         link = EntityLink.objects.create(mention=mention, **defaults)
         return link, "created"
+
+
+def ai_validate_match(client, model, threshold, mention, winner):
+    entity = winner["entity"]
+    entity_label = getattr(entity, "nombre_completo", None) or getattr(entity, "nombre", "") or ""
+    context = (mention.context_window or "").strip() or (mention.article.lead or "").strip()
+    if not context:
+        return {"is_match": True, "confidence": 1.0, "reason": "context_missing"}
+    payload = {
+        "entity_label": entity_label,
+        "entity_type": winner["entity_type"],
+        "mention_surface": mention.surface,
+        "context": context[:1200],
+        "article_title": (mention.article.title or "")[:200],
+    }
+    prompt = (
+        "Valida si la mención en el contexto se refiere a la entidad indicada. "
+        "Responde SOLO JSON con llaves: is_match (true/false), confidence (0-1), reason."
+        f"\n\nEntidad: {payload['entity_label']}"
+        f"\nTipo: {payload['entity_type']}"
+        f"\nMención detectada: {payload['mention_surface']}"
+        f"\nTítulo: {payload['article_title']}"
+        f"\nContexto: {payload['context']}"
+    )
+    try:
+        response = client.chat.completions.create(
+            model=model,
+            messages=[
+                {"role": "system", "content": "Eres un validador de menciones. Responde SOLO JSON."},
+                {"role": "user", "content": prompt},
+            ],
+            temperature=0.2,
+            response_format={"type": "json_object"},
+        )
+    except Exception as exc:
+        LOGGER.warning("Error OpenAI (validación IA): %s", exc)
+        return None
+
+    content = response.choices[0].message.content
+    try:
+        result = json.loads(content)
+    except json.JSONDecodeError:
+        LOGGER.warning("JSON inválido en verificación IA.")
+        return None
+    if not isinstance(result, dict):
+        return None
+    is_match = result.get("is_match")
+    confidence = result.get("confidence", 0.0)
+    reason = result.get("reason", "")
+    if is_match is False or confidence < threshold:
+        return {"is_match": False, "confidence": confidence, "reason": reason}
+    return {"is_match": True, "confidence": confidence, "reason": reason}
+
+
+def link_mentions(
+    mentions,
+    scope=None,
+    thresholds=None,
+    ai_client=None,
+    ai_model=None,
+    ai_threshold=0.6,
+    require_ai_validation=False,
+    resolver_version="linker_v1",
+    dry_run=False,
+    extra_reason=None,
+):
+    totals = {
+        "mentions_analyzed": 0,
+        "links_created": 0,
+        "links_updated": 0,
+        "proposed": 0,
+        "ambiguous": 0,
+        "no_candidates": 0,
+        "ai_rejected": 0,
+    }
+    ai_error = False
+    for mention in mentions:
+        totals["mentions_analyzed"] += 1
+        candidates = retrieve_candidates(mention, scope=scope)
+        if not candidates:
+            totals["no_candidates"] += 1
+            continue
+        scored = score_candidates(mention, candidates)
+        winner = choose_winner(scored, thresholds=thresholds)
+        if not winner:
+            totals["ambiguous"] += 1
+            continue
+        if extra_reason:
+            winner["reasons"].append(extra_reason)
+        if require_ai_validation:
+            validation = ai_validate_match(
+                ai_client,
+                ai_model,
+                ai_threshold,
+                mention,
+                winner,
+            )
+            if validation is None:
+                ai_error = True
+                continue
+            if not validation.get("is_match"):
+                totals["ai_rejected"] += 1
+                continue
+            winner["reasons"].append(
+                {
+                    "rule": "ai_validation",
+                    "value": validation.get("reason", ""),
+                    "confidence": validation.get("confidence", 0.0),
+                    "score_delta": 0.0,
+                }
+            )
+        link, action = persist_link(
+            mention,
+            winner,
+            resolver_version=resolver_version,
+            dry_run=dry_run,
+        )
+        if not link:
+            continue
+        if link.status == EntityLink.Status.PROPOSED:
+            totals["proposed"] += 1
+        elif action == "updated":
+            totals["links_updated"] += 1
+        elif action == "created":
+            totals["links_created"] += 1
+    return totals, ai_error
+
 
 
 def _build_entries_for_aliases(alias_objects, entities):

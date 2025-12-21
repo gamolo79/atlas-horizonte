@@ -8,9 +8,13 @@ from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.utils import timezone
 
+from openai import OpenAI
+
 from monitor.linking import (
     choose_winner,
     extract_mentions,
+    extract_mentions_ai,
+    link_mentions,
     persist_link,
     retrieve_candidates,
     score_candidates,
@@ -96,8 +100,9 @@ class Command(BaseCommand):
 
         for article in articles:
             totals["articles_processed"] += 1
-            if not Mention.objects.filter(article=article).exists():
-                extract_mentions(article)
+            if mode == "rules":
+                if not Mention.objects.filter(article=article).exists():
+                    extract_mentions(article)
 
             mentions = Mention.objects.filter(
                 article=article,

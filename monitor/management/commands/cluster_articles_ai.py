@@ -1,9 +1,10 @@
+import hashlib
+import json
 import math
 import sys
 from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.utils import timezone
-from django.db.models import Count
 
 from monitor.models import (
     Article,
@@ -28,13 +29,126 @@ def cosine(a, b):
     return dot / (math.sqrt(na) * math.sqrt(nb))
 
 
+def tokenize_text(text):
+    cleaned = "".join(ch.lower() if ch.isalnum() or ch.isspace() else " " for ch in (text or ""))
+    tokens = [token for token in cleaned.split() if token and token not in STOPWORDS]
+    return tokens
+
+
+def build_keywords(title, lead, body_text, limit=12):
+    tokens = tokenize_text(f"{title} {lead} {body_text}")
+    counts = Counter(tokens)
+    return {word for word, _ in counts.most_common(limit)}
+
+
+def average_vectors(vectors):
+    if not vectors:
+        return []
+    dim = len(vectors[0])
+    totals = [0.0] * dim
+    for vec in vectors:
+        for idx, val in enumerate(vec):
+            totals[idx] += val
+    return [val / len(vectors) for val in totals]
+
+
+def load_optional_module(name):
+    spec = importlib.util.find_spec(name)
+    if spec is None:
+        return None
+    return importlib.import_module(name)
+
+
+def kmeans_clusters(embeddings, cluster_count, seed=42, max_iters=15):
+    total = len(embeddings)
+    if total == 0:
+        return []
+    if cluster_count >= total:
+        return [[idx] for idx in range(total)]
+
+    rng = random.Random(seed)
+    centroid_indices = rng.sample(range(total), cluster_count)
+    centroids = [embeddings[idx][:] for idx in centroid_indices]
+
+    assignments = [0] * total
+    for _ in range(max_iters):
+        changed = False
+        for idx, vec in enumerate(embeddings):
+            best_cluster = 0
+            best_score = -1.0
+            for c_idx, centroid in enumerate(centroids):
+                score = cosine(vec, centroid)
+                if score > best_score:
+                    best_score = score
+                    best_cluster = c_idx
+            if assignments[idx] != best_cluster:
+                assignments[idx] = best_cluster
+                changed = True
+
+        new_centroids = [[] for _ in range(cluster_count)]
+        for idx, cluster_id in enumerate(assignments):
+            new_centroids[cluster_id].append(embeddings[idx])
+
+        for cluster_id, vectors in enumerate(new_centroids):
+            if not vectors:
+                centroids[cluster_id] = embeddings[rng.randrange(total)][:]
+            else:
+                centroids[cluster_id] = average_vectors(vectors)
+
+        if not changed:
+            break
+
+    clusters = [[] for _ in range(cluster_count)]
+    for idx, cluster_id in enumerate(assignments):
+        clusters[cluster_id].append(idx)
+
+    return [cluster for cluster in clusters if cluster]
+
+
+def compute_overlap_score(sets):
+    if not sets:
+        return 0.0
+    union = set().union(*sets)
+    if not union:
+        return 0.0
+    scores = []
+    for item in sets:
+        if not item:
+            scores.append(0.0)
+            continue
+        scores.append(len(item & union) / len(union))
+    if not scores:
+        return 0.0
+    return sum(scores) / len(scores)
+
+
+def build_topic_label(keywords):
+    if not keywords:
+        return ""
+    return ", ".join(keywords[:3])
+
+
+def build_cluster_summary(topic_label, article_count, example_title):
+    if not topic_label:
+        topic_label = example_title[:120]
+    if article_count == 1:
+        return f"Cobertura única sobre {topic_label}."
+    return f"Cobertura con {article_count} artículos sobre {topic_label}."
+
+
 class Command(BaseCommand):
-    help = "Cluster articles into story clusters using embeddings."
+    help = "Cluster articles into story clusters using a 2-stage pipeline (embeddings + semantic validation)."
 
     def add_arguments(self, parser):
         parser.add_argument("--hours", type=int, default=72)
         parser.add_argument("--limit", type=int, default=400)
-        parser.add_argument("--threshold", type=float, default=0.86)
+        parser.add_argument("--method", type=str, default="auto", choices=["auto", "hdbscan", "kmeans"])
+        parser.add_argument("--min-cluster-size", type=int, default=3)
+        parser.add_argument("--max-clusters", type=int, default=12)
+        parser.add_argument("--seed", type=int, default=42)
+        parser.add_argument("--cohesion-threshold", type=float, default=0.55)
+        parser.add_argument("--ai-model", type=str, default="gpt-4o-mini")
+        parser.add_argument("--skip-ai", action="store_true")
         parser.add_argument("--dry-run", action="store_true")
         parser.add_argument("--entity-boost", type=float, default=0.03)
         parser.add_argument("--entity-penalty", type=float, default=0.07)
@@ -45,7 +159,13 @@ class Command(BaseCommand):
         self.stdout.write(self.style.WARNING(f"[DEBUG] sys.path[0]: {sys.path[0]}"))
         hours = opts["hours"]
         limit = opts["limit"]
-        threshold = opts["threshold"]
+        method = opts["method"]
+        min_cluster_size = opts["min_cluster_size"]
+        max_clusters = opts["max_clusters"]
+        seed = opts["seed"]
+        cohesion_threshold = opts["cohesion_threshold"]
+        ai_model = opts["ai_model"]
+        skip_ai = opts["skip_ai"]
         dry = opts["dry_run"]
         entity_boost = opts["entity_boost"]
         entity_penalty = opts["entity_penalty"]
@@ -63,12 +183,10 @@ class Command(BaseCommand):
             self.stdout.write(self.style.WARNING("No hay artículos con embedding en la ventana."))
             return
 
-        self.stdout.write(f"Articles in window: {len(articles)} (last {hours}h)")
-        self.stdout.write(f"Threshold: {threshold}")
-
         existing_mentions = set(
             StoryMention.objects.filter(article__in=articles).values_list("article_id", flat=True)
         )
+        unclustered = [article for article in articles if article.id not in existing_mentions]
 
         article_ids = [a.id for a in articles]
         entity_map = self._build_entity_map(article_ids)
@@ -91,28 +209,56 @@ class Command(BaseCommand):
                     "entities": base_entities,
                 }
             )
+        )
 
-        # clusters en memoria
-        # cada item: {"cluster": StoryCluster|None, "centroid": list[float], "count": int}
-        clusters = list(existing_clusters)
+        ai_client = None
+        if not skip_ai and os.environ.get("OPENAI_API_KEY"):
+            ai_client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"), timeout=20)
+        elif not skip_ai:
+            self.stdout.write(self.style.WARNING("OPENAI_API_KEY no configurada: se omite validación IA."))
+
+        final_clusters = []
+        ai_splits = 0
+        heuristic_splits = 0
+
+        for cluster_indices in initial_clusters:
+            cluster_articles = [unclustered[idx] for idx in cluster_indices]
+            metrics = self._compute_cluster_metrics(cluster_articles, entity_map, keyword_map)
+
+            if metrics["cohesion_score"] < cohesion_threshold and len(cluster_articles) >= 4:
+                split_result = None
+                if ai_client:
+                    split_result = self._ai_split_cluster(
+                        ai_client,
+                        ai_model,
+                        cluster_articles,
+                        entity_map,
+                        keyword_map,
+                    )
+                if split_result:
+                    ai_splits += 1
+                    for group in split_result["groups"]:
+                        final_clusters.append({"articles": group["articles"], "ai": group})
+                    continue
+                heuristic_groups = self._heuristic_split(cluster_articles, seed)
+                if heuristic_groups:
+                    heuristic_splits += 1
+                    for group in heuristic_groups:
+                        final_clusters.append({"articles": group, "ai": None})
+                    continue
+
+            final_clusters.append({"articles": cluster_articles, "ai": None})
+
         created_clusters = 0
         created_mentions = 0
 
-        def add_mention(cluster_obj, art):
-            nonlocal created_mentions
-            _, was_created = StoryMention.objects.get_or_create(
-                cluster=cluster_obj,
-                article=art,
-                defaults={"media_outlet": art.media_outlet},
+        if dry:
+            self.stdout.write(
+                self.style.WARNING(
+                    f"Dry run: {len(final_clusters)} clusters finales · IA splits={ai_splits} · heuristic splits={heuristic_splits}"
+                )
             )
-            if was_created:
-                created_mentions += 1
-
-        def update_centroid(centroid, count, vec):
-            if not centroid:
-                return vec
-            total = count + 1
-            return [(c * count + v) / total for c, v in zip(centroid, vec)]
+            return
 
         with transaction.atomic():
             for art in articles:

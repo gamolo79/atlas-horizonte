@@ -3,8 +3,8 @@
 {% block content %}
   <div class="page-header">
     <div>
-      <h1 class="page-title">Monitor Dashboard</h1>
-      <p class="muted">Centro operativo para análisis, benchmarking y síntesis.</p>
+      <h1 class="page-title">Monitor · Centro de cobertura</h1>
+      <p class="page-subtitle">Accede a dashboards, comparativos y digests para monitorear cobertura en medios.</p>
     </div>
     <div class="actions">
       <a class="secondary" href="/monitor/dashboard/ingest/">Ingest/Digest</a>
@@ -12,40 +12,81 @@
     </div>
   </div>
 
-  <section class="grid grid-3">
-    <div class="card">
-      <div class="muted">Ingestas exitosas</div>
-      <div class="kpi">{{ kpis.ingests_ok }}</div>
+  <section class="panel hero">
+    <div>
+      <h2 class="hero-title">Sigue la conversación pública con atajos a lo esencial.</h2>
+      <p class="hero-subtitle">
+        Monitor consolida métricas de cobertura, comparativos entre actores y síntesis automáticas.
+        Elige una ruta rápida para comenzar a analizar personas, instituciones y temas.
+      </p>
+      <div class="actions" style="margin-top: 14px;">
+        <a class="pill" href="/monitor/dashboard/personas/">Personas</a>
+        <a class="pill" href="/monitor/dashboard/instituciones/">Instituciones</a>
+        <a class="pill" href="/monitor/dashboard/benchmark/">Benchmark</a>
+        <a class="pill" href="/monitor/dashboard/ingest/">Digest</a>
+      </div>
     </div>
     <div class="card">
-      <div class="muted">Artículos hoy</div>
-      <div class="kpi">{{ kpis.articles_today }}</div>
+      <h3 class="card-title">Estado del día</h3>
+      <p class="card-desc">KPIs clave para entender la producción editorial más reciente.</p>
+      <div class="grid grid-3" style="margin-top: 14px;">
+        <div>
+          <div class="kpi-label">Ingestas OK</div>
+          <div class="kpi-value" style="color: var(--primary-soft);">{{ kpis.ingests_ok }}</div>
+          <div class="kpi-subtitle">Procesos completados</div>
+        </div>
+        <div>
+          <div class="kpi-label">Artículos hoy</div>
+          <div class="kpi-value">{{ kpis.articles_today }}</div>
+          <div class="kpi-subtitle">Cobertura diaria</div>
+        </div>
+        <div>
+          <div class="kpi-label">Clusters hoy</div>
+          <div class="kpi-value">{{ kpis.clusters_today }}</div>
+          <div class="kpi-subtitle">Temas activos</div>
+        </div>
+      </div>
     </div>
-    <div class="card">
-      <div class="muted">Clusters hoy</div>
-      <div class="kpi">{{ kpis.clusters_today }}</div>
+  </section>
+
+  <section class="panel" style="margin-top: 20px;">
+    <h3 class="panel-title">Entrar rápido</h3>
+    <p class="panel-subtitle">Explora dashboards por tipo de actor o revisa comparativos listos para presentar.</p>
+    <div class="grid grid-3">
+      <a class="card card-link" href="/monitor/dashboard/personas/">
+        <div class="card-title">Dashboard de personas</div>
+        <p class="card-desc">Menciones, medios, sentimiento y temas por actor público.</p>
+        <div class="card-meta">Cobertura individual</div>
+      </a>
+      <a class="card card-link" href="/monitor/dashboard/instituciones/">
+        <div class="card-title">Dashboard de instituciones</div>
+        <p class="card-desc">Visibilidad institucional con breakdown por medios y temas.</p>
+        <div class="card-meta">Cobertura institucional</div>
+      </a>
+      <a class="card card-link" href="/monitor/dashboard/benchmark/">
+        <div class="card-title">Benchmark</div>
+        <p class="card-desc">Comparativos rápidos de presencia mediática entre dos actores.</p>
+        <div class="card-meta">Comparativos</div>
+      </a>
     </div>
   </section>
 
   <section class="grid grid-2" style="margin-top: 20px;">
     <div class="card">
-      <h3>Accesos rápidos</h3>
-      <div class="actions" style="margin-top: 12px;">
-        <a href="/monitor/dashboard/personas/">Personas</a>
-        <a class="secondary" href="/monitor/dashboard/benchmark/">Benchmark</a>
-        <a class="secondary" href="/monitor/dashboard/instituciones/">Instituciones</a>
-      </div>
+      <h3 class="card-title">Digest más reciente</h3>
+      <p class="card-desc">Acceso directo a la última síntesis editorial generada.</p>
       <div class="actions" style="margin-top: 12px;">
         {% if digest_latest %}
           <a class="secondary" href="/monitor/dashboard/digests/{{ digest_latest.id }}/">Ver digest último</a>
         {% else %}
-          <a class="secondary" href="/monitor/dashboard/ingest/">Sin digest aún</a>
+          <a class="secondary" href="/monitor/dashboard/ingest/">Generar digest</a>
         {% endif %}
-        <a href="/monitor/dashboard/clients/">Gestionar clientes</a>
+        <a href="/monitor/dashboard/clients/">Configurar alertas</a>
       </div>
     </div>
     <div class="card">
-      <h3>Últimas ingestas</h3>
+      <h3 class="card-title">Últimas ingestas</h3>
+      <p class="card-desc">Revisa ventanas recientes para validar la cobertura incorporada.</p>
       <table>
         <thead>
           <tr>
