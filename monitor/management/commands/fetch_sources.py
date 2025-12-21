@@ -23,6 +23,13 @@ def _safe_dt(value):
     """Convierte fechas RSS comunes a datetime aware (UTC)."""
     if not value:
         return None
+    try:
+        dt = parsedate_to_datetime(value)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=dt_timezone.utc)
+        return dt.astimezone(dt_timezone.utc)
+    except Exception:
+        return None
 
 
 def _is_tracking_param(key: str) -> bool:
@@ -45,13 +52,18 @@ def _normalize_url(url: str) -> str:
         return urlunsplit(clean)
     except Exception:
         return url
+
+
+def _get_or_create_article(url, defaults):
     try:
-        dt = parsedate_to_datetime(value)
-        if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=dt_timezone.utc)
-        return dt.astimezone(dt_timezone.utc)
+        return Article.objects.get_or_create(url=url, defaults=defaults)
+    except Article.MultipleObjectsReturned:
+        return Article.objects.filter(url=url).first(), False
     except Exception:
-        return None
+        obj = Article.objects.filter(url=url).first()
+        if obj:
+            return obj, False
+        raise
 
 
 class Command(BaseCommand):
@@ -123,18 +135,14 @@ class Command(BaseCommand):
                             obj.save(update_fields=["guid", "source"])
                             created = False
                         else:
-                            obj = Article.objects.create(**defaults)
-                            created = True
+                            obj, created = _get_or_create_article(url, defaults)
                     else:
                         created = False
                         if obj.url != url:
                             obj.url = url
                             obj.save(update_fields=["url"])
                 else:
-                    obj, created = Article.objects.get_or_create(
-                        url=url,
-                        defaults=defaults,
-                    )
+                    obj, created = _get_or_create_article(url, defaults)
                 if created:
                     total_new += 1
 
