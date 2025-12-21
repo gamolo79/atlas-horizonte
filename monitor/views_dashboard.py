@@ -11,6 +11,7 @@ from django.utils import timezone
 
 from redpolitica.models import Institucion, Persona
 
+from .aggregations import ensure_cluster_aggregates
 from .forms_dashboard import DigestClientConfigForm, DigestClientForm, OpsForm
 from .models import (
     Article,
@@ -280,6 +281,20 @@ def _persona_metrics(persona, days: int):
         .annotate(total=Count("mentions", distinct=True))
         .order_by("-total")[:6]
     )
+    ensure_cluster_aggregates(top_clusters)
+
+    topic_counter = Counter()
+    for topics in articles.values_list("topics", flat=True):
+        if not topics:
+            continue
+        for topic in topics:
+            label = topic.get("label") if isinstance(topic, dict) else str(topic)
+            if label:
+                topic_counter[label] += 1
+    topic_summary = [
+        {"label": label, "total": total}
+        for label, total in topic_counter.most_common(6)
+    ]
 
     return {
         "mentions_count": mentions.count(),
@@ -288,6 +303,7 @@ def _persona_metrics(persona, days: int):
         "sentiment_summary": sentiment_summary,
         "sentiment_total": sentiment_total,
         "clusters": top_clusters,
+        "topic_summary": topic_summary,
         "since": since,
     }
 
@@ -357,6 +373,20 @@ def _institucion_metrics(institucion, days: int):
         .annotate(total=Count("mentions", distinct=True))
         .order_by("-total")[:6]
     )
+    ensure_cluster_aggregates(top_clusters)
+
+    topic_counter = Counter()
+    for topics in articles.values_list("topics", flat=True):
+        if not topics:
+            continue
+        for topic in topics:
+            label = topic.get("label") if isinstance(topic, dict) else str(topic)
+            if label:
+                topic_counter[label] += 1
+    topic_summary = [
+        {"label": label, "total": total}
+        for label, total in topic_counter.most_common(6)
+    ]
 
     return {
         "mentions_count": mentions.count(),
@@ -365,6 +395,7 @@ def _institucion_metrics(institucion, days: int):
         "sentiment_summary": sentiment_summary,
         "sentiment_total": sentiment_total,
         "clusters": top_clusters,
+        "topic_summary": topic_summary,
         "since": since,
     }
 

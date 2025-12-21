@@ -62,7 +62,7 @@
     </div>
   </section>
 
-  <section class="grid grid-2" style="margin-top: 20px;">
+  <section class="grid grid-3" style="margin-top: 20px;">
     <div class="card">
       <h3>Top medios</h3>
       <table>
@@ -91,19 +91,48 @@
       <table>
         <thead>
           <tr>
-            <th>Titular</th>
+            <th>Tema</th>
+            <th>Sentimiento</th>
             <th>Actividad</th>
           </tr>
         </thead>
         <tbody>
           {% for cluster in metrics.clusters %}
             <tr>
-              <td>{{ cluster.headline|truncatechars:80 }}</td>
+              <td>{{ cluster.topic_label|default:cluster.headline|truncatechars:50 }}</td>
+              <td>
+                {{ cluster.sentiment_summary.positivo }} pos ·
+                {{ cluster.sentiment_summary.neutro }} neu ·
+                {{ cluster.sentiment_summary.negativo }} neg
+              </td>
               <td>{{ cluster.total }}</td>
             </tr>
           {% empty %}
             <tr>
-              <td colspan="2" class="table-empty">Sin clusters recientes.</td>
+              <td colspan="3" class="table-empty">Sin clusters recientes.</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="card">
+      <h3>Temas destacados</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Tema</th>
+            <th>Artículos</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for topic in metrics.topic_summary %}
+            <tr>
+              <td>{{ topic.label }}</td>
+              <td>{{ topic.total }}</td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="2" class="table-empty">Sin temas recientes.</td>
             </tr>
           {% endfor %}
         </tbody>
