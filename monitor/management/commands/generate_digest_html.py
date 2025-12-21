@@ -8,6 +8,7 @@ from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.utils.html import escape
 
+from monitor.aggregations import refresh_cluster_aggregates
 from monitor.models import Digest, DigestItem, DigestSection, StoryCluster
 
 
@@ -36,10 +37,10 @@ def _count_sentiments(mentions):
         if not s:
             continue
         total += 1
-        label = (getattr(s, "label", "") or "").lower()
-        if label == "positive":
+        label = (getattr(s, "sentiment", "") or "").lower()
+        if label == "positivo":
             pos += 1
-        elif label == "negative":
+        elif label == "negativo":
             neg += 1
         else:
             neu += 1
@@ -54,7 +55,7 @@ def _count_content_types(mentions):
         if not c:
             continue
         total += 1
-        label = (getattr(c, "label", "") or "").lower()
+        label = (getattr(c, "content_type", "") or "").lower()
         if label in ("opinion", "opinión", "opinion_piece"):
             opinion += 1
         else:
@@ -197,8 +198,15 @@ class Command(BaseCommand):
                     mentions = list(cluster.mentions.select_related("media_outlet", "article").all())
                     vol = len(mentions)
 
-                    pos, neu, neg, s_total = _count_sentiments(mentions)
+                    aggregates = refresh_cluster_aggregates(cluster, save=True)
+                    sentiment_summary = aggregates["sentiment_summary"]
+                    pos = sentiment_summary.get("positivo", 0)
+                    neu = sentiment_summary.get("neutro", 0)
+                    neg = sentiment_summary.get("negativo", 0)
+                    s_total = sentiment_summary.get("total", 0)
                     info, opinion, c_total = _count_content_types(mentions)
+                    topic_summary = aggregates["topic_summary"]
+                    entity_summary = aggregates["entity_summary"]
 
                     outlets = _dedupe_mentions_by_outlet(mentions)
 
@@ -211,6 +219,24 @@ class Command(BaseCommand):
                             f"<p><strong>Sentimiento:</strong> "
                             f"{pos} positivo · {neu} neutro · {neg} negativo (de {s_total})</p>"
                         )
+
+                    if topic_summary:
+                        topics_label = ", ".join(
+                            f'{escape(topic["label"])} ({topic["total"]})' for topic in topic_summary
+                        )
+                        html.append(f"<p><strong>Temas:</strong> {topics_label}</p>")
+
+                    if entity_summary:
+                        entity_labels = []
+                        for entity in entity_summary:
+                            sentiments = entity["sentiment_summary"]
+                            entity_labels.append(
+                                f'{escape(entity["label"])} '
+                                f'({sentiments.get("positivo", 0)} pos · '
+                                f'{sentiments.get("neutro", 0)} neu · '
+                                f'{sentiments.get("negativo", 0)} neg)'
+                            )
+                        html.append(f"<p><strong>Entidades:</strong> {'; '.join(entity_labels)}</p>")
 
                     if c_total > 0:
                         html.append(
@@ -238,8 +264,10 @@ class Command(BaseCommand):
                             "headline": headline,
                             "lead": lead,
                             "volume": vol,
-                            "sentiment": {"positive": pos, "neutral": neu, "negative": neg, "total": s_total},
+                            "sentiment": sentiment_summary,
                             "content_type": {"informative": info, "opinion": opinion, "total": c_total},
+                            "topics": topic_summary,
+                            "entities": entity_summary,
                             "outlets": outlets,
                         }
                     )
