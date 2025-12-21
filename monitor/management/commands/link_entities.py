@@ -100,9 +100,8 @@ class Command(BaseCommand):
 
         for article in articles:
             totals["articles_processed"] += 1
-            if mode == "rules":
-                if not Mention.objects.filter(article=article).exists():
-                    extract_mentions(article)
+            if not Mention.objects.filter(article=article).exists():
+                extract_mentions(article)
 
             mentions = Mention.objects.filter(
                 article=article,

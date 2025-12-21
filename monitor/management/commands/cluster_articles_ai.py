@@ -209,7 +209,6 @@ class Command(BaseCommand):
                     "entities": base_entities,
                 }
             )
-        )
 
         ai_client = None
         if not skip_ai and os.environ.get("OPENAI_API_KEY"):
