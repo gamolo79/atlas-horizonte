@@ -297,6 +297,20 @@ class ArticlePersonaMention(models.Model):
     article = models.ForeignKey("monitor.Article", on_delete=models.CASCADE, related_name="person_mentions")
     persona = models.ForeignKey(Persona, on_delete=models.CASCADE, related_name="article_mentions")
     matched_alias = models.CharField(max_length=255, blank=True, default="")
+    sentiment = models.CharField(
+        max_length=10,
+        choices=ArticleSentiment.Sentiment.choices,
+        null=True,
+        blank=True,
+    )
+    sentiment_confidence = models.CharField(
+        max_length=10,
+        choices=ArticleSentiment.Confidence.choices,
+        null=True,
+        blank=True,
+    )
+    sentiment_justification = models.TextField(blank=True)
+    sentiment_model = models.CharField(max_length=60, blank=True, default="")
 
     created_at = models.DateTimeField(default=timezone.now)
 
@@ -309,6 +323,20 @@ class ArticleInstitucionMention(models.Model):
     article = models.ForeignKey("monitor.Article", on_delete=models.CASCADE, related_name="institution_mentions")
     institucion = models.ForeignKey(Institucion, on_delete=models.CASCADE, related_name="article_mentions")
     matched_alias = models.CharField(max_length=255, blank=True, default="")
+    sentiment = models.CharField(
+        max_length=10,
+        choices=ArticleSentiment.Sentiment.choices,
+        null=True,
+        blank=True,
+    )
+    sentiment_confidence = models.CharField(
+        max_length=10,
+        choices=ArticleSentiment.Confidence.choices,
+        null=True,
+        blank=True,
+    )
+    sentiment_justification = models.TextField(blank=True)
+    sentiment_model = models.CharField(max_length=60, blank=True, default="")
 
     created_at = models.DateTimeField(default=timezone.now)
 

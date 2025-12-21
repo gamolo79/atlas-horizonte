@@ -1,5 +1,6 @@
 import re
 from django.core.management.base import BaseCommand
+from django.db import connection
 from django.utils import timezone
 
 from monitor.models import (
@@ -19,6 +20,15 @@ class Command(BaseCommand):
         parser.add_argument("--limit", type=int, default=300)
 
     def handle(self, *args, **opts):
+        if not self._mentions_table_ready():
+            self.stdout.write(
+                self.style.WARNING(
+                    "Las columnas de sentimiento por mención no están disponibles. "
+                    "Ejecuta las migraciones antes de correr este comando."
+                )
+            )
+            return
+
         hours = opts["hours"]
         limit = opts["limit"]
         since = timezone.now() - timezone.timedelta(hours=hours)
@@ -121,3 +131,16 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS(
             f"Done. Created persona mentions: {created_p} · institution mentions: {created_i}"
         ))
+
+    def _mentions_table_ready(self):
+        persona_table = ArticlePersonaMention._meta.db_table
+        institucion_table = ArticleInstitucionMention._meta.db_table
+        return (
+            self._column_exists(persona_table, "sentiment")
+            and self._column_exists(institucion_table, "sentiment")
+        )
+
+    def _column_exists(self, table_name, column_name):
+        with connection.cursor() as cursor:
+            columns = connection.introspection.get_table_description(cursor, table_name)
+        return column_name in {column.name for column in columns}
