@@ -23,6 +23,31 @@ CONTEXT_KEYWORDS = {
     "presidente municipal": {"cargo": "presidente municipal"},
 }
 
+MENTION_STOP_WORDS = {
+    "a",
+    "al",
+    "con",
+    "de",
+    "del",
+    "el",
+    "en",
+    "la",
+    "las",
+    "lo",
+    "los",
+    "o",
+    "para",
+    "por",
+    "que",
+    "se",
+    "sin",
+    "su",
+    "sus",
+    "un",
+    "una",
+    "y",
+}
+
 BASE_SCORES = {
     "exact_name": 0.95,
     "exact_alias": 0.90,
@@ -62,6 +87,8 @@ def extract_mentions(article, method="alias_regex", window_size=200):
             continue
         for match in regex.finditer(normalized_text):
             surface = match.group(0)
+            if _should_skip_surface(surface):
+                continue
             span_start = match.start()
             span_end = match.end()
             context_start = max(span_start - window_size // 2, 0)
@@ -373,3 +400,17 @@ def _is_acronym(surface):
     if not surface:
         return False
     return surface.isupper() and len(surface) <= 6
+
+
+def _should_skip_surface(surface: str) -> bool:
+    cleaned = (surface or "").strip()
+    if not cleaned:
+        return True
+    if len(cleaned) <= 2:
+        return True
+    normalized = normalize_name(cleaned)
+    if not normalized or normalized.isdigit():
+        return True
+    if normalized in MENTION_STOP_WORDS:
+        return True
+    return False
