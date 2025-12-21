@@ -27,6 +27,36 @@
     </div>
   </section>
 
+  <section class="grid grid-3" style="margin-top: 20px;">
+    <div class="card chart-card">
+      <div class="chart-header">
+        <h3 class="chart-title">Sentimiento</h3>
+        <div class="chart-subtitle">Distribución del tono editorial.</div>
+      </div>
+      <div class="chart-container">
+        <canvas id="personaSentimentChart" aria-label="Distribución de sentimiento" role="img"></canvas>
+      </div>
+    </div>
+    <div class="card chart-card">
+      <div class="chart-header">
+        <h3 class="chart-title">Top medios</h3>
+        <div class="chart-subtitle">Menciones por outlet.</div>
+      </div>
+      <div class="chart-container">
+        <canvas id="personaOutletsChart" aria-label="Top medios" role="img"></canvas>
+      </div>
+    </div>
+    <div class="card chart-card">
+      <div class="chart-header">
+        <h3 class="chart-title">Clusters destacados</h3>
+        <div class="chart-subtitle">Actividad por cluster.</div>
+      </div>
+      <div class="chart-container">
+        <canvas id="personaClustersChart" aria-label="Clusters destacados" role="img"></canvas>
+      </div>
+    </div>
+  </section>
+
   <section class="grid grid-2" style="margin-top: 20px;">
     <div class="card">
       <h3>Top medios</h3>
@@ -75,4 +105,75 @@
       </table>
     </div>
   </section>
+{% endblock %}
+
+{% block extra_scripts %}
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script>
+    const sentimentLabels = [{% for label, total in metrics.sentiment_summary.items %}"{{ label|title|escapejs }}",{% endfor %}];
+    const sentimentValues = [{% for label, total in metrics.sentiment_summary.items %}{{ total }},{% endfor %}];
+    const outletLabels = [{% for outlet in metrics.outlets %}"{{ outlet.name|escapejs }}",{% endfor %}];
+    const outletValues = [{% for outlet in metrics.outlets %}{{ outlet.total }},{% endfor %}];
+    const clusterLabels = [{% for cluster in metrics.clusters %}"{{ cluster.headline|truncatechars:28|escapejs }}",{% endfor %}];
+    const clusterValues = [{% for cluster in metrics.clusters %}{{ cluster.total }},{% endfor %}];
+
+    new Chart(document.getElementById("personaSentimentChart"), {
+      type: "doughnut",
+      data: {
+        labels: sentimentLabels.length ? sentimentLabels : ["Sin datos"],
+        datasets: [{
+          data: sentimentValues.length ? sentimentValues : [1],
+          backgroundColor: ["#22c55e", "#f97316", "#ef4444", "#38bdf8", "#a855f7"],
+          borderColor: "#0f172a",
+        }],
+      },
+      options: {
+        plugins: {
+          legend: { labels: { color: "#e2e8f0" } },
+        },
+      },
+    });
+
+    new Chart(document.getElementById("personaOutletsChart"), {
+      type: "bar",
+      data: {
+        labels: outletLabels,
+        datasets: [{
+          label: "Menciones",
+          data: outletValues,
+          backgroundColor: "rgba(34, 197, 94, 0.7)",
+        }],
+      },
+      options: {
+        scales: {
+          x: { ticks: { color: "#cbd5f5" } },
+          y: { ticks: { color: "#cbd5f5" } },
+        },
+        plugins: {
+          legend: { labels: { color: "#e2e8f0" } },
+        },
+      },
+    });
+
+    new Chart(document.getElementById("personaClustersChart"), {
+      type: "bar",
+      data: {
+        labels: clusterLabels,
+        datasets: [{
+          label: "Actividad",
+          data: clusterValues,
+          backgroundColor: "rgba(56, 189, 248, 0.7)",
+        }],
+      },
+      options: {
+        scales: {
+          x: { ticks: { color: "#cbd5f5" } },
+          y: { ticks: { color: "#cbd5f5" } },
+        },
+        plugins: {
+          legend: { labels: { color: "#e2e8f0" } },
+        },
+      },
+    });
+  </script>
 {% endblock %}
