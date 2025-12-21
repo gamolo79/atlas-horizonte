@@ -100,6 +100,37 @@
         padding: 16px 18px;
         box-shadow: 0 18px 45px rgba(0, 0, 0, 0.4);
       }
+      .chart-card {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .chart-header {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .chart-title {
+        font-size: 15px;
+        font-weight: 600;
+        margin: 0;
+      }
+      .chart-subtitle {
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .chart-container {
+        position: relative;
+        min-height: 220px;
+        padding: 12px;
+        border-radius: 12px;
+        border: 1px dashed rgba(148, 163, 184, 0.3);
+        background: radial-gradient(circle at top left, rgba(22, 163, 74, 0.12), rgba(15, 23, 42, 0.65));
+      }
+      .chart-container canvas {
+        width: 100% !important;
+        height: 100% !important;
+      }
       .kpi {
         font-size: 26px;
         font-weight: 700;
@@ -237,16 +268,18 @@
         display: inline-flex;
         align-items: center;
         gap: 6px;
-        padding: 6px 12px;
+        padding: 4px 10px;
         border-radius: 999px;
-        border: 1px solid rgba(34, 197, 94, 0.35);
-        background: rgba(15, 23, 42, 0.8);
+        border: 1px solid #1f2937;
+        background: #111827;
         color: var(--text);
-        font-size: 12px;
+        font-size: 11px;
+        font-weight: 500;
         text-decoration: none;
       }
       .digest-chip:hover {
-        border-color: rgba(34, 197, 94, 0.6);
+        border-color: #4b5563;
+        background: #1f2937;
       }
     </style>
   </head>
@@ -284,5 +317,6 @@
         {% block content %}{% endblock %}
       </main>
     </div>
+    {% block extra_scripts %}{% endblock %}
   </body>
 </html>

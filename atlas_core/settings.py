@@ -154,7 +154,7 @@ STATIC_URL = "/static/"
 
 # Fuente de estáticos del proyecto (tu carpeta con css/js propios)
 STATICFILES_DIRS = [
-    BASE_DIR / "static_src",
+    BASE_DIR / "static",
 ]
 
 # Carpeta DESTINO donde collectstatic copia TODO (admin + tus assets)

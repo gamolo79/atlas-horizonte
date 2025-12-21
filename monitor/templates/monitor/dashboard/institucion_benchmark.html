@@ -64,6 +64,27 @@
     </div>
   </section>
 
+  <section class="grid grid-2" style="margin-top: 20px;">
+    <div class="card chart-card">
+      <div class="chart-header">
+        <h3 class="chart-title">Comparativo de métricas</h3>
+        <div class="chart-subtitle">Menciones y artículos en la ventana seleccionada.</div>
+      </div>
+      <div class="chart-container">
+        <canvas id="institucionBenchmarkChart" aria-label="Comparativo de métricas" role="img"></canvas>
+      </div>
+    </div>
+    <div class="card chart-card">
+      <div class="chart-header">
+        <h3 class="chart-title">Top medios combinados</h3>
+        <div class="chart-subtitle">Presencia total en los outlets más activos.</div>
+      </div>
+      <div class="chart-container">
+        <canvas id="institucionOutletsBenchmarkChart" aria-label="Top medios combinados" role="img"></canvas>
+      </div>
+    </div>
+  </section>
+
   <section class="card" style="margin-top: 20px;">
     <h3>Medios combinados más activos</h3>
     <table>
@@ -87,4 +108,67 @@
       </tbody>
     </table>
   </section>
+{% endblock %}
+
+{% block extra_scripts %}
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script>
+    const compareLabels = ["Menciones", "Artículos"];
+    const institucionALabel = "{{ institucion_a.nombre|default:'Institución A'|escapejs }}";
+    const institucionBLabel = "{{ institucion_b.nombre|default:'Institución B'|escapejs }}";
+    const institucionAData = [{{ metrics_a.mentions_count|default:0 }}, {{ metrics_a.articles_count|default:0 }}];
+    const institucionBData = [{{ metrics_b.mentions_count|default:0 }}, {{ metrics_b.articles_count|default:0 }}];
+
+    new Chart(document.getElementById("institucionBenchmarkChart"), {
+      type: "bar",
+      data: {
+        labels: compareLabels,
+        datasets: [
+          {
+            label: institucionALabel,
+            data: institucionAData,
+            backgroundColor: "rgba(34, 197, 94, 0.75)",
+          },
+          {
+            label: institucionBLabel,
+            data: institucionBData,
+            backgroundColor: "rgba(56, 189, 248, 0.7)",
+          },
+        ],
+      },
+      options: {
+        scales: {
+          x: { ticks: { color: "#cbd5f5" } },
+          y: { ticks: { color: "#cbd5f5" } },
+        },
+        plugins: {
+          legend: { labels: { color: "#e2e8f0" } },
+        },
+      },
+    });
+
+    const outletLabels = [{% for outlet, total in top_outlets %}"{{ outlet|escapejs }}",{% endfor %}];
+    const outletValues = [{% for outlet, total in top_outlets %}{{ total }},{% endfor %}];
+
+    new Chart(document.getElementById("institucionOutletsBenchmarkChart"), {
+      type: "bar",
+      data: {
+        labels: outletLabels,
+        datasets: [{
+          label: "Presencia total",
+          data: outletValues,
+          backgroundColor: "rgba(34, 197, 94, 0.6)",
+        }],
+      },
+      options: {
+        scales: {
+          x: { ticks: { color: "#cbd5f5" } },
+          y: { ticks: { color: "#cbd5f5" } },
+        },
+        plugins: {
+          legend: { labels: { color: "#e2e8f0" } },
+        },
+      },
+    });
+  </script>
 {% endblock %}
