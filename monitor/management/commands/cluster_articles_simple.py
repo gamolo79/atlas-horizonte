@@ -15,7 +15,7 @@ STOPWORDS = {
     "que","se","a","su","sus","es","son","fue","será","hoy","ayer"
 }
 
-def normalize_title(title: str) -> str:
+def tokenize_title(title: str) -> list[str]:
     t = (title or "").strip().lower()
     # quita urls
     t = re.sub(r"https?://\S+", " ", t)
@@ -24,12 +24,23 @@ def normalize_title(title: str) -> str:
     # colapsa espacios
     parts = [p for p in t.split() if p and p not in STOPWORDS]
     # limita para evitar firmas larguísimas
-    parts = parts[:14]
-    return " ".join(parts)
+    return parts[:14]
+
+def normalized_text(tokens: list[str]) -> str:
+    return " ".join(tokens)
+
 
 def key_from_norm(norm: str) -> str:
     # key estable corta
     return hashlib.sha1(norm.encode("utf-8")).hexdigest()[:16]
+
+
+def jaccard(a: set[str], b: set[str]) -> float:
+    if not a or not b:
+        return 0.0
+    inter = a.intersection(b)
+    union = a.union(b)
+    return len(inter) / len(union)
 
 
 class Command(BaseCommand):
@@ -38,11 +49,13 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument("--hours", type=int, default=24, help="Lookback window in hours")
         parser.add_argument("--min-group", type=int, default=2, help="Minimum articles to create a cluster")
+        parser.add_argument("--similarity", type=float, default=0.6, help="Jaccard similarity threshold")
         parser.add_argument("--dry-run", action="store_true", help="Do not write, only report")
 
     def handle(self, *args, **opts):
         hours = opts["hours"]
         min_group = opts["min_group"]
+        similarity = opts["similarity"]
         dry = opts["dry_run"]
 
         since = timezone.now() - timedelta(hours=hours)
@@ -51,17 +64,32 @@ class Command(BaseCommand):
         total = qs.count()
         self.stdout.write(self.style.MIGRATE_HEADING(f"Articles in window: {total} (last {hours}h)"))
 
-        groups = {}
+        groups = []
         for a in qs.iterator():
-            norm = normalize_title(a.title)
-            if not norm:
+            tokens = tokenize_title(a.title)
+            if not tokens:
                 continue
-            k = key_from_norm(norm)
-            groups.setdefault(k, {"norm": norm, "articles": []})
-            groups[k]["articles"].append(a)
+            token_set = set(tokens)
+            matched_group = None
+            for g in groups:
+                score = jaccard(token_set, g["tokens"])
+                if score >= similarity:
+                    matched_group = g
+                    break
+            if matched_group:
+                matched_group["articles"].append(a)
+                matched_group["tokens"] = matched_group["tokens"].union(token_set)
+            else:
+                groups.append(
+                    {
+                        "norm": normalized_text(tokens),
+                        "tokens": token_set,
+                        "articles": [a],
+                    }
+                )
 
         # filtra grupos chicos
-        clusters = [g for g in groups.values() if len(g["articles"]) >= min_group]
+        clusters = [g for g in groups if len(g["articles"]) >= min_group]
         clusters.sort(key=lambda g: len(g["articles"]), reverse=True)
 
         self.stdout.write(self.style.MIGRATE_HEADING(f"Candidate clusters (>= {min_group}): {len(clusters)}"))
