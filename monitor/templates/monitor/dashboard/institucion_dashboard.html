@@ -1,14 +1,14 @@
 {% extends "monitor/dashboard/base.html" %}
-{% block title %}{{ persona.nombre_completo }} · Monitor{% endblock %}
+{% block title %}{{ institucion.nombre }} · Monitor{% endblock %}
 {% block content %}
   <div class="page-header">
     <div>
-      <h1 class="page-title">{{ persona.nombre_completo }}</h1>
+      <h1 class="page-title">{{ institucion.nombre }}</h1>
       <p class="muted">Resumen de cobertura en los últimos {{ days }} días.</p>
     </div>
     <div class="actions">
-      <a class="secondary" href="/monitor/dashboard/benchmark/?a={{ persona.id }}">Comparar</a>
-      <a href="/monitor/dashboard/personas/">Volver</a>
+      <a class="secondary" href="/monitor/dashboard/instituciones/benchmark/?a={{ institucion.id }}">Comparar</a>
+      <a href="/monitor/dashboard/instituciones/">Volver</a>
     </div>
   </div>
 
@@ -34,7 +34,7 @@
         <div class="chart-subtitle">Distribución del tono editorial.</div>
       </div>
       <div class="chart-container">
-        <canvas id="personaSentimentChart" aria-label="Distribución de sentimiento" role="img"></canvas>
+        <canvas id="institucionSentimentChart" aria-label="Distribución de sentimiento" role="img"></canvas>
       </div>
     </div>
     <div class="card chart-card">
@@ -43,7 +43,7 @@
         <div class="chart-subtitle">Menciones por outlet.</div>
       </div>
       <div class="chart-container">
-        <canvas id="personaOutletsChart" aria-label="Top medios" role="img"></canvas>
+        <canvas id="institucionOutletsChart" aria-label="Top medios" role="img"></canvas>
       </div>
     </div>
     <div class="card chart-card">
@@ -52,7 +52,7 @@
         <div class="chart-subtitle">Actividad por cluster.</div>
       </div>
       <div class="chart-container">
-        <canvas id="personaClustersChart" aria-label="Clusters destacados" role="img"></canvas>
+        <canvas id="institucionClustersChart" aria-label="Clusters destacados" role="img"></canvas>
       </div>
     </div>
   </section>
@@ -117,7 +117,7 @@
     const clusterLabels = [{% for cluster in metrics.clusters %}"{{ cluster.headline|truncatechars:28|escapejs }}",{% endfor %}];
     const clusterValues = [{% for cluster in metrics.clusters %}{{ cluster.total }},{% endfor %}];
 
-    new Chart(document.getElementById("personaSentimentChart"), {
+    new Chart(document.getElementById("institucionSentimentChart"), {
       type: "doughnut",
       data: {
         labels: sentimentLabels.length ? sentimentLabels : ["Sin datos"],
@@ -134,7 +134,7 @@
       },
     });
 
-    new Chart(document.getElementById("personaOutletsChart"), {
+    new Chart(document.getElementById("institucionOutletsChart"), {
       type: "bar",
       data: {
         labels: outletLabels,
@@ -155,7 +155,7 @@
       },
     });
 
-    new Chart(document.getElementById("personaClustersChart"), {
+    new Chart(document.getElementById("institucionClustersChart"), {
       type: "bar",
       data: {
         labels: clusterLabels,

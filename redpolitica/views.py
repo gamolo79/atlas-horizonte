@@ -27,7 +27,7 @@ def atlas_home(request):
 
 
 def monitor_placeholder(request):
-    return render(request, "redpolitica/app_placeholder.html", {"app_name": "Monitor"})
+    return render(request, "redpolitica/monitor_home.html")
 
 
 def social_placeholder(request):

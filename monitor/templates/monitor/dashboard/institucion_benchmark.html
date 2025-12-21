@@ -1,34 +1,34 @@
 {% extends "monitor/dashboard/base.html" %}
-{% block title %}Benchmark · Monitor{% endblock %}
+{% block title %}Benchmark instituciones · Monitor{% endblock %}
 {% block content %}
   <div class="page-header">
     <div>
-      <h1 class="page-title">Benchmark de personas</h1>
+      <h1 class="page-title">Benchmark de instituciones</h1>
       <p class="muted">Comparativa de cobertura mediática.</p>
     </div>
-    <a class="actions" href="/monitor/dashboard/personas/">Explorar personas</a>
+    <a class="actions" href="/monitor/dashboard/instituciones/">Explorar instituciones</a>
   </div>
 
   <form method="get" class="card" style="margin-bottom: 20px;">
     <div class="form-row">
       <div>
-        <label class="muted">Persona A</label><br>
+        <label class="muted">Institución A</label><br>
         <select class="input" name="a">
           <option value="">Selecciona</option>
-          {% for persona in personas %}
-            <option value="{{ persona.id }}" {% if persona_a and persona_a.id == persona.id %}selected{% endif %}>
-              {{ persona.nombre_completo }}
+          {% for institucion in instituciones %}
+            <option value="{{ institucion.id }}" {% if institucion_a and institucion_a.id == institucion.id %}selected{% endif %}>
+              {{ institucion.nombre }}
             </option>
           {% endfor %}
         </select>
       </div>
       <div>
-        <label class="muted">Persona B</label><br>
+        <label class="muted">Institución B</label><br>
         <select class="input" name="b">
           <option value="">Selecciona</option>
-          {% for persona in personas %}
-            <option value="{{ persona.id }}" {% if persona_b and persona_b.id == persona.id %}selected{% endif %}>
-              {{ persona.nombre_completo }}
+          {% for institucion in instituciones %}
+            <option value="{{ institucion.id }}" {% if institucion_b and institucion_b.id == institucion.id %}selected{% endif %}>
+              {{ institucion.nombre }}
             </option>
           {% endfor %}
         </select>
@@ -45,21 +45,21 @@
 
   <section class="grid grid-2">
     <div class="card">
-      <h3>{{ persona_a.nombre_completo|default:"Persona A" }}</h3>
+      <h3>{{ institucion_a.nombre|default:"Institución A" }}</h3>
       {% if metrics_a %}
         <p class="muted">Menciones: {{ metrics_a.mentions_count }}</p>
         <p class="muted">Artículos: {{ metrics_a.articles_count }}</p>
       {% else %}
-        <p class="table-empty">Selecciona una persona para ver métricas.</p>
+        <p class="table-empty">Selecciona una institución para ver métricas.</p>
       {% endif %}
     </div>
     <div class="card">
-      <h3>{{ persona_b.nombre_completo|default:"Persona B" }}</h3>
+      <h3>{{ institucion_b.nombre|default:"Institución B" }}</h3>
       {% if metrics_b %}
         <p class="muted">Menciones: {{ metrics_b.mentions_count }}</p>
         <p class="muted">Artículos: {{ metrics_b.articles_count }}</p>
       {% else %}
-        <p class="table-empty">Selecciona una persona para ver métricas.</p>
+        <p class="table-empty">Selecciona una institución para ver métricas.</p>
       {% endif %}
     </div>
   </section>
@@ -71,7 +71,7 @@
         <div class="chart-subtitle">Menciones y artículos en la ventana seleccionada.</div>
       </div>
       <div class="chart-container">
-        <canvas id="personaBenchmarkChart" aria-label="Comparativo de métricas" role="img"></canvas>
+        <canvas id="institucionBenchmarkChart" aria-label="Comparativo de métricas" role="img"></canvas>
       </div>
     </div>
     <div class="card chart-card">
@@ -80,7 +80,7 @@
         <div class="chart-subtitle">Presencia total en los outlets más activos.</div>
       </div>
       <div class="chart-container">
-        <canvas id="personaOutletsBenchmarkChart" aria-label="Top medios combinados" role="img"></canvas>
+        <canvas id="institucionOutletsBenchmarkChart" aria-label="Top medios combinados" role="img"></canvas>
       </div>
     </div>
   </section>
@@ -114,24 +114,24 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script>
     const compareLabels = ["Menciones", "Artículos"];
-    const personaALabel = "{{ persona_a.nombre_completo|default:'Persona A'|escapejs }}";
-    const personaBLabel = "{{ persona_b.nombre_completo|default:'Persona B'|escapejs }}";
-    const personaAData = [{{ metrics_a.mentions_count|default:0 }}, {{ metrics_a.articles_count|default:0 }}];
-    const personaBData = [{{ metrics_b.mentions_count|default:0 }}, {{ metrics_b.articles_count|default:0 }}];
+    const institucionALabel = "{{ institucion_a.nombre|default:'Institución A'|escapejs }}";
+    const institucionBLabel = "{{ institucion_b.nombre|default:'Institución B'|escapejs }}";
+    const institucionAData = [{{ metrics_a.mentions_count|default:0 }}, {{ metrics_a.articles_count|default:0 }}];
+    const institucionBData = [{{ metrics_b.mentions_count|default:0 }}, {{ metrics_b.articles_count|default:0 }}];
 
-    new Chart(document.getElementById("personaBenchmarkChart"), {
+    new Chart(document.getElementById("institucionBenchmarkChart"), {
       type: "bar",
       data: {
         labels: compareLabels,
         datasets: [
           {
-            label: personaALabel,
-            data: personaAData,
+            label: institucionALabel,
+            data: institucionAData,
             backgroundColor: "rgba(34, 197, 94, 0.75)",
           },
           {
-            label: personaBLabel,
-            data: personaBData,
+            label: institucionBLabel,
+            data: institucionBData,
             backgroundColor: "rgba(56, 189, 248, 0.7)",
           },
         ],
@@ -150,7 +150,7 @@
     const outletLabels = [{% for outlet, total in top_outlets %}"{{ outlet|escapejs }}",{% endfor %}];
     const outletValues = [{% for outlet, total in top_outlets %}{{ total }},{% endfor %}];
 
-    new Chart(document.getElementById("personaOutletsBenchmarkChart"), {
+    new Chart(document.getElementById("institucionOutletsBenchmarkChart"), {
       type: "bar",
       data: {
         labels: outletLabels,

@@ -1,9 +1,11 @@
+{% load static %}
 <!doctype html>
 <html lang="es">
   <head>
     <meta charset="utf-8">
     <title>{% block title %}Monitor Dashboard{% endblock %}</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
       :root {
         color-scheme: dark;
@@ -12,8 +14,8 @@
         --surface-strong: #0a0f1a;
         --text: #f8fafc;
         --muted: #94a3b8;
-        --primary: #c144d2;
-        --primary-soft: #9f6bff;
+        --primary: #16a34a;
+        --primary-soft: #22c55e;
         --border: #262c38;
         --danger: #ef4444;
       }
@@ -35,9 +37,30 @@
         padding: 24px 18px;
         border-right: 1px solid var(--border);
       }
-      .sidebar h2 {
-        margin: 0 0 24px;
-        font-size: 20px;
+      .sidebar .brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 24px;
+      }
+      .sidebar .brand-logo {
+        height: 28px;
+        width: auto;
+      }
+      .sidebar .brand-texts {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+      .sidebar .brand-text-main {
+        font-size: 16px;
+        font-weight: 600;
+      }
+      .sidebar .brand-text-sub {
+        font-size: 11px;
+        color: var(--muted);
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
       }
       .nav a {
         display: block;
@@ -49,7 +72,7 @@
       }
       .nav a:hover {
         color: var(--text);
-        background: rgba(193, 68, 210, 0.18);
+        background: rgba(22, 163, 74, 0.18);
       }
       .content {
         padding: 32px;
@@ -76,6 +99,37 @@
         border-radius: 14px;
         padding: 16px 18px;
         box-shadow: 0 18px 45px rgba(0, 0, 0, 0.4);
+      }
+      .chart-card {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .chart-header {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .chart-title {
+        font-size: 15px;
+        font-weight: 600;
+        margin: 0;
+      }
+      .chart-subtitle {
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .chart-container {
+        position: relative;
+        min-height: 220px;
+        padding: 12px;
+        border-radius: 12px;
+        border: 1px dashed rgba(148, 163, 184, 0.3);
+        background: radial-gradient(circle at top left, rgba(22, 163, 74, 0.12), rgba(15, 23, 42, 0.65));
+      }
+      .chart-container canvas {
+        width: 100% !important;
+        height: 100% !important;
       }
       .kpi {
         font-size: 26px;
@@ -116,8 +170,8 @@
         display: inline-block;
         padding: 4px 10px;
         border-radius: 999px;
-        background: rgba(193, 68, 210, 0.18);
-        color: #f5d0fe;
+        background: rgba(22, 163, 74, 0.2);
+        color: #bbf7d0;
         font-size: 12px;
         font-weight: 600;
       }
@@ -199,16 +253,52 @@
         padding: 18px;
         color: var(--text);
       }
+      .digest-body ul {
+        list-style: none;
+        padding: 0;
+        margin: 10px 0;
+      }
+      .digest-chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 10px;
+      }
+      .digest-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 10px;
+        border-radius: 999px;
+        border: 1px solid #1f2937;
+        background: #111827;
+        color: var(--text);
+        font-size: 11px;
+        font-weight: 500;
+        text-decoration: none;
+      }
+      .digest-chip:hover {
+        border-color: #4b5563;
+        background: #1f2937;
+      }
     </style>
   </head>
   <body>
     <div class="layout">
       <aside class="sidebar">
-        <h2>Monitor</h2>
+        <div class="brand">
+          <img src="{% static 'img/logo-horizonte-monitor.png' %}" alt="Monitor" class="brand-logo">
+          <div class="brand-texts">
+            <div class="brand-text-main">Monitor</div>
+            <div class="brand-text-sub">Cobertura · Benchmark</div>
+          </div>
+        </div>
         <nav class="nav">
           <a href="/monitor/dashboard/">Home</a>
           <a href="/monitor/dashboard/personas/">Personas</a>
+          <a href="/monitor/dashboard/instituciones/">Instituciones</a>
           <a href="/monitor/dashboard/benchmark/">Benchmark</a>
+          <a href="/monitor/dashboard/instituciones/benchmark/">Benchmark instituciones</a>
           <a href="/monitor/dashboard/ingest/">Ingest/Digest</a>
           <a href="/monitor/dashboard/clients/">Clientes</a>
           {% if request.user.is_staff %}
@@ -227,5 +317,6 @@
         {% block content %}{% endblock %}
       </main>
     </div>
+    {% block extra_scripts %}{% endblock %}
   </body>
 </html>
