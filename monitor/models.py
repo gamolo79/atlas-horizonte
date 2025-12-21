@@ -132,6 +132,9 @@ class StoryCluster(models.Model):
 
     headline = models.TextField()
     lead = models.TextField(blank=True)
+    topic_label = models.CharField(max_length=200, blank=True, default="")
+    cohesion_score = models.FloatField(default=0.0)
+    cluster_summary = models.TextField(blank=True, default="")
 
     base_article = models.ForeignKey(Article, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
     confidence = models.FloatField(default=0.0)

@@ -68,7 +68,7 @@ class StoryMentionInline(admin.TabularInline):
 
 @admin.register(StoryCluster)
 class StoryClusterAdmin(admin.ModelAdmin):
-    list_display = ("id", "created_at", "confidence", "headline")
+    list_display = ("id", "created_at", "confidence", "cohesion_score", "topic_label", "headline")
     search_fields = ("headline",)
     inlines = [StoryMentionInline]
 

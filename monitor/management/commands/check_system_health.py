@@ -1,7 +1,7 @@
 from datetime import timedelta
 from django.core.management.base import BaseCommand
 from django.utils import timezone
-from django.db.models import Count, Q
+from django.db.models import Avg, Count, Q
 
 from monitor.models import (
     MediaSource,
@@ -70,6 +70,18 @@ class Command(BaseCommand):
         self.stdout.write(self.style.MIGRATE_LABEL("\n[3] CLUSTERING STATUS"))
         clusters_24h = StoryCluster.objects.filter(created_at__gte=yesterday).count()
         self.stdout.write(f"  CLUSTERS CREATED (Last 24h): {clusters_24h}")
+
+        cluster_quality = StoryCluster.objects.filter(created_at__gte=yesterday).aggregate(
+            avg_cohesion=Avg("cohesion_score"),
+            low_cohesion=Count("id", filter=Q(cohesion_score__lt=0.45)),
+        )
+        avg_cohesion = cluster_quality.get("avg_cohesion") or 0.0
+        low_cohesion = cluster_quality.get("low_cohesion") or 0
+        self.stdout.write(f"  AVG COHESION (Last 24h): {avg_cohesion:.2f}")
+        if low_cohesion > 0:
+            self.stdout.write(self.style.WARNING(f"  LOW COHESION CLUSTERS: {low_cohesion}"))
+        else:
+            self.stdout.write(self.style.SUCCESS("  NO LOW-COHESION CLUSTERS"))
         
         # Artículos huérfanos (sin cluster)
         # Ojo: esto asume que todo artículo debería tener cluster, lo cual depende de la regla
