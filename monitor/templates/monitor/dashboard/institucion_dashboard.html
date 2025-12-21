@@ -23,7 +23,12 @@
     </div>
     <div class="card">
       <div class="muted">Sentimientos</div>
-      <div class="kpi">{{ metrics.sentiment_summary|length }}</div>
+      <div class="kpi">{{ metrics.sentiment_total }}</div>
+      <div class="kpi-breakdown">
+        <span class="kpi-pill positive">Positivo · {{ metrics.sentiment_summary.positivo }}</span>
+        <span class="kpi-pill neutral">Neutro · {{ metrics.sentiment_summary.neutro }}</span>
+        <span class="kpi-pill negative">Negativo · {{ metrics.sentiment_summary.negativo }}</span>
+      </div>
     </div>
   </section>
 
@@ -110,8 +115,12 @@
 {% block extra_scripts %}
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script>
-    const sentimentLabels = [{% for label, total in metrics.sentiment_summary.items %}"{{ label|title|escapejs }}",{% endfor %}];
-    const sentimentValues = [{% for label, total in metrics.sentiment_summary.items %}{{ total }},{% endfor %}];
+    const sentimentLabels = ["Positivo", "Neutro", "Negativo"];
+    const sentimentValues = [
+      {{ metrics.sentiment_summary.positivo }},
+      {{ metrics.sentiment_summary.neutro }},
+      {{ metrics.sentiment_summary.negativo }},
+    ];
     const outletLabels = [{% for outlet in metrics.outlets %}"{{ outlet.name|escapejs }}",{% endfor %}];
     const outletValues = [{% for outlet in metrics.outlets %}{{ outlet.total }},{% endfor %}];
     const clusterLabels = [{% for cluster in metrics.clusters %}"{{ cluster.headline|truncatechars:28|escapejs }}",{% endfor %}];

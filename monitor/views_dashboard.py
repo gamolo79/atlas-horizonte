@@ -15,6 +15,7 @@ from .models import (
     Article,
     ArticleInstitucionMention,
     ArticlePersonaMention,
+    ArticleSentiment,
     Digest,
     DigestClient,
     DigestClientConfig,
@@ -221,11 +222,18 @@ def _persona_metrics(persona, days: int):
 
     articles = Article.objects.filter(person_mentions__persona=persona, published_at__gte=since).distinct()
     sentiments = (
-        Article.objects.filter(person_mentions__persona=persona, sentiment__isnull=False, published_at__gte=since)
-        .values("sentiment__sentiment")
+        ArticlePersonaMention.objects.filter(
+            persona=persona,
+            sentiment__isnull=False,
+            article__published_at__gte=since,
+        )
+        .values("sentiment")
         .annotate(total=Count("id"))
     )
-    sentiment_summary = {row["sentiment__sentiment"]: row["total"] for row in sentiments}
+    sentiment_summary = {choice.value: 0 for choice in ArticleSentiment.Sentiment}
+    for row in sentiments:
+        sentiment_summary[row["sentiment"]] = row["total"]
+    sentiment_total = sum(sentiment_summary.values())
 
     outlets = (
         MediaOutlet.objects.filter(article__person_mentions__persona=persona, article__published_at__gte=since)
@@ -254,6 +262,7 @@ def _persona_metrics(persona, days: int):
         "articles_count": articles.count(),
         "outlets": outlets,
         "sentiment_summary": sentiment_summary,
+        "sentiment_total": sentiment_total,
         "clusters": top_clusters,
         "since": since,
     }
@@ -271,15 +280,18 @@ def _institucion_metrics(institucion, days: int):
         published_at__gte=since,
     ).distinct()
     sentiments = (
-        Article.objects.filter(
-            institution_mentions__institucion=institucion,
+        ArticleInstitucionMention.objects.filter(
+            institucion=institucion,
             sentiment__isnull=False,
-            published_at__gte=since,
+            article__published_at__gte=since,
         )
-        .values("sentiment__sentiment")
+        .values("sentiment")
         .annotate(total=Count("id"))
     )
-    sentiment_summary = {row["sentiment__sentiment"]: row["total"] for row in sentiments}
+    sentiment_summary = {choice.value: 0 for choice in ArticleSentiment.Sentiment}
+    for row in sentiments:
+        sentiment_summary[row["sentiment"]] = row["total"]
+    sentiment_total = sum(sentiment_summary.values())
 
     outlets = (
         MediaOutlet.objects.filter(
@@ -311,6 +323,7 @@ def _institucion_metrics(institucion, days: int):
         "articles_count": articles.count(),
         "outlets": outlets,
         "sentiment_summary": sentiment_summary,
+        "sentiment_total": sentiment_total,
         "clusters": top_clusters,
         "since": since,
     }
