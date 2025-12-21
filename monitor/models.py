@@ -1,5 +1,9 @@
 from django.db import models
 from django.conf import settings
+from django.db.models import Q
+from django.utils import timezone
+
+from atlas_core.text_utils import normalize_name
 
 
 class MediaOutlet(models.Model):
@@ -260,20 +264,23 @@ class ArticleSentiment(models.Model):
 # --- Atlas ↔ Monitor bridge (aliases + mentions) ---
 
 from django.db import models
-from django.utils import timezone
-
 from redpolitica.models import Persona, Institucion
 
 
 class PersonaAlias(models.Model):
     persona = models.ForeignKey(Persona, on_delete=models.CASCADE, related_name="aliases")
     alias = models.CharField(max_length=255, db_index=True)
+    alias_normalizado = models.CharField(max_length=255, blank=True, db_index=True)
 
     created_at = models.DateTimeField(default=timezone.now)
 
     class Meta:
         unique_together = ("persona", "alias")
         ordering = ["alias"]
+
+    def save(self, *args, **kwargs):
+        self.alias_normalizado = normalize_name(self.alias)
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.alias} → {self.persona}"
@@ -282,6 +289,7 @@ class PersonaAlias(models.Model):
 class InstitucionAlias(models.Model):
     institucion = models.ForeignKey(Institucion, on_delete=models.CASCADE, related_name="aliases")
     alias = models.CharField(max_length=255, db_index=True)
+    alias_normalizado = models.CharField(max_length=255, blank=True, db_index=True)
 
     created_at = models.DateTimeField(default=timezone.now)
 
@@ -289,8 +297,99 @@ class InstitucionAlias(models.Model):
         unique_together = ("institucion", "alias")
         ordering = ["alias"]
 
+    def save(self, *args, **kwargs):
+        self.alias_normalizado = normalize_name(self.alias)
+        super().save(*args, **kwargs)
+
     def __str__(self):
         return f"{self.alias} → {self.institucion}"
+
+
+class Mention(models.Model):
+    class EntityKind(models.TextChoices):
+        PERSON = "PERSON", "Persona"
+        ORG = "ORG", "Organización"
+        ROLE = "ROLE", "Rol"
+        OTHER = "OTHER", "Otro"
+
+    article = models.ForeignKey("monitor.Article", on_delete=models.CASCADE, related_name="mentions")
+    surface = models.TextField()
+    normalized_surface = models.TextField(db_index=True)
+    entity_kind = models.CharField(max_length=10, choices=EntityKind.choices)
+    context_window = models.TextField(blank=True)
+    span_start = models.IntegerField(null=True, blank=True)
+    span_end = models.IntegerField(null=True, blank=True)
+    method = models.CharField(max_length=60, blank=True)
+    created_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["article", "entity_kind"]),
+            models.Index(fields=["normalized_surface"]),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["article", "entity_kind", "span_start", "span_end", "normalized_surface"],
+                name="uniq_mention_span",
+            ),
+        ]
+
+    def save(self, *args, **kwargs):
+        self.normalized_surface = normalize_name(self.surface)
+        super().save(*args, **kwargs)
+
+
+class EntityLink(models.Model):
+    class EntityType(models.TextChoices):
+        PERSON = "PERSON", "Persona"
+        INSTITUTION = "INSTITUTION", "Institución"
+
+    class Status(models.TextChoices):
+        LINKED = "linked", "Linked"
+        PROPOSED = "proposed", "Proposed"
+        REJECTED = "rejected", "Rejected"
+
+    mention = models.ForeignKey(Mention, on_delete=models.CASCADE, related_name="entity_links")
+    entity_type = models.CharField(max_length=20, choices=EntityType.choices)
+    entity_id = models.IntegerField()
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.PROPOSED)
+    confidence = models.FloatField(default=0.0)
+    reasons = models.JSONField(default=list, blank=True)
+    resolver_version = models.CharField(max_length=60, blank=True, default="linker_v1")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["entity_type", "entity_id"]),
+            models.Index(fields=["status"]),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["mention"],
+                condition=Q(status="linked"),
+                name="uniq_linked_mention",
+            ),
+            models.UniqueConstraint(
+                fields=["mention", "entity_type", "entity_id", "status"],
+                name="uniq_link_per_entity_status",
+            ),
+        ]
+
+
+class ArticleEntity(models.Model):
+    article = models.ForeignKey("monitor.Article", on_delete=models.CASCADE, related_name="linked_entities")
+    entity_type = models.CharField(max_length=20, choices=EntityLink.EntityType.choices)
+    entity_id = models.IntegerField()
+    max_confidence = models.FloatField(default=0.0)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["article", "entity_type", "entity_id"],
+                name="uniq_article_entity",
+            ),
+        ]
 
 
 class ArticlePersonaMention(models.Model):

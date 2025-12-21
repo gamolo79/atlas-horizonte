@@ -529,16 +529,16 @@ def ingest_dashboard(request):
                     call_command("cluster_articles_ai", *cmd_args)
                     messages.success(request, "cluster_articles_ai OK")
 
-                elif action == "link_atlas_entities":
+                elif action == "link_entities":
                     hours = form.cleaned_data.get("hours")
                     call_command(
-                        "link_atlas_entities",
+                        "link_entities",
                         "--limit",
                         str(limit),
-                        "--hours",
-                        str(hours),
+                        "--since",
+                        f"{hours}h",
                     )
-                    messages.success(request, "link_atlas_entities OK")
+                    messages.success(request, "link_entities OK")
 
                 else:
                     messages.error(request, f"Acción no reconocida: {action}")
