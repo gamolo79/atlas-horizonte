@@ -88,6 +88,7 @@ class Command(BaseCommand):
         # 2) Intentar armar digest por clusters (StoryCluster) usando StoryMention reverse: storymention_set
         #    Relación: StoryMention(article -> Article, cluster -> StoryCluster)
         cluster_ids = set()
+        allowed_article_ids = {article.id for article in articles}
         for a in articles:
             sm = a.storymention_set.select_related("cluster").first()
             if sm and sm.cluster_id:
@@ -149,7 +150,10 @@ class Command(BaseCommand):
                     if lead:
                         lead = normalize_html_text(lead)
 
-                    volume = cluster.mentions.count()
+                    mentions_qs = cluster.mentions.select_related(
+                        "media_outlet", "article"
+                    ).filter(article_id__in=allowed_article_ids)
+                    volume = mentions_qs.count()
 
                     html.append("<hr>")
                     html.append(f"<h3>{escape(headline)}</h3>")
@@ -160,7 +164,7 @@ class Command(BaseCommand):
 
                     html.append("<div class='digest-chips'>")
                     chips = []
-                    for mention in cluster.mentions.select_related("media_outlet", "article").all():
+                    for mention in mentions_qs:
                         mo = mention.media_outlet.name if mention.media_outlet else "Medio"
                         url = mention.article.url if mention.article else ""
                         if url:
