@@ -234,10 +234,14 @@ def _persona_metrics(persona, days: int):
     )
 
     # 2-step query to avoid duplicates from joins + distinct + annotate interaction
-    matching_cluster_ids = StoryCluster.objects.filter(
-        mentions__article__person_mentions__persona=persona,
-        created_at__gte=since
-    ).values_list("id", flat=True)
+    matching_cluster_ids = (
+        StoryCluster.objects.filter(
+            mentions__article__person_mentions__persona=persona,
+            created_at__gte=since,
+        )
+        .values_list("id", flat=True)
+        .distinct()
+    )
 
     top_clusters = (
         StoryCluster.objects.filter(id__in=matching_cluster_ids)
@@ -287,10 +291,14 @@ def _institucion_metrics(institucion, days: int):
     )
 
     # 2-step query to avoid duplicates
-    matching_cluster_ids = StoryCluster.objects.filter(
-        mentions__article__institution_mentions__institucion=institucion,
-        created_at__gte=since,
-    ).values_list("id", flat=True)
+    matching_cluster_ids = (
+        StoryCluster.objects.filter(
+            mentions__article__institution_mentions__institucion=institucion,
+            created_at__gte=since,
+        )
+        .values_list("id", flat=True)
+        .distinct()
+    )
 
     top_clusters = (
         StoryCluster.objects.filter(id__in=matching_cluster_ids)
