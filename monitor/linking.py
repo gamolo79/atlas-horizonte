@@ -388,7 +388,21 @@ def persist_link(mention, winner, resolver_version="linker_v1", dry_run=False):
 
             link = EntityLink.objects.create(mention=mention, **defaults)
             _sync_article_entity(mention.article, entity_type, entity_id, winner["confidence"])
-    return link, "created"
+            return link, "created"
+
+        if existing_linked:
+            return existing_linked, "noop"
+
+        existing_proposed = EntityLink.objects.filter(
+            mention=mention, status=EntityLink.Status.PROPOSED
+        ).first()
+        if existing_proposed:
+            for field, value in defaults.items():
+                setattr(existing_proposed, field, value)
+            existing_proposed.save()
+            return existing_proposed, "updated"
+        link = EntityLink.objects.create(mention=mention, **defaults)
+        return link, "created"
 
 
 def ai_validate_match(client, model, threshold, mention, winner):
@@ -516,19 +530,6 @@ def link_mentions(
             totals["links_created"] += 1
     return totals, ai_error
 
-        if existing_linked:
-            return existing_linked, "noop"
-
-        existing_proposed = EntityLink.objects.filter(
-            mention=mention, status=EntityLink.Status.PROPOSED
-        ).first()
-        if existing_proposed:
-            for field, value in defaults.items():
-                setattr(existing_proposed, field, value)
-            existing_proposed.save()
-            return existing_proposed, "updated"
-        link = EntityLink.objects.create(mention=mention, **defaults)
-        return link, "created"
 
 
 def _build_entries_for_aliases(alias_objects, entities):
