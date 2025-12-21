@@ -1,33 +1,63 @@
 {% extends "monitor/dashboard/base.html" %}
-{% block title %}{{ client.name }} · Monitor{% endblock %}
+{% block title %}{% if is_edit %}{{ client.name }}{% else %}Nuevo cliente{% endif %} · Monitor{% endblock %}
 {% block content %}
   <div class="page-header">
     <div>
-      <h1 class="page-title">{{ client.name }}</h1>
-      <p class="muted">Detalle de configuración del cliente.</p>
+      <h1 class="page-title">{% if is_edit %}{{ client.name }}{% else %}Nuevo cliente{% endif %}</h1>
+      <p class="muted">Crea o actualiza la configuración del digest para este cliente.</p>
     </div>
     <div class="actions">
-      <a class="secondary" href="/monitor/dashboard/clients/">Volver</a>
-      <a href="/monitor/dashboard/clients/{{ client.id }}/generate/">Generar digest</a>
+      <a class="secondary" href="{% url 'monitor_dashboard_client_list' %}">Volver</a>
+      {% if is_edit %}
+        <a class="ghost" href="{% url 'monitor_dashboard_client_digests' client.id %}">Historial</a>
+        <a href="{% url 'monitor_dashboard_client_generate' client.id %}">Generar digest</a>
+      {% endif %}
     </div>
   </div>
 
   <section class="grid grid-2">
     <div class="card">
-      <h3>Información general</h3>
-      <p><strong>ID:</strong> {{ client.id }}</p>
-      <p><strong>Slug:</strong> {{ client.slug }}</p>
-      <p><strong>Estado:</strong> {% if client.is_active %}Activo{% else %}Inactivo{% endif %}</p>
+      <h3>Datos del cliente</h3>
+      <form method="post">
+        {% csrf_token %}
+        {{ form_client.as_p }}
+        <hr>
+        <h3>Configuración de digest</h3>
+        {{ form_cfg.as_p }}
+        <div class="actions">
+          <button type="submit">{% if is_edit %}Guardar cambios{% else %}Crear cliente{% endif %}</button>
+        </div>
+      </form>
     </div>
-    <div class="card">
-      <h3>Configuración de digest</h3>
-      {% if client.config %}
-        <p><strong>Título:</strong> {{ client.config.title }}</p>
-        <p><strong>Top N:</strong> {{ client.config.top_n }}</p>
-        <p><strong>Últimas horas:</strong> {{ client.config.hours }}</p>
-      {% else %}
-        <p class="table-empty">Sin configuración asociada.</p>
-      {% endif %}
-    </div>
+
+    {% if is_edit %}
+      <div class="card">
+        <h3>Resumen</h3>
+        <p><strong>ID:</strong> {{ client.id }}</p>
+        <p><strong>Slug:</strong> {{ client.slug }}</p>
+        <p><strong>Estado:</strong> {% if client.is_active %}Activo{% else %}Inactivo{% endif %}</p>
+        {% if config %}
+          <p><strong>Título:</strong> {{ config.title }}</p>
+          <p><strong>Top N:</strong> {{ config.top_n }}</p>
+          <p><strong>Últimas horas:</strong> {{ config.hours }}</p>
+        {% endif %}
+        <hr>
+        <h3>Últimos digests</h3>
+        {% if digests %}
+          <ul>
+            {% for digest in digests %}
+              <li>
+                <a href="{% url 'monitor_dashboard_digest_view' digest.id %}">{{ digest.date }} · {{ digest.title }}</a>
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p class="table-empty">No hay digests todavía para este cliente.</p>
+        {% endif %}
+        <div class="actions" style="margin-top: 14px;">
+          <a class="danger" href="{% url 'monitor_dashboard_client_delete' client.id %}">Eliminar cliente</a>
+        </div>
+      </div>
+    {% endif %}
   </section>
 {% endblock %}

@@ -1,0 +1,24 @@
+{% extends "monitor/dashboard/base.html" %}
+{% block title %}Eliminar cliente · Monitor{% endblock %}
+{% block content %}
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Eliminar cliente</h1>
+      <p class="muted">Esta acción eliminará el cliente y su configuración asociada.</p>
+    </div>
+    <div class="actions">
+      <a class="secondary" href="{% url 'monitor_dashboard_client_edit' client.id %}">Volver</a>
+    </div>
+  </div>
+
+  <div class="card">
+    <p>¿Seguro que deseas eliminar a <strong>{{ client.name }}</strong>?</p>
+    <form method="post">
+      {% csrf_token %}
+      <div class="actions">
+        <button class="danger" type="submit">Eliminar definitivamente</button>
+        <a class="secondary" href="{% url 'monitor_dashboard_client_edit' client.id %}">Cancelar</a>
+      </div>
+    </form>
+  </div>
+{% endblock %}

@@ -3,15 +3,17 @@
 {% block content %}
   <div class="page-header">
     <div>
-      <h1 class="page-title">Digest</h1>
-      <p class="muted">Vista rápida del digest generado.</p>
+      <h1 class="page-title">{{ digest.title }}</h1>
+      <p class="muted">{{ digest.date }} · Vista rápida del digest generado.</p>
     </div>
     <div class="actions">
-      <a class="secondary" href="/monitor/dashboard/">Volver</a>
+      <a class="secondary" href="{% url 'monitor_dashboard_ingest' %}">Volver</a>
     </div>
   </div>
 
   <div class="card">
-    <pre>{{ digest }}</pre>
+    <div class="digest-body">
+      {{ digest.html_content|safe }}
+    </div>
   </div>
 {% endblock %}
