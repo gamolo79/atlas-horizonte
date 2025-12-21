@@ -40,7 +40,7 @@ class OpsForm(forms.Form):
             ("fetch_article_bodies", "2) Completar body (fetch_article_bodies)"),
             ("embed_articles", "3) Embeddings (embed_articles)"),
             ("cluster_articles_ai", "4) Clustering AI (cluster_articles_ai)"),
-            ("link_atlas_entities", "5) Link entidades (link_atlas_entities)"),
+            ("link_entities", "5) Link entidades (link_entities)"),
         ],
         required=True,
         widget=forms.Select(attrs={"class": "form-control"}),
@@ -130,7 +130,7 @@ class OpsForm(forms.Form):
             if cleaned.get("threshold") is None:
                 cleaned["threshold"] = 0.86
 
-        if action == "link_atlas_entities":
+        if action == "link_entities":
             if not cleaned.get("limit"):
                 cleaned["limit"] = 2000
             if not cleaned.get("hours"):

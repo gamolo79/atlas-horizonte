@@ -1,8 +1,11 @@
 from django.db import models
 
+from atlas_core.text_utils import normalize_name
+
 
 class Persona(models.Model):
     nombre_completo = models.CharField(max_length=255)
+    nombre_normalizado = models.CharField(max_length=255, blank=True, db_index=True)
     slug = models.SlugField(max_length=255, unique=True)
     fecha_nacimiento = models.DateField(null=True, blank=True)
     lugar_nacimiento = models.CharField(max_length=255, blank=True)
@@ -10,6 +13,10 @@ class Persona(models.Model):
 
     class Meta:
         ordering = ["nombre_completo"]
+
+    def save(self, *args, **kwargs):
+        self.nombre_normalizado = normalize_name(self.nombre_completo)
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return self.nombre_completo
@@ -26,6 +33,7 @@ class Institucion(models.Model):
     ]
 
     nombre = models.CharField(max_length=255)
+    nombre_normalizado = models.CharField(max_length=255, blank=True, db_index=True)
     slug = models.SlugField(max_length=255, unique=True)
     tipo = models.CharField(
         max_length=20,
@@ -65,6 +73,10 @@ class Institucion(models.Model):
 
     class Meta:
         ordering = ["nombre"]
+
+    def save(self, *args, **kwargs):
+        self.nombre_normalizado = normalize_name(self.nombre)
+        super().save(*args, **kwargs)
 
     def __str__(self):
         if self.padre:
