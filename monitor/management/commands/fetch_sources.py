@@ -1,7 +1,9 @@
+import re
 from datetime import datetime, timezone as dt_timezone
 from email.utils import parsedate_to_datetime
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
+from bs4 import BeautifulSoup
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 
@@ -17,6 +19,17 @@ TRACKING_PARAMS = {
     "mc_cid",
     "mc_eid",
 }
+
+LEAD_DISCLAIMER_PATTERNS = [
+    r"suscr[íi]bete",
+    r"newsletter",
+    r"s[íi]guenos",
+    r"seguir en",
+    r"compartir",
+    r"publicidad",
+    r"pol[íi]tica de privacidad",
+    r"t[ée]rminos y condiciones",
+]
 
 
 def _safe_dt(value):
@@ -66,6 +79,21 @@ def _get_or_create_article(url, defaults):
         raise
 
 
+def _clean_lead(text: str) -> str:
+    if not text:
+        return ""
+    soup = BeautifulSoup(text, "lxml")
+    for tag in soup(["script", "style", "noscript"]):
+        tag.decompose()
+    cleaned = re.sub(r"\s+", " ", soup.get_text(" ")).strip()
+    if not cleaned:
+        return ""
+    lowered = cleaned.lower()
+    if any(re.search(pattern, lowered) for pattern in LEAD_DISCLAIMER_PATTERNS):
+        return ""
+    return cleaned
+
+
 class Command(BaseCommand):
     help = "Fetch RSS sources and store as Articles (V1: title + lead/snippet)."
 
@@ -103,7 +131,7 @@ class Command(BaseCommand):
 
                 title = (e.get("title") or "").strip()
                 # Muchos RSS traen summary; si no, deja vacío
-                lead = (e.get("summary") or "").strip()
+                lead = _clean_lead(e.get("summary") or "")
                 guid = (e.get("id") or e.get("guid") or "").strip()
 
                 published = None
