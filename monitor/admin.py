@@ -1,5 +1,34 @@
 from django.contrib import admin
-from .models import MediaOutlet, MediaSource, IngestRun, Article, StoryCluster, StoryMention, Digest, ContentClassification, ArticleSentiment, DigestClient, DigestClientConfig
+from django.db import transaction
+
+from .models import (
+    Article,
+    ArticleInstitucionMention,
+    ArticlePersonaMention,
+    ArticleSentiment,
+    ContentClassification,
+    Digest,
+    DigestClient,
+    DigestClientConfig,
+    IngestRun,
+    MediaOutlet,
+    MediaSource,
+    StoryCluster,
+    StoryMention,
+)
+
+
+def _purge_articles(queryset):
+    article_ids = list(queryset.values_list("id", flat=True))
+    if not article_ids:
+        return
+    StoryCluster.objects.filter(base_article_id__in=article_ids).update(base_article=None)
+    StoryMention.objects.filter(article_id__in=article_ids).delete()
+    ArticlePersonaMention.objects.filter(article_id__in=article_ids).delete()
+    ArticleInstitucionMention.objects.filter(article_id__in=article_ids).delete()
+    ArticleSentiment.objects.filter(article_id__in=article_ids).delete()
+    ContentClassification.objects.filter(article_id__in=article_ids).delete()
+    queryset.filter(id__in=article_ids).delete()
 
 @admin.register(MediaOutlet)
 class MediaOutletAdmin(admin.ModelAdmin):
@@ -23,6 +52,14 @@ class ArticleAdmin(admin.ModelAdmin):
     list_display = ("media_outlet", "published_at", "title")
     search_fields = ("title", "url")
     list_filter = ("media_outlet",)
+
+    def delete_model(self, request, obj):
+        with transaction.atomic():
+            _purge_articles(Article.objects.filter(id=obj.id))
+
+    def delete_queryset(self, request, queryset):
+        with transaction.atomic():
+            _purge_articles(queryset)
 
 class StoryMentionInline(admin.TabularInline):
     model = StoryMention
