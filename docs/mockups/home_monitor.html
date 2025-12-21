@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Monitor · Horizonte Digital</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <!-- Tipografía base (igual que Monitor/Atlas) -->
+  <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Design system de Monitor (tu CSS) -->
+  <link rel="stylesheet" href="/static/css/monitor-design-system.css">
+
+  <!-- Fallback mínimo por si el design system no carga en el mockup -->
+  <style>
+    :root{color-scheme:dark;}
+    body{margin:0;font-family:"Lexend",system-ui,-apple-system,Segoe UI,sans-serif;}
+    a{color:inherit;text-decoration:none}
+    .muted{opacity:.85}
+    .grid-2{display:grid;gap:14px;grid-template-columns:repeat(2,minmax(0,1fr));}
+    .grid-3{display:grid;gap:14px;grid-template-columns:repeat(3,minmax(0,1fr));}
+    @media(max-width:960px){.grid-2,.grid-3{grid-template-columns:1fr;}}
+    .card-link{display:block}
+    .card-meta{margin-top:8px;font-size:11px;opacity:.85;line-height:1.4}
+    .card-kbd{display:inline-flex;align-items:center;gap:6px;margin-right:10px}
+    .kbd{padding:2px 7px;border-radius:999px;border:1px solid rgba(148,163,184,.35);background:rgba(15,23,42,.45);font-size:10px;}
+  </style>
+</head>
+<body>
+  <div class="page">
+
+    <header>
+      <div class="header-inner">
+        <div class="brand">
+          <img src="/static/img/logo-horizonte-monitor.png" alt="Monitor" class="brand-logo">
+          <div class="brand-texts">
+            <div class="brand-text-main">Monitor</div>
+            <div class="brand-text-sub">Cobertura · Benchmark · Alertas</div>
+          </div>
+        </div>
+        <a class="btn" href="/">← Ecosistema</a>
+      </div>
+    </header>
+
+    <main>
+      <div class="main-inner">
+
+        <!-- HERO (misma intención, mejor orden y CTA) -->
+        <section class="hero panel">
+          <div>
+            <h1 class="hero-title">Sigue la cobertura de actores públicos y temas emergentes.</h1>
+            <p class="hero-subtitle">
+              Monitor concentra dashboards de cobertura, comparativos y digests con alertas configurables para personas e instituciones.
+            </p>
+            <div class="hero-pills" style="margin-top:12px;">
+              <a class="pill" href="/monitor/dashboard/">Home</a>
+              <a class="pill" href="/monitor/dashboard/personas/">Personas</a>
+              <a class="pill" href="/monitor/dashboard/instituciones/">Instituciones</a>
+              <a class="pill" href="/monitor/dashboard/benchmark/">Benchmark</a>
+              <a class="pill" href="/monitor/dashboard/ingest/">Ingest/Digest</a>
+              <a class="pill" href="/monitor/dashboard/clients/">Clientes</a>
+              <a class="pill" href="/monitor/ops/">Ops</a>
+            </div>
+          </div>
+
+          <div>
+            <img src="/static/img/logo-horizonte-monitor.png" alt="Logo Monitor" style="max-width:220px;width:100%;display:block;margin:0 auto;">
+            <p class="hero-subtitle muted" style="text-align:center;margin-top:10px;">
+              Atajos para entrar directo a lo importante.
+            </p>
+          </div>
+        </section>
+
+        <!-- ACCESOS (cards) -->
+        <section class="panel">
+          <div class="panel-title">Entrar rápido</div>
+
+          <!-- 1) Núcleo editorial: listas -->
+          <div class="panel-subtitle" style="margin:6px 0 10px;">Listas (exploración)</div>
+          <div class="panel-grid grid-3">
+            <a class="card-link" href="/monitor/dashboard/personas/">
+              <div class="card-title">Lista de personas</div>
+              <div class="card-desc">Entra a cobertura por actor: menciones, medios, temas y evolución.</div>
+              <div class="card-meta">
+                <span class="card-kbd"><span class="kbd">P</span> Personas</span>
+              </div>
+            </a>
+
+            <a class="card-link" href="/monitor/dashboard/instituciones/">
+              <div class="card-title">Lista de instituciones</div>
+              <div class="card-desc">Cobertura por institución y tendencia por jerarquía institucional.</div>
+              <div class="card-meta">
+                <span class="card-kbd"><span class="kbd">I</span> Instituciones</span>
+              </div>
+            </a>
+
+            <a class="card-link" href="/monitor/dashboard/ingest/">
+              <div class="card-title">Ingest / Digest</div>
+              <div class="card-desc">Ejecuta ingestas, genera síntesis y revisa corridas recientes.</div>
+              <div class="card-meta">
+                <span class="card-kbd"><span class="kbd">D</span> Digest</span>
+              </div>
+            </a>
+          </div>
+
+          <!-- 2) Comparativos: benchmark -->
+          <div class="panel-subtitle" style="margin:14px 0 10px;">Comparativos (benchmark)</div>
+          <div class="panel-grid grid-2">
+            <a class="card-link" href="/monitor/dashboard/benchmark/">
+              <div class="card-title">Benchmark de personas</div>
+              <div class="card-desc">Compara presencia mediática y tono entre dos actores.</div>
+              <div class="card-meta">
+                <span class="card-kbd"><span class="kbd">B</span> Personas</span>
+              </div>
+            </a>
+
+            <a class="card-link" href="/monitor/dashboard/instituciones/benchmark/">
+              <div class="card-title">Benchmark de instituciones</div>
+              <div class="card-desc">Contrasta cobertura entre dos instituciones (volumen, medios, temas y sentimiento).</div>
+              <div class="card-meta">
+                <span class="card-kbd"><span class="kbd">B</span> Instituciones</span>
+              </div>
+            </a>
+          </div>
+
+          <!-- 3) Administración: clientes y ops -->
+          <div class="panel-subtitle" style="margin:14px 0 10px;">Administración</div>
+          <div class="panel-grid grid-2">
+            <a class="card-link" href="/monitor/dashboard/clients/">
+              <div class="card-title">Clientes</div>
+              <div class="card-desc">Targets, umbrales, sensibilidad y configuración por cliente.</div>
+              <div class="card-meta">
+                <span class="card-kbd"><span class="kbd">C</span> Clients</span>
+              </div>
+            </a>
+
+            <a class="card-link" href="/monitor/ops/">
+              <div class="card-title">Ops</div>
+              <div class="card-desc">Operación y salud del sistema: jobs, logs, colas, fuentes y validaciones.</div>
+              <div class="card-meta">
+                <span class="card-kbd"><span class="kbd">O</span> Ops</span>
+              </div>
+            </a>
+          </div>
+        </section>
+
+      </div>
+    </main>
+
+    <footer>
+      Horizonte Digital · Monitor · <a href="/aviso-privacidad/">Aviso de privacidad</a> · <a href="/terminos-condiciones/">Términos y condiciones</a>
+    </footer>
+
+  </div>
+</body>
+</html>
