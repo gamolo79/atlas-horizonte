@@ -81,7 +81,12 @@ class Command(BaseCommand):
             if not os.environ.get("OPENAI_API_KEY"):
                 self.stdout.write(self.style.WARNING("OPENAI_API_KEY no está configurada. Se omite verificación IA."))
             else:
-                ai_client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+                try:
+                    from openai import OpenAI
+                except ImportError:
+                    self.stdout.write(self.style.WARNING("Paquete openai no disponible. Se omite verificación IA."))
+                else:
+                    ai_client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"), timeout=15)
 
         if rebuild and not dry_run:
             with transaction.atomic():
