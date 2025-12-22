@@ -47,3 +47,4 @@ dist/
 
 # SQLite (si lo usas sólo en desarrollo)
 db.sqlite3
+monitor/linking.py.bak_*
