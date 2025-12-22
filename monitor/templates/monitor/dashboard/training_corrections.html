@@ -66,16 +66,31 @@
                     {% with topics_id="article-topics-"|add:article.id %}
                     {{ article.topics|json_script:topics_id }}
                     <div style="display: flex; flex-wrap: wrap; gap: 6px;">
-                        <button class="actions ghost" style="padding: 4px 8px; font-size: 12px; cursor: pointer;"
-                            onclick="openArticleModal('{{ article.id }}', '{{ article.title|escapejs }}', document.getElementById('{{ topics_id }}').textContent, '{% if article.sentiment %}{{ article.sentiment.sentiment|escapejs }}{% endif %}', '{% if article.article_type %}{{ article.article_type|escapejs }}{% endif %}', 'topic')">
+                        <button class="actions ghost btn-correct-article"
+                            style="padding: 4px 8px; font-size: 12px; cursor: pointer;"
+                            data-article-id="{{ article.id }}" data-article-title="{{ article.title|escapejs }}"
+                            data-topics-id="{{ topics_id }}"
+                            data-sentiment="{% if article.sentiment %}{{ article.sentiment.sentiment }}{% endif %}"
+                            data-article-type="{% if article.article_type %}{{ article.article_type }}{% endif %}"
+                            data-correction-type="topic">
                             Corregir tema
                         </button>
-                        <button class="actions ghost" style="padding: 4px 8px; font-size: 12px; cursor: pointer;"
-                            onclick="openArticleModal('{{ article.id }}', '{{ article.title|escapejs }}', document.getElementById('{{ topics_id }}').textContent, '{% if article.sentiment %}{{ article.sentiment.sentiment|escapejs }}{% endif %}', '{% if article.article_type %}{{ article.article_type|escapejs }}{% endif %}', 'sentiment')">
+                        <button class="actions ghost btn-correct-article"
+                            style="padding: 4px 8px; font-size: 12px; cursor: pointer;"
+                            data-article-id="{{ article.id }}" data-article-title="{{ article.title|escapejs }}"
+                            data-topics-id="{{ topics_id }}"
+                            data-sentiment="{% if article.sentiment %}{{ article.sentiment.sentiment }}{% endif %}"
+                            data-article-type="{% if article.article_type %}{{ article.article_type }}{% endif %}"
+                            data-correction-type="sentiment">
                             Corregir sentimiento
                         </button>
-                        <button class="actions ghost" style="padding: 4px 8px; font-size: 12px; cursor: pointer;"
-                            onclick="openArticleModal('{{ article.id }}', '{{ article.title|escapejs }}', document.getElementById('{{ topics_id }}').textContent, '{% if article.sentiment %}{{ article.sentiment.sentiment|escapejs }}{% endif %}', '{% if article.article_type }}{{ article.article_type|escapejs }}{% endif %}', 'article_type')">
+                        <button class="actions ghost btn-correct-article"
+                            style="padding: 4px 8px; font-size: 12px; cursor: pointer;"
+                            data-article-id="{{ article.id }}" data-article-title="{{ article.title|escapejs }}"
+                            data-topics-id="{{ topics_id }}"
+                            data-sentiment="{% if article.sentiment %}{{ article.sentiment.sentiment }}{% endif %}"
+                            data-article-type="{% if article.article_type %}{{ article.article_type }}{% endif %}"
+                            data-correction-type="article_type">
                             Corregir tipo
                         </button>
                     </div>
@@ -162,6 +177,24 @@
     const articleModalTitle = document.getElementById("articleModalTitle");
     const correctionSections = document.querySelectorAll("[data-correction-section]");
     let activeCorrectionType = "topic";
+
+    // Add event listeners to all correction buttons
+    document.addEventListener('DOMContentLoaded', function () {
+        const buttons = document.querySelectorAll('.btn-correct-article');
+        buttons.forEach(btn => {
+            btn.addEventListener('click', function () {
+                const id = this.dataset.articleId;
+                const title = this.dataset.articleTitle;
+                const topicsId = this.dataset.topicsId;
+                const sentiment = this.dataset.sentiment || '';
+                const articleType = this.dataset.articleType || '';
+                const correctionType = this.dataset.correctionType;
+
+                const topicsJson = document.getElementById(topicsId).textContent;
+                openArticleModal(id, title, topicsJson, sentiment, articleType, correctionType);
+            });
+        });
+    });
 
     function openArticleModal(id, title, topicsJson, sentiment, articleType, correctionType) {
         articleModalObjectId.value = id;
