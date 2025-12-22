@@ -1,11 +1,9 @@
 from datetime import date as date_cls
-
 from django.core.management.base import BaseCommand
 from django.utils.html import escape
 from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
-
 from html import unescape as html_unescape
 
 from monitor.models import (
@@ -14,17 +12,11 @@ from monitor.models import (
     StoryCluster,
 )
 
-
 def normalize_html_text(s: str) -> str:
-    """
-    Convierte entidades HTML repetidas (ej. '&amp;#8230;' -> '…') de forma segura.
-    Repite html_unescape hasta que el texto deje de cambiar.
-    """
     if not s:
         return s
     prev = None
     cur = s
-    # límite para evitar loops raros
     for _ in range(5):
         if cur == prev:
             break
@@ -33,24 +25,30 @@ def normalize_html_text(s: str) -> str:
     return cur
 
 class Command(BaseCommand):
-    help = "Generate a client-specific digest filtered by person/institution mentions. Works with clusters or articles-only."
+    help = "Generate a client-specific digest with 3-level hierarchy: Entities -> Topics -> General."
 
     def add_arguments(self, parser):
         parser.add_argument("--date", type=str, help="YYYY-MM-DD (default: today)")
         parser.add_argument("--title", type=str, default="Síntesis diaria (cliente)")
-        parser.add_argument("--top", type=int, default=5)
-        parser.add_argument("--hours", type=int, default=48)
+        parser.add_argument("--top", type=int, default=5, help="Items per section")
+        parser.add_argument("--hours", type=int, default=24)
+        
+        # We accept IDs or raw topics for manual runs, but usually this is driven by DigestClientConfig
         parser.add_argument("--person-id", type=int, action="append", default=[])
         parser.add_argument("--institution-id", type=int, action="append", default=[])
+        parser.add_argument("--topics", type=str, help="Comma-separated topics", default="")
 
     def handle(self, *args, **opts):
         title = opts["title"]
         top_n = opts["top"]
         hours = opts["hours"]
-        person_ids = opts["person_id"]
-        institution_ids = opts["institution_id"]
+        person_ids = set(opts["person_id"])
+        institution_ids = set(opts["institution_id"])
+        
+        raw_topics = opts.get("topics", "") or ""
+        topics_list = [t.strip().lower() for t in raw_topics.split(",") if t.strip()]
 
-        # Fecha
+        # Date setup
         target_date_str = opts["date"]
         if target_date_str:
             y, m, d = map(int, target_date_str.split("-"))
@@ -58,187 +56,184 @@ class Command(BaseCommand):
         else:
             target_date = date_cls.today()
 
-        if not person_ids and not institution_ids:
-            self.stdout.write(self.style.ERROR("Debes pasar --person-id y/o --institution-id"))
-            return
-
         since = timezone.now() - timezone.timedelta(hours=hours)
-
-        # 1) Artículos en ventana + menciones (en tu modelo: person_mentions / institution_mentions)
-        q_mentions = Q()
-        if person_ids:
-            q_mentions |= Q(person_mentions__persona_id__in=person_ids)
-        if institution_ids:
-            q_mentions |= Q(institution_mentions__institucion_id__in=institution_ids)
-
-        articles_qs = (
-            Article.objects.filter(published_at__gte=since)
-            .filter(q_mentions)
-            .distinct()
-            .order_by("-published_at", "-id")
-        )
-
-        articles = list(articles_qs)
-        self.stdout.write(f"Artículos filtrados: {len(articles)} (últimas {hours}h)")
-
-        if not articles:
-            self.stdout.write(self.style.WARNING("No hay artículos con esas menciones en la ventana."))
+        
+        # We work with CLUSTERS mainly.
+        # Fetch clusters created in window OR that have mentions in window?
+        # Better: Clusters created in window OR Updated (which we don't track perfectly, so let's stick to created or with mentions)
+        # To simplify: Clusters created in last X hours.
+        
+        all_clusters = StoryCluster.objects.filter(
+            created_at__gte=since
+        ).prefetch_related("mentions", "mentions__media_outlet", "mentions__article")
+        
+        clusters = list(all_clusters)
+        self.stdout.write(f"Clusters candidate pool: {len(clusters)} (since {since})")
+        
+        if not clusters:
+            self.stdout.write(self.style.WARNING("No recent clusters found."))
             return
 
-        # 2) Intentar armar digest por clusters (StoryCluster) usando StoryMention reverse: storymention_set
-        #    Relación: StoryMention(article -> Article, cluster -> StoryCluster)
-        cluster_ids = set()
-        allowed_article_ids = {article.id for article in articles}
-        for a in articles:
-            sm = a.storymention_set.select_related("cluster").first()
-            if sm and sm.cluster_id:
-                cluster_ids.add(sm.cluster_id)
+        # --- SEPARATION LOGIC ---
+        priority_clusters = []
+        topic_clusters = []
+        general_clusters = []
+        
+        seen_ids = set()
 
-        clusters = list(
-            StoryCluster.objects.filter(id__in=list(cluster_ids)).order_by("-created_at", "-id")
-        )
+        for cluster in clusters:
+            # Check Level 1: Entities
+            # Does this cluster have mentions of our people/institutions?
+            # Ideally we check cluster.entity_summary or query StoryMention->Article->Mentions
+            
+            # Efficient check using pre-fetched or just DB query if not massive
+            # Let's check mentions explicitly for accuracy
+            
+            # This is heavy if N is large. Optimization: filter at query level.
+            # But we are iterating once.
+            
+            # Let's use sets of IDs for fast lookup
+            # We need to know if any article in this cluster mentions the target entities.
+            # We can rely on 'entity_summary' if populated, but 'link_entities' runs separately.
+            
+            is_priority = False
+            
+            # Check DB relations directly for robustness
+            has_person = cluster.mentions.filter(article__person_mentions__persona_id__in=person_ids).exists() if person_ids else False
+            has_inst = cluster.mentions.filter(article__institution_mentions__institucion_id__in=institution_ids).exists() if institution_ids else False
+            
+            if has_person or has_inst:
+                priority_clusters.append(cluster)
+                seen_ids.add(cluster.id)
+                continue
 
+            # Check Level 2: Topics
+            # Check headline or topic_label or topic_summary
+            is_topic = False
+            if topics_list:
+                text_blob = (cluster.headline + " " + cluster.topic_label).lower()
+                # Check JSON topic summary too
+                for t in cluster.topic_summary:
+                    text_blob += " " + str(t.get("label", "")).lower()
+                
+                for keyword in topics_list:
+                    if keyword in text_blob:
+                        is_topic = True
+                        break
+            
+            if is_topic:
+                topic_clusters.append(cluster)
+                seen_ids.add(cluster.id)
+                continue
+            
+            # Level 3: General
+            general_clusters.append(cluster)
+
+        # Sort by volume (mentions count)
+        priority_clusters.sort(key=lambda c: c.mentions.count(), reverse=True)
+        topic_clusters.sort(key=lambda c: c.mentions.count(), reverse=True)
+        general_clusters.sort(key=lambda c: c.mentions.count(), reverse=True)
+        
+        # Limit
+        priority_clusters = priority_clusters[:top_n]
+        topic_clusters = topic_clusters[:top_n]
+        general_clusters = general_clusters[:top_n]
+        
         with transaction.atomic():
-            # upsert Digest por title+date (ajusta si tu Digest usa otra constraint)
-            digest, _ = Digest.objects.get_or_create(
+            digest, _ = Digest.objects.update_or_create(
                 title=title,
                 date=target_date,
                 defaults={"html_content": "", "json_content": {}},
             )
-
-            # Limpia secciones/items previos para regenerar
+            
             digest.sections.all().delete()
+            
+            sections_data = []
+            
+            # 1. PRIORITY SECTION
+            if priority_clusters:
+                sec = DigestSection.objects.create(
+                    digest=digest, label="Enfoque / Prioridad", order=1, 
+                    section_type=DigestSection.SectionType.PRIORITY
+                )
+                self._add_items(sec, priority_clusters, sections_data)
 
-            html = []
-            html.append(f"<h1>{escape(title)}</h1>")
-            html.append(f"<p><strong>Fecha:</strong> {escape(target_date.isoformat())}</p>")
-            html.append(f"<p><strong>Ventana:</strong> últimas {escape(str(hours))} horas</p>")
-
+            # 2. TOPIC SECTION
+            if topic_clusters:
+                sec = DigestSection.objects.create(
+                    digest=digest, label="Temas de Interés", order=2,
+                    section_type=DigestSection.SectionType.BY_TOPIC
+                )
+                self._add_items(sec, topic_clusters, sections_data)
+                
+            # 3. GENERAL SECTION
+            if general_clusters:
+                sec = DigestSection.objects.create(
+                    digest=digest, label="Contexto General", order=3,
+                    section_type=DigestSection.SectionType.GENERAL
+                )
+                self._add_items(sec, general_clusters, sections_data)
+            
+            # Build HTML
+            html = self._build_html(title, target_date, sections_data)
+            digest.html_content = html
+            
             digest_json = {
                 "title": title,
-                "date": target_date.isoformat(),
-                "hours": hours,
-                "mode": None,
-                "filters": {"person_ids": person_ids, "institution_ids": institution_ids},
-                "sections": [],
+                "date": str(target_date),
+                "sections": sections_data
             }
-
-            # ---- MODO CLUSTERS ----
-            if clusters:
-                digest_json["mode"] = "clusters"
-
-                # Sección única (puedes expandir a más secciones luego)
-                sec = DigestSection.objects.create(digest=digest, label="Enfoque / Prioridad", order=1)
-                html.append("<h2>Enfoque / Prioridad</h2>")
-
-                # Ordena clusters por volumen (mentions) desc y luego por recencia
-                clusters_sorted = sorted(
-                    clusters,
-                    key=lambda c: (c.mentions.count(), c.created_at, c.id),
-                    reverse=True
-                )[:top_n]
-
-                sec_json = {"label": sec.label, "items": []}
-
-                for idx, cluster in enumerate(clusters_sorted, start=1):
-                    DigestItem.objects.create(section=sec, cluster=cluster, order=idx)
-
-                    headline = cluster.headline or ""
-                    lead = cluster.lead or ""
-
-                    # ✅ Arreglo: primero "unescape" para convertir &amp;#8230; -> &#8230; -> …
-                    if lead:
-                        lead = normalize_html_text(lead)
-
-                    mentions_qs = cluster.mentions.select_related(
-                        "media_outlet", "article"
-                    ).filter(article_id__in=allowed_article_ids)
-                    volume = mentions_qs.count()
-
-                    html.append("<hr>")
-                    html.append(f"<h3>{escape(headline)}</h3>")
-                    html.append(f"<p><strong>Volumen:</strong> {volume} notas</p>")
-
-                    if lead:
-                        html.append(f"<p>{escape(lead)}</p>")
-
-                    html.append("<div class='digest-chips'>")
-                    chips = []
-                    for mention in mentions_qs:
-                        mo = mention.media_outlet.name if mention.media_outlet else "Medio"
-                        url = mention.article.url if mention.article else ""
-                        if url:
-                            html.append(
-                                f"<a class='digest-chip' href='{escape(url)}' target='_blank' rel='noopener noreferrer'>{escape(mo)}</a>"
-                            )
-                        else:
-                            html.append(f"<span class='digest-chip'>{escape(mo)}</span>")
-
-                        chips.append({"media_outlet": mo, "url": url})
-
-                    html.append("</div>")
-
-                    sec_json["items"].append({
-                        "cluster_id": cluster.id,
-                        "headline": headline,
-                        "lead": lead,
-                        "volume": volume,
-                        "chips": chips,
-                    })
-
-                digest_json["sections"].append(sec_json)
-
-            # ---- MODO ARTÍCULOS (SIN CLUSTERS) ----
-            else:
-                digest_json["mode"] = "articles_only"
-
-                sec = DigestSection.objects.create(digest=digest, label="Enfoque / Prioridad", order=1)
-                html.append("<h2>Enfoque / Prioridad</h2>")
-
-                top_articles = articles[:top_n]
-                sec_json = {"label": sec.label, "items": []}
-
-                for idx, a in enumerate(top_articles, start=1):
-                    DigestItem.objects.create(section=sec, article=a, order=idx)
-
-                    headline = a.title or ""
-                    lead = getattr(a, "lead", "") or ""
-
-                    if lead:
-                        lead = html_unescape(lead)
-
-                    mo = a.media_outlet.name if a.media_outlet else "Medio"
-                    url = a.url or ""
-                    published = a.published_at.date().isoformat() if a.published_at else ""
-
-                    html.append("<hr>")
-                    if url:
-                        html.append(
-                            f"<h3><a href='{escape(url)}' target='_blank' rel='noopener noreferrer'>{escape(headline)}</a></h3>"
-                        )
-                    else:
-                        html.append(f"<h3>{escape(headline)}</h3>")
-
-                    html.append(f"<p><strong>Medio:</strong> {escape(mo)} &nbsp; <strong>Fecha:</strong> {escape(published)}</p>")
-
-                    if lead:
-                        html.append(f"<p>{escape(lead)}</p>")
-
-                    sec_json["items"].append({
-                        "article_id": a.id,
-                        "headline": headline,
-                        "lead": lead,
-                        "media_outlet": mo,
-                        "url": url,
-                        "published_date": published,
-                    })
-
-                digest_json["sections"].append(sec_json)
-
-            digest.html_content = "\n".join(html)
             digest.json_content = digest_json
-            digest.save(update_fields=["html_content", "json_content"])
+            digest.save()
+            
+        self.stdout.write(self.style.SUCCESS(f"Digest generated: {len(priority_clusters)} priority, {len(topic_clusters)} topics, {len(general_clusters)} general."))
 
-        self.stdout.write(self.style.SUCCESS(
-            f"Digest de cliente creado/actualizado (modo {digest_json['mode']})."
-        ))
+    def _add_items(self, section, clusters, sections_data_list):
+        items_data = []
+        for i, cluster in enumerate(clusters, 1):
+            DigestItem.objects.create(section=section, cluster=cluster, order=i)
+            
+            vol = cluster.mentions.count()
+            mentions_qs = cluster.mentions.select_related("media_outlet", "article").all()
+            
+            chips = []
+            seen_media = set()
+            for m in mentions_qs:
+                mo_name = m.media_outlet.name
+                if mo_name not in seen_media:
+                    chips.append({"media": mo_name, "url": m.article.url})
+                    seen_media.add(mo_name)
+                    if len(chips) >= 5: break
+            
+            items_data.append({
+                "cluster_id": cluster.id,
+                "headline": cluster.headline,
+                "lead": cluster.lead,
+                "volume": vol,
+                "chips": chips
+            })
+            
+        sections_data_list.append({
+            "label": section.label,
+            "type": section.section_type,
+            "items": items_data
+        })
+
+    def _build_html(self, title, date_obj, sections):
+        html = []
+        html.append(f"<h1>{escape(title)}</h1>")
+        html.append(f"<p className='text-gray-500'>Fecha: {date_obj}</p>")
+        
+        for sec in sections:
+            html.append(f"<h2 style='margin-top: 20px; border-bottom: 2px solid #ccc;'>{escape(sec['label'])}</h2>")
+            for item in sec['items']:
+                html.append("<div style='margin-bottom: 20px;'>")
+                html.append(f"<h3>{escape(item['headline'])}</h3>")
+                html.append(f"<p><em>{escape(item['lead'])}</em></p>")
+                html.append(f"<small>Cobertura: {item['volume']} fuentes</small>")
+                html.append("<div>")
+                for chip in item['chips']:
+                    html.append(f"<a href='{chip['url']}' target='_blank' style='margin-right: 8px; font-size: 0.8em;'>[{chip['media']}]</a>")
+                html.append("</div>")
+                html.append("</div>")
+        return "\n".join(html)

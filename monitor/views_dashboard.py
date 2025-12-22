@@ -1,5 +1,7 @@
 from collections import Counter
 from datetime import timedelta
+import sys
+import subprocess
 
 from django.contrib import messages
 from django.contrib.admin.views.decorators import staff_member_required
@@ -30,7 +32,8 @@ from .models import (
 @staff_member_required
 def dashboard_home(request):
     today = timezone.now().date()
-    recent_runs = IngestRun.objects.order_by("-id")[:5]
+    # recent_runs = IngestRun.objects.order_by("-id")[:5]
+    recent_runs = list(IngestRun.objects.order_by("-id")[:5])
     digest_latest = Digest.objects.order_by("-date", "-id").first()
 
     context = {
@@ -524,6 +527,10 @@ def ingest_dashboard(request):
             action = form.cleaned_data.get("action")
             messages.info(request, "[DEBUG] action recibida = %s" % action)
             limit = int(form.cleaned_data.get("limit") or 200)
+            hours = form.cleaned_data.get("hours") or 24
+            
+            # Helper to get python path dynamically
+            python_executable = sys.executable
 
             try:
                 if action == "fetch_sources":
@@ -547,7 +554,6 @@ def ingest_dashboard(request):
                     messages.success(request, "embed_articles OK")
 
                 elif action == "cluster_articles_ai":
-                    hours = form.cleaned_data.get("hours")
                     threshold = form.cleaned_data.get("threshold")
                     dry_run = form.cleaned_data.get("dry_run")
                     cmd_args = [
@@ -561,29 +567,55 @@ def ingest_dashboard(request):
                     messages.success(request, "cluster_articles_ai OK")
 
                 elif action == "link_entities":
-                    hours = form.cleaned_data.get("hours")
                     # correr en background para no tumbar el request web
-                    import subprocess
-
                     subprocess.Popen(
                         [
-                            "/srv/atlas/venv/bin/python",
-                            "/srv/atlas/manage.py",
+                            python_executable,
+                            "manage.py",
                             "link_entities",
                             "--limit", str(limit),
                             "--since", f"{hours}h",
                             "--skip-ai-verify",
                         ],
-                        cwd="/srv/atlas",
+                        # Assumes manage.py is in the current working directory or handled by path
                         stdout=subprocess.DEVNULL,
                         stderr=subprocess.DEVNULL,
                     )
                     messages.success(request, "link_entities started (background)")
+                
+                elif action == "run_monitor_pipeline":
+                    # BACKGROUND PIPELINE
+                    subprocess.Popen(
+                        [
+                            python_executable,
+                            "manage.py",
+                            "run_monitor_pipeline",
+                            "--hours", str(hours),
+                            "--limit", str(limit),
+                        ],
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL,
+                    )
+                    messages.success(request, "🔥 Monitor Pipeline 2.0 started (background)")
+
+                elif action == "create_digest_summary":
+                    subprocess.Popen(
+                        [
+                            python_executable,
+                            "manage.py",
+                            "create_digest_summary",
+                        ],
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL,
+                    )
+                    messages.success(request, "Synthesis generation started (background)")
 
                 else:
                     messages.error(request, f"Acción no reconocida: {action}")
 
             except Exception as e:
+                import traceback
+                traceback.print_exc()
                 messages.error(request, f"Error: {e}")
 
             return redirect("monitor_dashboard_ingest")

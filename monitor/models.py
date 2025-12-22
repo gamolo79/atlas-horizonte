@@ -196,6 +196,7 @@ class DigestSection(models.Model):
     class SectionType(models.TextChoices):
         PRIORITY = "priority", "Prioritaria"
         BY_PARENT = "by_parent", "Por institución padre"
+        BY_TOPIC = "by_topic", "Por tema de interés"
         GENERAL = "general", "General"
 
     digest = models.ForeignKey(Digest, on_delete=models.CASCADE, related_name="sections")
@@ -481,6 +482,7 @@ class DigestClientConfig(models.Model):
 
     personas = models.ManyToManyField("redpolitica.Persona", blank=True, related_name="digest_client_configs")
     instituciones = models.ManyToManyField("redpolitica.Institucion", blank=True, related_name="digest_client_configs")
+    topics = models.JSONField(default=list, blank=True, help_text="Lista de temas de interés (strings).")
 
     updated_at = models.DateTimeField(auto_now=True)
 

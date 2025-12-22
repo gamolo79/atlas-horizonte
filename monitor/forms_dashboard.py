@@ -22,10 +22,44 @@ class DigestClientConfigForm(forms.ModelForm):
         widget=forms.SelectMultiple(attrs={"size": "12"}),
         help_text="Ctrl/Cmd + click para seleccionar varias."
     )
+    topics_csv = forms.CharField(
+        required=False, 
+        widget=forms.Textarea(attrs={"rows": 3}),
+        help_text="Temas separados por coma (ej. Seguridad, Elecciones, Movilidad).",
+        label="Temas de Interés"
+    )
 
     class Meta:
         model = DigestClientConfig
-        fields = ("title", "top_n", "hours", "personas", "instituciones")
+        fields = ("title", "top_n", "hours", "personas", "instituciones", "topics")
+        # topics es el campo JSON del modelo, pero usaremos topics_csv en el form
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.instance and self.instance.pk:
+            # Pre-populate topics_csv from JSON field
+            topics_list = self.instance.topics or []
+            self.fields["topics_csv"].initial = ", ".join(topics_list)
+
+    def clean_topics(self):
+        # We don't use this directly for model saving if we exclude it or manually handle it, 
+        # but ModelForm expects 'topics' to match model field type if it's in 'fields'.
+        # Actually easier approach: exclude 'topics' from Meta fields and save manually.
+        pass
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        # Parse CSV to list
+        raw = self.cleaned_data.get("topics_csv", "")
+        if raw:
+            instance.topics = [t.strip() for t in raw.split(",") if t.strip()]
+        else:
+            instance.topics = []
+        
+        if commit:
+            instance.save()
+            self.save_m2m()
+        return instance
 
 # /srv/atlas/monitor/forms_dashboard.py
 
@@ -41,6 +75,8 @@ class OpsForm(forms.Form):
             ("embed_articles", "3) Embeddings (embed_articles)"),
             ("cluster_articles_ai", "4) Clustering AI (cluster_articles_ai)"),
             ("link_entities", "5) Link entidades (link_entities)"),
+            ("run_monitor_pipeline", "🔥 6) FULL PIPELINE 2.0 (Orquestador)"),
+            ("create_digest_summary", "7) Generar Sintesis IA (Solo digest)"),
         ],
         required=True,
         widget=forms.Select(attrs={"class": "form-control"}),
@@ -135,5 +171,11 @@ class OpsForm(forms.Form):
                 cleaned["limit"] = 2000
             if not cleaned.get("hours"):
                 cleaned["hours"] = 120
+        
+        if action == "run_monitor_pipeline":
+             if not cleaned.get("hours"):
+                cleaned["hours"] = 24
+             if not cleaned.get("limit"):
+                 cleaned["limit"] = 500
 
         return cleaned
