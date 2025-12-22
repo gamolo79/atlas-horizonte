@@ -562,14 +562,23 @@ def ingest_dashboard(request):
 
                 elif action == "link_entities":
                     hours = form.cleaned_data.get("hours")
-                    call_command(
-                        "link_entities",
-                        "--limit",
-                        str(limit),
-                        "--since",
-                        f"{hours}h",
+                    # correr en background para no tumbar el request web
+                    import subprocess
+
+                    subprocess.Popen(
+                        [
+                            "/srv/atlas/venv/bin/python",
+                            "/srv/atlas/manage.py",
+                            "link_entities",
+                            "--limit", str(limit),
+                            "--since", f"{hours}h",
+                            "--skip-ai-verify",
+                        ],
+                        cwd="/srv/atlas",
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL,
                     )
-                    messages.success(request, "link_entities OK")
+                    messages.success(request, "link_entities started (background)")
 
                 else:
                     messages.error(request, f"Acción no reconocida: {action}")

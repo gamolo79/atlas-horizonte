@@ -145,9 +145,9 @@ class Command(BaseCommand):
 
     def _purge_links(self, articles):
         article_ids = [article.id for article in articles]
-        EntityLink.objects.filter(mention__article_id__in=article_ids).delete()
         ArticleEntity.objects.filter(article_id__in=article_ids).delete()
-
+        EntityLink.objects.filter(mention__article_id__in=article_ids).delete()
+        
     def _load_scope(self, client_id):
         if not client_id:
             return None

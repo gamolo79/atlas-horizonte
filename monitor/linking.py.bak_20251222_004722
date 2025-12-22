@@ -479,31 +479,8 @@ def link_mentions(
         "ai_rejected": 0,
     }
     ai_error = False
-    # AUTO_DEDUPE_SURFACE_BY_ARTICLE (state)
-    seen_surface_by_article = set()
-
-    # AUTO_STOP_SURFACES (config)
-    STOP_SURFACES = {
-        "movilidad", "gobierno", "estado", "municipio",
-        "congreso", "seguridad", "educación", "salud",
-    }
-
     for mention in mentions:
         totals["mentions_analyzed"] += 1
-        # AUTO_DEDUPE_SURFACE_BY_ARTICLE
-        # Evita procesar el mismo surface repetido dentro del mismo artículo (reduce ruido y costo IA)
-        key = (mention.article_id, (mention.surface or "").strip().lower())
-        if key in seen_surface_by_article:
-            continue
-        seen_surface_by_article.add(key)
-
-        # AUTO_STOP_SURFACES
-        # Stoplist de términos genéricos que suelen generar falsos positivos (ajusta a tu gusto)
-        surface = (mention.surface or "").strip().lower()
-        if surface in STOP_SURFACES:
-            totals["no_candidates"] += 1
-            continue
-
         candidates = retrieve_candidates(mention, scope=scope)
         if not candidates:
             totals["no_candidates"] += 1
