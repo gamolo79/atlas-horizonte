@@ -165,38 +165,24 @@
     const correctionSections = document.querySelectorAll("[data-correction-section]");
     let activeCorrectionType = "topic";
 
-    // Add event listeners to all correction buttons
-    document.addEventListener('DOMContentLoaded', function () {
-        const buttons = document.querySelectorAll('.btn-correct-article');
-        buttons.forEach(btn => {
-            btn.addEventListener('click', function () {
-                const id = this.dataset.articleId;
-                const title = this.dataset.articleTitle;
-                const topicsId = this.dataset.topicsId;
-                const sentiment = this.dataset.sentiment || '';
-                const articleType = this.dataset.articleType || '';
-                const correctionType = this.dataset.correctionType;
-
-                const topicsJson = document.getElementById(topicsId).textContent;
-                openArticleModal(id, title, topicsJson, sentiment, articleType, correctionType);
-            });
-        });
-    });
-
-    function openArticleModal(id, title, topicsJson, sentiment, articleType, correctionType) {
-        articleModalObjectId.value = id;
+    function openModal(articleId, title, correctionType, sentiment, articleType) {
+        articleModalObjectId.value = articleId;
         articleModalRefText.innerText = title;
-        activeCorrectionType = correctionType || "topic";
-        articleModalTitle.innerText = getCorrectionTitle(activeCorrectionType);
+        activeCorrectionType = correctionType;
+        articleModalTitle.innerText = getCorrectionTitle(correctionType);
 
-        // Parse and populate topics
-        try {
-            const topics = typeof topicsJson === 'string' ? JSON.parse(topicsJson) : (topicsJson || []);
-            const topicLabels = topics.map(t => t.label || t).join(', ');
-            articleTopicInput.value = topicLabels;
-        } catch (e) {
-            console.error("Error parsing topics:", e);
-            articleTopicInput.value = "";
+        // Get and parse topics from hidden input
+        const topicsInput = document.getElementById('topics-' + articleId);
+        if (topicsInput) {
+            try {
+                const topicsValue = topicsInput.value;
+                const topics = topicsValue ? JSON.parse(topicsValue) : [];
+                const topicLabels = topics.map(t => t.label || t).join(', ');
+                articleTopicInput.value = topicLabels;
+            } catch (e) {
+                console.error("Error parsing topics:", e);
+                articleTopicInput.value = "";
+            }
         }
 
         // Populate sentiment
@@ -210,7 +196,7 @@
             option.selected = false;
         }
 
-        toggleCorrectionSections(activeCorrectionType);
+        toggleCorrectionSections(correctionType);
         articleModal.showModal();
     }
 
