@@ -327,7 +327,7 @@ class Command(BaseCommand):
                         best_score = score
                         best = c
 
-                if best is None or best_score < threshold:
+                if best is None or best_score < cohesion_threshold:
                     # nuevo cluster
                     created_clusters += 1
                     if dry:
