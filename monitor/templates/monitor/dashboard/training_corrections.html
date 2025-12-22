@@ -121,6 +121,17 @@
             <div style="font-size: 11px; color: var(--muted); margin-bottom: 16px;">
                 Mantén presionado Ctrl (Cmd en Mac) para seleccionar varias personas.
             </div>
+
+            <!-- Instituciones Mencionadas -->
+            <label>Instituciones Mencionadas:</label>
+            <select id="articleInstitucionesSelect" multiple style="margin-bottom: 8px; height: 120px;">
+                {% for institucion in all_instituciones %}
+                <option value="{{ institucion.id }}">{{ institucion.nombre }}</option>
+                {% endfor %}
+            </select>
+            <div style="font-size: 11px; color: var(--muted); margin-bottom: 16px;">
+                Mantén presionado Ctrl (Cmd en Mac) para seleccionar varias instituciones.
+            </div>
         </div>
 
         <div data-correction-section="sentiment">
@@ -160,6 +171,7 @@
     const articleSentimentSelect = document.getElementById("articleSentimentSelect");
     const articleTypeSelect = document.getElementById("articleTypeSelect");
     const articlePersonasSelect = document.getElementById("articlePersonasSelect");
+    const articleInstitucionesSelect = document.getElementById("articleInstitucionesSelect");
     const articleModalRefText = document.getElementById("articleModalRefText");
     const articleModalTitle = document.getElementById("articleModalTitle");
     const correctionSections = document.querySelectorAll("[data-correction-section]");
@@ -191,8 +203,11 @@
         // Populate article type
         articleTypeSelect.value = articleType || "";
 
-        // Clear personas selection
+        // Clear personas and instituciones selection
         for (let option of articlePersonasSelect.options) {
+            option.selected = false;
+        }
+        for (let option of articleInstitucionesSelect.options) {
             option.selected = false;
         }
 
@@ -226,14 +241,16 @@
         const articleType = articleTypeSelect.value;
         const refText = articleModalRefText.innerText;
 
-        // Get selected personas
+        // Get selected personas and instituciones
         const selectedPersonas = Array.from(articlePersonasSelect.selectedOptions).map(opt => opt.value);
+        const selectedInstituciones = Array.from(articleInstitucionesSelect.selectedOptions).map(opt => opt.value);
 
         const topics = topicInputValue.split(',').map(t => t.trim()).filter(t => t.length > 0).map(label => ({ label, confidence: "alta" }));
 
         if (activeCorrectionType === "topic") {
             if (topics.length > 0) submitCorrection(id, "topic", topics, refText);
             if (selectedPersonas.length > 0) submitCorrection(id, "article_personas", selectedPersonas, refText);
+            if (selectedInstituciones.length > 0) submitCorrection(id, "article_instituciones", selectedInstituciones, refText);
         }
         if (activeCorrectionType === "sentiment" && sentiment) {
             submitCorrection(id, "sentiment_article", sentiment, refText);

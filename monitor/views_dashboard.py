@@ -652,6 +652,7 @@ def training_corrections(request):
     context = {
         "recent_articles": Article.objects.select_related('media_outlet', 'sentiment').order_by("-published_at")[:20],
         "all_personas": Persona.objects.all().order_by('nombre_completo'),
+        "all_instituciones": Institucion.objects.all().order_by('nombre'),
     }
     return render(request, "monitor/dashboard/training_corrections.html", context)
 
@@ -767,6 +768,26 @@ def submit_gold_correction(request):
                         defaults={'matched_alias': persona.nombre_completo}
                     )
                 except Persona.DoesNotExist:
+                    pass
+            
+            if not reference_text:
+                reference_text = f"{obj.title}\n{obj.lead}"
+
+        elif correction_type == "article_instituciones" and isinstance(obj, Article):
+            # new_value is a list of institucion IDs
+            # Create ArticleInstitucionMention for each
+            if not isinstance(new_value, list):
+                new_value = [new_value]
+            
+            for institucion_id in new_value:
+                try:
+                    institucion = Institucion.objects.get(id=institucion_id)
+                    ArticleInstitucionMention.objects.get_or_create(
+                        article=obj,
+                        institucion=institucion,
+                        defaults={'matched_alias': institucion.nombre}
+                    )
+                except Institucion.DoesNotExist:
                     pass
             
             if not reference_text:
