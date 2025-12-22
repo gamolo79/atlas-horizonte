@@ -1,9 +1,14 @@
 import hashlib
+import importlib
 import json
 import math
+import os
+import random
 import sys
+from collections import Counter
 from django.core.management.base import BaseCommand
 from django.db import transaction
+from django.db.models import Count
 from django.utils import timezone
 
 from monitor.models import (
@@ -14,6 +19,12 @@ from monitor.models import (
     StoryCluster,
     StoryMention,
 )
+
+STOPWORDS = {
+    "el", "la", "los", "las", "un", "una", "unos", "unas",
+    "de", "del", "al", "y", "o", "u", "en", "por", "para", "con", "sin",
+    "que", "se", "a", "su", "sus", "es", "son", "fue", "será", "hoy", "ayer",
+}
 
 
 def cosine(a, b):
@@ -156,6 +167,8 @@ class Command(BaseCommand):
         parser.add_argument("--skip-entity-guard", action="store_true")
 
     def handle(self, *args, **opts):
+        from django.db.models import Count as Count  # noqa: PLC0415
+
         self.stdout.write(self.style.WARNING(f"[DEBUG] cluster_articles_ai file: {__file__}"))
         self.stdout.write(self.style.WARNING(f"[DEBUG] sys.path[0]: {sys.path[0]}"))
         hours = opts["hours"]
@@ -191,8 +204,21 @@ class Command(BaseCommand):
         )
         unclustered = [article for article in articles if article.id not in existing_mentions]
 
+        if not unclustered:
+            self.stdout.write(self.style.WARNING("No hay artículos nuevos sin cluster en la ventana."))
+            return
+
         article_ids = [a.id for a in articles]
         entity_map = self._build_entity_map(article_ids)
+
+        keyword_map = {
+            article.id: build_keywords(
+                article.title or "",
+                getattr(article, "lead", "") or "",
+                getattr(article, "body_text", "") or "",
+            )
+            for article in unclustered
+        }
 
         existing_clusters = []
         for cluster in (
@@ -215,9 +241,23 @@ class Command(BaseCommand):
 
         ai_client = None
         if not skip_ai and os.environ.get("OPENAI_API_KEY"):
-            ai_client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"), timeout=20)
+            try:
+                from openai import OpenAI
+            except ImportError:
+                self.stdout.write(self.style.WARNING("Paquete openai no disponible. Se omite validación IA."))
+            else:
+                ai_client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"), timeout=20)
         elif not skip_ai:
             self.stdout.write(self.style.WARNING("OPENAI_API_KEY no configurada: se omite validación IA."))
+
+        embeddings = [article.embedding for article in unclustered]
+        initial_clusters = self._build_initial_clusters(
+            embeddings,
+            method=method,
+            min_cluster_size=min_cluster_size,
+            max_clusters=max_clusters,
+            seed=seed,
+        )
 
         final_clusters = []
         ai_splits = 0
@@ -253,6 +293,8 @@ class Command(BaseCommand):
 
         created_clusters = 0
         created_mentions = 0
+        clusters = list(existing_clusters)
+        threshold = cohesion_threshold
 
         if dry:
             self.stdout.write(
@@ -301,7 +343,8 @@ class Command(BaseCommand):
                     clusters.append(
                         {"cluster": cluster_obj, "centroid": vec, "count": 1, "entities": art_entities}
                     )
-                    add_mention(cluster_obj, art)
+                    if self._add_mention(cluster_obj, art, score=best_score, is_base=True):
+                        created_mentions += 1
                 else:
                     # añadir al mejor cluster
                     best["centroid"] = update_centroid(best["centroid"], best["count"], vec)
@@ -309,7 +352,8 @@ class Command(BaseCommand):
                     if best.get("entities") is not None:
                         best["entities"] = best["entities"] | art_entities
                     if not dry:
-                        add_mention(best["cluster"], art)
+                        if self._add_mention(best["cluster"], art, score=best_score):
+                            created_mentions += 1
 
         if dry:
             self.stdout.write(self.style.SUCCESS(f"Dry run OK · Candidate clusters: {created_clusters}"))
@@ -337,3 +381,68 @@ class Command(BaseCommand):
         if article_entities & cluster_entities:
             return score + boost
         return score - penalty
+
+    def _build_initial_clusters(self, embeddings, method, min_cluster_size, max_clusters, seed):
+        if not embeddings:
+            return []
+        cluster_count = max(1, len(embeddings) // max(min_cluster_size, 1))
+        cluster_count = min(max_clusters, cluster_count)
+        if method == "hdbscan":
+            self.stdout.write(self.style.WARNING("hdbscan no disponible; usando kmeans como fallback."))
+        return kmeans_clusters(embeddings, cluster_count, seed=seed)
+
+    def _compute_cluster_metrics(self, cluster_articles, entity_map, keyword_map):
+        embeddings = [article.embedding for article in cluster_articles if article.embedding]
+        centroid = average_vectors(embeddings)
+        if centroid:
+            cohesion_score = sum(cosine(vec, centroid) for vec in embeddings) / len(embeddings)
+        else:
+            cohesion_score = 0.0
+        entity_overlap = compute_overlap_score([entity_map.get(article.id, set()) for article in cluster_articles])
+        keyword_overlap = compute_overlap_score([keyword_map.get(article.id, set()) for article in cluster_articles])
+        return {
+            "cohesion_score": (cohesion_score + entity_overlap + keyword_overlap) / 3.0,
+            "entity_overlap": entity_overlap,
+            "keyword_overlap": keyword_overlap,
+            "size": len(cluster_articles),
+        }
+
+    def _heuristic_split(self, cluster_articles, seed):
+        if len(cluster_articles) < 4:
+            return None
+        embeddings = [article.embedding for article in cluster_articles if article.embedding]
+        if len(embeddings) < 4:
+            return None
+        clusters = kmeans_clusters(embeddings, 2, seed=seed)
+        if len(clusters) < 2:
+            return None
+        return [[cluster_articles[idx] for idx in group] for group in clusters if len(group) >= 2]
+
+    def _ai_split_cluster(self, client, model, cluster_articles, entity_map, keyword_map):
+        return None
+
+    def _add_mention(self, cluster, article, score=0.0, is_base=False):
+        mention, created = StoryMention.objects.get_or_create(
+            cluster=cluster,
+            article=article,
+            defaults={
+                "media_outlet": article.media_outlet,
+                "match_score": score,
+                "is_base_candidate": is_base,
+            },
+        )
+        if not created and (mention.match_score != score or mention.is_base_candidate != is_base):
+            mention.match_score = score
+            mention.is_base_candidate = is_base
+            mention.save(update_fields=["match_score", "is_base_candidate"])
+        return created
+
+
+def update_centroid(centroid, count, vector):
+    if not centroid:
+        return vector[:]
+    total = []
+    for idx, val in enumerate(vector):
+        prev = centroid[idx] if idx < len(centroid) else 0.0
+        total.append((prev * count + val) / (count + 1))
+    return total
