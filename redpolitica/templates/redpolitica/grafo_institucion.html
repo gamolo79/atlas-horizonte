@@ -189,12 +189,6 @@
         html += `<p><strong>Ubicación:</strong> ${partes.join(", ")}</p>`;
       }
 
-      if (inst.fecha_inicio || inst.fecha_fin) {
-        html += `<p><strong>Periodo:</strong> ${
-          inst.fecha_inicio || "¿?"
-        } – ${inst.fecha_fin || "actual o sin registro"}</p>`;
-      }
-
       panelContent.innerHTML = html || "<p>Sin detalles adicionales.</p>";
     }
 
