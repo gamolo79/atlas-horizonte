@@ -13,8 +13,8 @@ from monitor.models import (
     StoryMention,
 )
 
-# Umbral estricto para evitar "bola de nieve"
-DEFAULT_SIMILARITY_THRESHOLD = 0.76
+# Umbral más estricto por defecto
+DEFAULT_SIMILARITY_THRESHOLD = 0.82
 
 def cosine(a, b):
     dot = 0.0
@@ -29,7 +29,7 @@ def cosine(a, b):
     return dot / (math.sqrt(na) * math.sqrt(nb))
 
 class Command(BaseCommand):
-    help = "Cluster articles using strict Leader-Based Incremental Clustering to prevent drift."
+    help = "Cluster articles using strict Leader-Based Incremental Clustering with Entity Guards."
 
     def add_arguments(self, parser):
         parser.add_argument("--hours", type=int, default=72)
@@ -58,13 +58,11 @@ class Command(BaseCommand):
             self.stdout.write(self.style.WARNING("No articles with embeddings found in window."))
             return
 
-        # 2. Identificar cuáles ya están en un cluster (para no procesarlos de nuevo si no queremos, 
-        #    o para validar. Lo estándar es ignorar los ya procesados para ser eficientes).
+        # 2. Identificar cuáles ya están en un cluster
         existing_mentions_ids = set(
             StoryMention.objects.filter(article__in=articles).values_list("article_id", flat=True)
         )
         
-        # Artículos "nuevos" que requieren asignación
         unclustered_articles = [a for a in articles if a.id not in existing_mentions_ids]
         
         if not unclustered_articles:
@@ -74,10 +72,8 @@ class Command(BaseCommand):
         self.stdout.write(f"Processing {len(unclustered_articles)} unclustered articles...")
 
         # 3. Cargar Clusters Activos (candidatos)
-        #    "Leader-Based": Representamos el cluster por su artículo base (o su embedding original).
-        #    Esto evita el "drift" del centroide promediado.
+        # Leader-Based: Representamos cluster por ARTICLE BASE.
         active_clusters = []
-        
         cluster_qs = (
             StoryCluster.objects.filter(created_at__gte=since)
             .select_related("base_article")
@@ -87,76 +83,106 @@ class Command(BaseCommand):
         for cluster in cluster_qs:
             if not cluster.base_article or not cluster.base_article.embedding:
                 continue
+                
+            # Pre-calc entities for guard
+            entities = set()
+            ents_json = cluster.base_article.entities_extracted or {}
+            # Flatten "PERS": ["Name", ...], "ORG": ["Name"...] to a single set of normalized names
+            for kind, names in ents_json.items():
+                if isinstance(names, list):
+                    for n in names:
+                        entities.add(n.strip().lower())
+            
             active_clusters.append({
                 "obj": cluster,
                 "vector": cluster.base_article.embedding,
                 "id": cluster.id,
-                "headline": cluster.headline
+                "headline": cluster.headline,
+                "entities": entities
             })
 
         created_clusters = 0
         joined_clusters = 0
 
-        # 4. Loop Incremental
-        with transaction.atomic():
-            for article in unclustered_articles:
-                vec = article.embedding
-                if not vec: 
-                    continue
+        # Optimization: Pre-calc entities for new articles
+        processed_unclustered = []
+        for a in unclustered_articles:
+            entities = set()
+            ents_json = a.entities_extracted or {}
+            for kind, names in ents_json.items():
+                if isinstance(names, list):
+                    for n in names:
+                        entities.add(n.strip().lower())
+            processed_unclustered.append({"article": a, "entities": entities})
 
+        # 4. Loop Incremental
+        transaction_ctx = transaction.atomic() if not dry else transaction.non_atomic_requests()
+        with transaction_ctx:
+            for item in processed_unclustered:
+                article = item["article"]
+                a_entities = item["entities"]
+                vec = article.embedding
+                
                 best_cluster = None
                 best_score = -1.0
-
-                # Comparar contra clusters existentes (y los nuevos creados en esta sesión)
+                
                 for c in active_clusters:
-                    score = cosine(vec, c["vector"])
-                    if score > best_score:
-                        best_score = score
+                    raw_score = cosine(vec, c["vector"])
+                    
+                    # --- ENTITY GUARD ---
+                    # Logic: If raw_score is 'borderline' (e.g. 0.82 - 0.90), enforce entity overlap.
+                    # If score is > 0.90, semantic match is strong enough (probably same story).
+                    # If score is < threshold, irrelevant.
+                    
+                    final_score = raw_score
+                    if raw_score >= threshold and raw_score < 0.90:
+                        # Check overlap
+                        if a_entities and c["entities"]:
+                            overlap = a_entities.intersection(c["entities"])
+                            if not overlap:
+                                # Penalize: likely same generic topic but different people/orgs
+                                final_score = raw_score - 0.10
+                    
+                    if final_score > best_score:
+                        best_score = final_score
                         best_cluster = c
 
-                # Decisión: Unir o Crear
                 if best_score >= threshold:
-                    # Unir a cluster existente
+                    # JOIN
                     if not dry:
                         self._add_mention(best_cluster["obj"], article, score=best_score)
                     joined_clusters += 1
-                    # Nota: NO actualizamos el vector del cluster (Leader-Based). 
-                    # El cluster se queda anclado a su tema original.
                 else:
-                    # Crear nuevo cluster
+                    # CREATE
                     created_clusters += 1
-                    
                     if dry:
-                        # En dry run simulamos la creación agregando a la lista en memoria
-                        new_cluster_mock = {
-                            "obj": None, # No DB obj
+                        active_clusters.append({
+                            "obj": None,
                             "vector": vec,
                             "id": f"new_{article.id}",
-                            "headline": article.title
-                        }
-                        active_clusters.append(new_cluster_mock)
+                            "headline": article.title,
+                            "entities": a_entities
+                        })
                     else:
                         new_cluster_obj = StoryCluster.objects.create(
                             headline=article.title,
                             lead=article.lead or "",
                             cluster_key=f"emb:{article.id}",
                             base_article=article,
-                            topic_label="", # Se puede llenar luego con IA
                         )
                         self._add_mention(new_cluster_obj, article, score=1.0, is_base=True)
-                        
-                        # Agregamos a la lista de activos para que siguientes artículos puedan unirse a este
                         active_clusters.append({
                             "obj": new_cluster_obj,
                             "vector": vec,
                             "id": new_cluster_obj.id,
-                            "headline": new_cluster_obj.headline
+                            "headline": new_cluster_obj.headline,
+                            "entities": a_entities
                         })
 
         if dry:
-            self.stdout.write(self.style.SUCCESS(f"[DRY RUN] Would create {created_clusters} clusters, join {joined_clusters}."))
+            self.stdout.write(self.style.SUCCESS(f"[DRY RUN] Would create {created_clusters}, join {joined_clusters}."))
         else:
-            self.stdout.write(self.style.SUCCESS(f"Done. Created {created_clusters} new clusters. Joined {joined_clusters} articles to existing."))
+            self.stdout.write(self.style.SUCCESS(f"Done. Created {created_clusters}, Joined {joined_clusters}. Threshold={threshold}"))
 
     def _add_mention(self, cluster, article, score=0.0, is_base=False):
         mention, created = StoryMention.objects.get_or_create(
@@ -169,7 +195,6 @@ class Command(BaseCommand):
             },
         )
         if not created:
-            # Si ya existía (raro en este flujo, pero posible por reintentos), actualizamos score
             if mention.match_score != score:
                 mention.match_score = score
                 mention.save(update_fields=["match_score"])

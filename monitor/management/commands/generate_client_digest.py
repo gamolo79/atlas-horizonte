@@ -30,10 +30,10 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument("--date", type=str, help="YYYY-MM-DD (default: today)")
         parser.add_argument("--title", type=str, default="Síntesis diaria (cliente)")
-        parser.add_argument("--top", type=int, default=5, help="Items per section")
+        # Increased default to 15 to capture more context
+        parser.add_argument("--top", type=int, default=15, help="Items per section")
         parser.add_argument("--hours", type=int, default=24)
         
-        # We accept IDs or raw topics for manual runs, but usually this is driven by DigestClientConfig
         parser.add_argument("--person-id", type=int, action="append", default=[])
         parser.add_argument("--institution-id", type=int, action="append", default=[])
         parser.add_argument("--topics", type=str, help="Comma-separated topics", default="")
@@ -58,11 +58,7 @@ class Command(BaseCommand):
 
         since = timezone.now() - timezone.timedelta(hours=hours)
         
-        # We work with CLUSTERS mainly.
-        # Fetch clusters created in window OR that have mentions in window?
-        # Better: Clusters created in window OR Updated (which we don't track perfectly, so let's stick to created or with mentions)
-        # To simplify: Clusters created in last X hours.
-        
+        # We fetch clusters created in window
         all_clusters = StoryCluster.objects.filter(
             created_at__gte=since
         ).prefetch_related("mentions", "mentions__media_outlet", "mentions__article")
@@ -83,22 +79,6 @@ class Command(BaseCommand):
 
         for cluster in clusters:
             # Check Level 1: Entities
-            # Does this cluster have mentions of our people/institutions?
-            # Ideally we check cluster.entity_summary or query StoryMention->Article->Mentions
-            
-            # Efficient check using pre-fetched or just DB query if not massive
-            # Let's check mentions explicitly for accuracy
-            
-            # This is heavy if N is large. Optimization: filter at query level.
-            # But we are iterating once.
-            
-            # Let's use sets of IDs for fast lookup
-            # We need to know if any article in this cluster mentions the target entities.
-            # We can rely on 'entity_summary' if populated, but 'link_entities' runs separately.
-            
-            is_priority = False
-            
-            # Check DB relations directly for robustness
             has_person = cluster.mentions.filter(article__person_mentions__persona_id__in=person_ids).exists() if person_ids else False
             has_inst = cluster.mentions.filter(article__institution_mentions__institucion_id__in=institution_ids).exists() if institution_ids else False
             
@@ -108,11 +88,9 @@ class Command(BaseCommand):
                 continue
 
             # Check Level 2: Topics
-            # Check headline or topic_label or topic_summary
             is_topic = False
             if topics_list:
                 text_blob = (cluster.headline + " " + cluster.topic_label).lower()
-                # Check JSON topic summary too
                 for t in cluster.topic_summary:
                     text_blob += " " + str(t.get("label", "")).lower()
                 
@@ -137,7 +115,14 @@ class Command(BaseCommand):
         # Limit
         priority_clusters = priority_clusters[:top_n]
         topic_clusters = topic_clusters[:top_n]
-        general_clusters = general_clusters[:top_n]
+        
+        # For General, we might want MORE than top_n if priority/topic sections are empty
+        # If we have very few priority items, expand general?
+        effective_general_limit = top_n
+        if len(priority_clusters) + len(topic_clusters) < 5:
+            effective_general_limit = max(top_n, 20) # Ensure at least 20 items total if sections are distinct
+        
+        general_clusters = general_clusters[:effective_general_limit]
         
         with transaction.atomic():
             digest, _ = Digest.objects.update_or_create(
@@ -222,18 +207,22 @@ class Command(BaseCommand):
     def _build_html(self, title, date_obj, sections):
         html = []
         html.append(f"<h1>{escape(title)}</h1>")
-        html.append(f"<p className='text-gray-500'>Fecha: {date_obj}</p>")
+        html.append(f"<p style='color: #666;'>Fecha: {date_obj}</p>")
         
         for sec in sections:
-            html.append(f"<h2 style='margin-top: 20px; border-bottom: 2px solid #ccc;'>{escape(sec['label'])}</h2>")
+            html.append(f"<h2 style='margin-top: 25px; border-bottom: 2px solid #000; padding_bottom: 5px;'>{escape(sec['label'])}</h2>")
             for item in sec['items']:
-                html.append("<div style='margin-bottom: 20px;'>")
-                html.append(f"<h3>{escape(item['headline'])}</h3>")
-                html.append(f"<p><em>{escape(item['lead'])}</em></p>")
-                html.append(f"<small>Cobertura: {item['volume']} fuentes</small>")
-                html.append("<div>")
+                # Improve formatting
+                html.append("<div style='margin-bottom: 25px; padding-bottom: 15px; border-bottom: 1px solid #eee;'>")
+                html.append(f"<h3 style='margin-bottom: 5px; color: #111;'>{escape(item['headline'])}</h3>")
+                if item['lead']:
+                    html.append(f"<p style='margin-top: 5px; color: #444;'>{escape(item['lead'])}</p>")
+                
+                html.append("<div style='margin-top: 8px;'>")
+                html.append(f"<span style='font-size: 0.85em; font-weight: bold; background: #eee; padding: 2px 6px; border-radius: 4px; margin-right: 10px;'>Cobertura: {item['volume']} fuentes</span>")
+                
                 for chip in item['chips']:
-                    html.append(f"<a href='{chip['url']}' target='_blank' style='margin-right: 8px; font-size: 0.8em;'>[{chip['media']}]</a>")
+                    html.append(f"<a href='{chip['url']}' target='_blank' style='text-decoration: none; color: #0066cc; margin-right: 8px; font-size: 0.85em;'>[{chip['media']}]</a>")
                 html.append("</div>")
                 html.append("</div>")
         return "\n".join(html)
