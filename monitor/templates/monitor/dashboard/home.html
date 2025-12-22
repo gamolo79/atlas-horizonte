@@ -165,21 +165,21 @@
         <td>
           {% with topics_id="article-topics-"|add:article.id %}
             {{ article.topics|json_script:topics_id }}
-          {% endwith %}
           <div style="display: flex; flex-wrap: wrap; gap: 6px;">
             <button class="actions ghost" style="padding: 4px 8px; font-size: 12px; cursor: pointer;"
-              onclick='openArticleModal("{{ article.id }}", "{{ article.title|escapejs }}", document.getElementById("article-topics-{{ article.id }}").textContent, "{{ article.sentiment.sentiment|default:""|escapejs }}", "{{ article.article_type|default:""|escapejs }}", "topic")'>
+              onclick='openArticleModal("{{ article.id }}", "{{ article.title|escapejs }}", document.getElementById("{{ topics_id }}").textContent, "{{ article.sentiment.sentiment|default:""|escapejs }}", "{{ article.article_type|default:""|escapejs }}", "topic")'>
               Corregir tema
             </button>
             <button class="actions ghost" style="padding: 4px 8px; font-size: 12px; cursor: pointer;"
-              onclick='openArticleModal("{{ article.id }}", "{{ article.title|escapejs }}", document.getElementById("article-topics-{{ article.id }}").textContent, "{{ article.sentiment.sentiment|default:""|escapejs }}", "{{ article.article_type|default:""|escapejs }}", "sentiment")'>
+              onclick='openArticleModal("{{ article.id }}", "{{ article.title|escapejs }}", document.getElementById("{{ topics_id }}").textContent, "{{ article.sentiment.sentiment|default:""|escapejs }}", "{{ article.article_type|default:""|escapejs }}", "sentiment")'>
               Corregir sentimiento
             </button>
             <button class="actions ghost" style="padding: 4px 8px; font-size: 12px; cursor: pointer;"
-              onclick='openArticleModal("{{ article.id }}", "{{ article.title|escapejs }}", document.getElementById("article-topics-{{ article.id }}").textContent, "{{ article.sentiment.sentiment|default:""|escapejs }}", "{{ article.article_type|default:""|escapejs }}", "article_type")'>
+              onclick='openArticleModal("{{ article.id }}", "{{ article.title|escapejs }}", document.getElementById("{{ topics_id }}").textContent, "{{ article.sentiment.sentiment|default:""|escapejs }}", "{{ article.article_type|default:""|escapejs }}", "article_type")'>
               Corregir tipo
             </button>
           </div>
+          {% endwith %}
         </td>
       </tr>
       {% empty %}
