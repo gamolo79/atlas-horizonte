@@ -166,10 +166,20 @@
           {% with topics_id="article-topics-"|add:article.id %}
             {{ article.topics|json_script:topics_id }}
           {% endwith %}
-          <button class="actions ghost" style="padding: 4px 8px; font-size: 12px; cursor: pointer;"
-            onclick='openArticleModal("{{ article.id }}", "{{ article.title|escapejs }}", document.getElementById("article-topics-{{ article.id }}").textContent, "{{ article.sentiment.sentiment|default:""|escapejs }}", "{{ article.article_type|default:""|escapejs }}")'>
-            Corregir
-          </button>
+          <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+            <button class="actions ghost" style="padding: 4px 8px; font-size: 12px; cursor: pointer;"
+              onclick='openArticleModal("{{ article.id }}", "{{ article.title|escapejs }}", document.getElementById("article-topics-{{ article.id }}").textContent, "{{ article.sentiment.sentiment|default:""|escapejs }}", "{{ article.article_type|default:""|escapejs }}", "topic")'>
+              Corregir tema
+            </button>
+            <button class="actions ghost" style="padding: 4px 8px; font-size: 12px; cursor: pointer;"
+              onclick='openArticleModal("{{ article.id }}", "{{ article.title|escapejs }}", document.getElementById("article-topics-{{ article.id }}").textContent, "{{ article.sentiment.sentiment|default:""|escapejs }}", "{{ article.article_type|default:""|escapejs }}", "sentiment")'>
+              Corregir sentimiento
+            </button>
+            <button class="actions ghost" style="padding: 4px 8px; font-size: 12px; cursor: pointer;"
+              onclick='openArticleModal("{{ article.id }}", "{{ article.title|escapejs }}", document.getElementById("article-topics-{{ article.id }}").textContent, "{{ article.sentiment.sentiment|default:""|escapejs }}", "{{ article.article_type|default:""|escapejs }}", "article_type")'>
+              Corregir tipo
+            </button>
+          </div>
         </td>
       </tr>
       {% empty %}
@@ -185,52 +195,58 @@
 <dialog id="articleModal"
   style="background: var(--surface); border: 1px solid var(--border); color: var(--text); padding: 20px; border-radius: 12px; max-width: 500px; margin: auto;">
   <form method="dialog">
-    <h3 style="margin-top:0;">Corregir Artículo</h3>
+    <h3 style="margin-top:0;" id="articleModalTitle">Corregir Artículo</h3>
     <p id="articleModalRefText" style="font-size: 12px; color: var(--muted); margin-bottom: 16px;"></p>
 
     <input type="hidden" id="articleModalObjectId">
 
-    <!-- Topics -->
-    <label>Temas (separados por comas):</label>
-    <input type="text" id="articleTopicInput" placeholder="Ej: Política, Seguridad, Economía..."
-      style="margin-bottom: 8px;">
-    <div style="font-size: 11px; color: var(--muted); margin-bottom: 16px;">
-      Escribe varios temas separados por comas.
+    <div data-correction-section="topic">
+      <!-- Topics -->
+      <label>Temas (separados por comas):</label>
+      <input type="text" id="articleTopicInput" placeholder="Ej: Política, Seguridad, Economía..."
+        style="margin-bottom: 8px;">
+      <div style="font-size: 11px; color: var(--muted); margin-bottom: 16px;">
+        Escribe varios temas separados por comas.
+      </div>
+
+      <!-- Personas Mencionadas -->
+      <label>Personas Mencionadas:</label>
+      <select id="articlePersonasSelect" multiple style="margin-bottom: 8px; height: 120px;">
+        {% for persona in all_personas %}
+        <option value="{{ persona.id }}">{{ persona.nombre_completo }}</option>
+        {% endfor %}
+      </select>
+      <div style="font-size: 11px; color: var(--muted); margin-bottom: 16px;">
+        Mantén presionado Ctrl (Cmd en Mac) para seleccionar varias personas.
+      </div>
     </div>
 
-    <!-- Sentiment -->
-    <label>Sentimiento:</label>
-    <select id="articleSentimentSelect" style="margin-bottom: 16px;">
-      <option value="">Sin clasificar</option>
-      <option value="positivo">Positivo</option>
-      <option value="neutro">Neutro</option>
-      <option value="negativo">Negativo</option>
-    </select>
+    <div data-correction-section="sentiment">
+      <!-- Sentiment -->
+      <label>Sentimiento:</label>
+      <select id="articleSentimentSelect" style="margin-bottom: 16px;">
+        <option value="">Sin clasificar</option>
+        <option value="positivo">Positivo</option>
+        <option value="neutro">Neutro</option>
+        <option value="negativo">Negativo</option>
+      </select>
+    </div>
 
-    <!-- Article Type (Información vs Opinión) -->
-    <label>Clasificación:</label>
-    <select id="articleTypeSelect" style="margin-bottom: 16px;">
-      <option value="">Sin clasificar</option>
-      <option value="informacion">Información</option>
-      <option value="opinion">Opinión</option>
-    </select>
-
-    <!-- Personas Mencionadas -->
-    <label>Personas Mencionadas:</label>
-    <select id="articlePersonasSelect" multiple style="margin-bottom: 8px; height: 120px;">
-      {% for persona in all_personas %}
-      <option value="{{ persona.id }}">{{ persona.nombre_completo }}</option>
-      {% endfor %}
-    </select>
-    <div style="font-size: 11px; color: var(--muted); margin-bottom: 16px;">
-      Mantén presionado Ctrl (Cmd en Mac) para seleccionar varias personas.
+    <div data-correction-section="article_type">
+      <!-- Article Type (Información vs Opinión) -->
+      <label>Clasificación:</label>
+      <select id="articleTypeSelect" style="margin-bottom: 16px;">
+        <option value="">Sin clasificar</option>
+        <option value="informacion">Información</option>
+        <option value="opinion">Opinión</option>
+      </select>
     </div>
 
     <div class="actions" style="justify-content: flex-end;">
       <button value="cancel" class="ghost" type="button"
         onclick="document.getElementById('articleModal').close()">Cancelar</button>
       <button type="button" onclick="submitArticleCorrection()" style="background: var(--primary);">Guardar
-        Correcciones</button>
+        Corrección</button>
     </div>
   </form>
 </dialog>
@@ -243,10 +259,15 @@
   const articleTypeSelect = document.getElementById("articleTypeSelect");
   const articlePersonasSelect = document.getElementById("articlePersonasSelect");
   const articleModalRefText = document.getElementById("articleModalRefText");
+  const articleModalTitle = document.getElementById("articleModalTitle");
+  const correctionSections = document.querySelectorAll("[data-correction-section]");
+  let activeCorrectionType = "topic";
 
-  function openArticleModal(id, title, topicsJson, sentiment, articleType) {
+  function openArticleModal(id, title, topicsJson, sentiment, articleType, correctionType) {
     articleModalObjectId.value = id;
     articleModalRefText.innerText = title;
+    activeCorrectionType = correctionType || "topic";
+    articleModalTitle.innerText = getCorrectionTitle(activeCorrectionType);
 
     // Parse and populate topics
     try {
@@ -269,7 +290,27 @@
       option.selected = false;
     }
 
+    toggleCorrectionSections(activeCorrectionType);
     articleModal.showModal();
+  }
+
+  function toggleCorrectionSections(correctionType) {
+    correctionSections.forEach(section => {
+      const sectionType = section.getAttribute("data-correction-section");
+      section.style.display = sectionType === correctionType ? "block" : "none";
+    });
+  }
+
+  function getCorrectionTitle(correctionType) {
+    switch (correctionType) {
+      case "sentiment":
+        return "Corregir Sentimiento";
+      case "article_type":
+        return "Corregir Tipo";
+      case "topic":
+      default:
+        return "Corregir Tema";
+    }
   }
 
   function submitArticleCorrection() {
@@ -284,10 +325,16 @@
 
     const topics = topicInputValue.split(',').map(t => t.trim()).filter(t => t.length > 0).map(label => ({ label, confidence: "alta" }));
 
-    if (topics.length > 0) submitCorrection(id, "topic", topics, refText);
-    if (sentiment) submitCorrection(id, "sentiment_article", sentiment, refText);
-    if (articleType) submitCorrection(id, "article_type", articleType, refText);
-    if (selectedPersonas.length > 0) submitCorrection(id, "article_personas", selectedPersonas, refText);
+    if (activeCorrectionType === "topic") {
+      if (topics.length > 0) submitCorrection(id, "topic", topics, refText);
+      if (selectedPersonas.length > 0) submitCorrection(id, "article_personas", selectedPersonas, refText);
+    }
+    if (activeCorrectionType === "sentiment" && sentiment) {
+      submitCorrection(id, "sentiment_article", sentiment, refText);
+    }
+    if (activeCorrectionType === "article_type" && articleType) {
+      submitCorrection(id, "article_type", articleType, refText);
+    }
 
     setTimeout(() => {
       alert("Correcciones guardadas.");
