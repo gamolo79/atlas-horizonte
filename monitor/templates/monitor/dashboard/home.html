@@ -164,7 +164,7 @@
         </td>
         <td>
           <button class="actions ghost" style="padding: 4px 8px; font-size: 12px; cursor: pointer;"
-            onclick="openArticleModal('{{ article.id }}', '{{ article.title|escapejs }}', '{% if article.topics %}{{ article.topics|safe }}{% else %}[]{% endif %}', '{{ article.sentiment.sentiment|default:'' }}', '{{ article.article_type|default:'' }}')">
+            onclick='openArticleModal("{{ article.id }}", "{{ article.title|escapejs }}", {{ article.topics|default:"[]"|safe }}, "{{ article.sentiment.sentiment|default:"" }}", "{{ article.article_type|default:"" }}")'>
             Corregir
           </button>
         </td>
@@ -212,6 +212,17 @@
       <option value="opinion">Opinión</option>
     </select>
 
+    <!-- Personas Mencionadas -->
+    <label>Personas Mencionadas:</label>
+    <select id="articlePersonasSelect" multiple style="margin-bottom: 8px; height: 120px;">
+      {% for persona in all_personas %}
+      <option value="{{ persona.id }}">{{ persona.nombre_completo }}</option>
+      {% endfor %}
+    </select>
+    <div style="font-size: 11px; color: var(--muted); margin-bottom: 16px;">
+      Mantén presionado Ctrl (Cmd en Mac) para seleccionar varias personas.
+    </div>
+
     <div class="actions" style="justify-content: flex-end;">
       <button value="cancel" class="ghost" type="button"
         onclick="document.getElementById('articleModal').close()">Cancelar</button>
@@ -227,20 +238,34 @@
   const articleTopicInput = document.getElementById("articleTopicInput");
   const articleSentimentSelect = document.getElementById("articleSentimentSelect");
   const articleTypeSelect = document.getElementById("articleTypeSelect");
+  const articlePersonasSelect = document.getElementById("articlePersonasSelect");
   const articleModalRefText = document.getElementById("articleModalRefText");
 
   function openArticleModal(id, title, topicsJson, sentiment, articleType) {
     articleModalObjectId.value = id;
     articleModalRefText.innerText = title;
+
+    // Parse and populate topics
     try {
-      const topics = typeof topicsJson === 'string' ? JSON.parse(topicsJson) : topicsJson;
+      const topics = typeof topicsJson === 'string' ? JSON.parse(topicsJson) : (topicsJson || []);
       const topicLabels = topics.map(t => t.label || t).join(', ');
       articleTopicInput.value = topicLabels;
     } catch (e) {
+      console.error("Error parsing topics:", e);
       articleTopicInput.value = "";
     }
+
+    // Populate sentiment
     articleSentimentSelect.value = sentiment || "";
+
+    // Populate article type
     articleTypeSelect.value = articleType || "";
+
+    // Clear personas selection
+    for (let option of articlePersonasSelect.options) {
+      option.selected = false;
+    }
+
     articleModal.showModal();
   }
 
@@ -251,11 +276,15 @@
     const articleType = articleTypeSelect.value;
     const refText = articleModalRefText.innerText;
 
+    // Get selected personas
+    const selectedPersonas = Array.from(articlePersonasSelect.selectedOptions).map(opt => opt.value);
+
     const topics = topicInputValue.split(',').map(t => t.trim()).filter(t => t.length > 0).map(label => ({ label, confidence: "alta" }));
 
     if (topics.length > 0) submitCorrection(id, "topic", topics, refText);
     if (sentiment) submitCorrection(id, "sentiment_article", sentiment, refText);
     if (articleType) submitCorrection(id, "article_type", articleType, refText);
+    if (selectedPersonas.length > 0) submitCorrection(id, "article_personas", selectedPersonas, refText);
 
     setTimeout(() => {
       alert("Correcciones guardadas.");

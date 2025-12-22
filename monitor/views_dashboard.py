@@ -47,7 +47,8 @@ def dashboard_home(request):
         "recent_runs": recent_runs,
         "digest_latest": digest_latest,
         # For Editorial Loop (Topic Correction)
-        "recent_articles": Article.objects.order_by("-published_at")[:20],
+        "recent_articles": Article.objects.select_related('media_outlet', 'sentiment').order_by("-published_at")[:20],
+        "all_personas": Persona.objects.all().order_by('nombre_completo'),
     }
     return render(request, "monitor/dashboard/home.html", context)
 
@@ -737,6 +738,26 @@ def submit_gold_correction(request):
             # Since it doesn't exist in model, store in MonitorGoldLabel only for now
             # Or we could add it dynamically (not recommended)
             # For now, just save as gold label
+            if not reference_text:
+                reference_text = f"{obj.title}\n{obj.lead}"
+
+        elif correction_type == "article_personas" and isinstance(obj, Article):
+            # new_value is a list of persona IDs
+            # Create ArticlePersonaMention for each
+            if not isinstance(new_value, list):
+                new_value = [new_value]
+            
+            for persona_id in new_value:
+                try:
+                    persona = Persona.objects.get(id=persona_id)
+                    ArticlePersonaMention.objects.get_or_create(
+                        article=obj,
+                        persona=persona,
+                        defaults={'matched_alias': persona.nombre_completo}
+                    )
+                except Persona.DoesNotExist:
+                    pass
+            
             if not reference_text:
                 reference_text = f"{obj.title}\n{obj.lead}"
 
