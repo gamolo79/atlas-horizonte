@@ -204,26 +204,27 @@ class Command(BaseCommand):
 
     def _build_html(self, title, date_obj, sections):
         html = []
-        # Force white background and dark text for contrast
-        html.append("<div style='background-color: #ffffff; color: #333333; padding: 20px; font-family: sans-serif; max-width: 800px; margin: 0 auto;'>")
+        # Dark Theme: standard dark background, light text
+        html.append("<div style='background-color: #111111; color: #eeeeee; padding: 20px; font-family: sans-serif; max-width: 800px; margin: 0 auto;'>")
         
-        html.append(f"<h1 style='color: #111111; border-bottom: 3px solid #000; padding-bottom: 10px;'>{escape(title)}</h1>")
-        html.append(f"<p style='color: #555555;'>Fecha: {date_obj}</p>")
+        html.append(f"<h1 style='color: #ffffff; border-bottom: 3px solid #444; padding-bottom: 10px;'>{escape(title)}</h1>")
+        html.append(f"<p style='color: #888888;'>Fecha: {date_obj}</p>")
         
         for sec in sections:
-            html.append(f"<h2 style='margin-top: 30px; border-bottom: 2px solid #000; padding_bottom: 5px; color: #222222;'>{escape(sec['label'])}</h2>")
+            html.append(f"<h2 style='margin-top: 30px; border-bottom: 2px solid #555; padding_bottom: 5px; color: #ffffff;'>{escape(sec['label'])}</h2>")
             for item in sec['items']:
                 # Improve formatting
-                html.append("<div style='margin-bottom: 25px; padding-bottom: 15px; border-bottom: 1px solid #eeeeee;'>")
-                html.append(f"<h3 style='margin-bottom: 8px; color: #000000; margin-top: 15px;'>{escape(item['headline'])}</h3>")
+                html.append("<div style='margin-bottom: 25px; padding-bottom: 15px; border-bottom: 1px solid #333333;'>")
+                html.append(f"<h3 style='margin-bottom: 8px; color: #ffffff; margin-top: 15px;'>{escape(item['headline'])}</h3>")
                 if item['lead']:
-                    html.append(f"<p style='margin-top: 5px; color: #444444; line-height: 1.5;'>{escape(item['lead'])}</p>")
+                    html.append(f"<p style='margin-top: 5px; color: #cccccc; line-height: 1.5;'>{escape(item['lead'])}</p>")
                 
                 html.append("<div style='margin-top: 10px;'>")
-                html.append(f"<span style='font-size: 0.85em; font-weight: bold; background: #f0f0f0; padding: 2px 8px; border-radius: 4px; margin-right: 10px; color: #333;'>Cobertura: {item['volume']} fuentes</span>")
+                html.append(f"<span style='font-size: 0.85em; font-weight: bold; background: #333333; padding: 2px 8px; border-radius: 4px; margin-right: 10px; color: #ffffff;'>Cobertura: {item['volume']} fuentes</span>")
                 
                 for chip in item['chips']:
-                    html.append(f"<a href='{chip['url']}' target='_blank' style='text-decoration: none; color: #0066cc; margin-right: 10px; font-size: 0.85em; font-weight: bold;'>[{chip['media']}]</a>")
+                    # Light blue link for dark mode
+                    html.append(f"<a href='{chip['url']}' target='_blank' style='text-decoration: none; color: #4dabf7; margin-right: 10px; font-size: 0.85em; font-weight: bold;'>[{chip['media']}]</a>")
                 html.append("</div>")
                 html.append("</div>")
         
