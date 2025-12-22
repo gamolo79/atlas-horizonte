@@ -723,6 +723,23 @@ def submit_gold_correction(request):
                  if not reference_text:
                      reference_text = f"Mention: {obj.persona if hasattr(obj,'persona') else ''}"
 
+        elif correction_type == "sentiment_article" and isinstance(obj, Article):
+            # For article-level sentiment
+            item, _ = ArticleSentiment.objects.get_or_create(article=obj)
+            item.sentiment = new_value
+            item.confidence = "alta"
+            item.save()
+            if not reference_text:
+                reference_text = f"{obj.title}\n{obj.lead}"
+
+        elif correction_type == "article_type" and isinstance(obj, Article):
+            # Store article_type as JSONField or CharField
+            # Since it doesn't exist in model, store in MonitorGoldLabel only for now
+            # Or we could add it dynamically (not recommended)
+            # For now, just save as gold label
+            if not reference_text:
+                reference_text = f"{obj.title}\n{obj.lead}"
+
         elif correction_type == "cluster_summary" and isinstance(obj, StoryCluster):
              obj.cluster_summary = new_value
              obj.save(update_fields=["cluster_summary"])
