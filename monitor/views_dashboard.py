@@ -45,6 +45,8 @@ def dashboard_home(request):
         },
         "recent_runs": recent_runs,
         "digest_latest": digest_latest,
+        # For Editorial Loop (Topic Correction)
+        "recent_articles": Article.objects.order_by("-published_at")[:20],
     }
     return render(request, "monitor/dashboard/home.html", context)
 
@@ -640,3 +642,243 @@ def ingest_dashboard(request):
 @staff_member_required
 def ops_run(request):
     return ingest_dashboard(request)
+
+
+@staff_member_required
+def submit_gold_correction(request):
+    """
+    API endpoint for Editorial Training Loop.
+    Receives JSON with correction details, updates the object, and saves a MonitorGoldLabel.
+    """
+    import json
+    from django.http import JsonResponse
+    from django.contrib.contenttypes.models import ContentType
+    from monitor.models import MonitorGoldLabel
+
+    if request.method != "POST":
+        return JsonResponse({"error": "POST required"}, status=405)
+
+    try:
+        data = json.loads(request.body)
+        object_id = data.get("object_id")
+        model_name = data.get("model_name")  # 'article', 'storycluster', etc.
+        correction_type = data.get("correction_type")
+        new_value = data.get("new_value")
+        # reference_text can be passed or we fetch it
+        reference_text = data.get("reference_text", "")
+
+        if not all([object_id, model_name, correction_type, new_value]):
+            return JsonResponse({"error": "Missing fields"}, status=400)
+
+        # 1. Resolve Object
+        # We assume model_name matches the model class name loosely or we map it
+        allowed_models = {
+            "article": Article,
+            "storycluster": StoryCluster,
+            "mention": ArticlePersonaMention, # or generic Mention?
+            "storymention": StoryMention,  # For cluster removal
+            "persona_mention": ArticlePersonaMention,
+            "institucion_mention": ArticleInstitucionMention,
+        }
+        model_cls = allowed_models.get(model_name.lower())
+        if not model_cls:
+             # Try dynamic lookup if needed, but safer to allowlist
+            return JsonResponse({"error": f"Unknown model {model_name}"}, status=400)
+
+        obj = get_object_or_404(model_cls, id=object_id)
+
+        # 2. Update Object (Live correction)
+        # correction_type maps to fields
+        if correction_type == "topic" and isinstance(obj, Article):
+            # new_value should be list of dicts [{"label": "x", "confidence": "high"}]
+            obj.topics = new_value
+            # We might want to clear old justification or mark it as manual
+            obj.topics_justification = f"Corrected by {request.user}"
+            obj.save(update_fields=["topics", "topics_justification"])
+            
+            # Construct reference text if missing
+            if not reference_text:
+                reference_text = f"{obj.title}\n{obj.lead}"
+
+        elif correction_type == "sentiment" and hasattr(obj, "sentiment"):
+            # obj could be ArticleSentiment or Mention
+            # If obj is Article, we might need to access article.sentiment (OneToOne)
+            # But the UI might pass the Article ID.
+            # Let's assume simpler direct updates for now.
+            if model_name.lower() == "article":
+                 # Update ArticleSentiment
+                 item, _ = ArticleSentiment.objects.get_or_create(article=obj)
+                 item.sentiment = new_value
+                 item.confidence = "alta"
+                 item.save()
+                 if not reference_text:
+                     reference_text = f"{obj.title}\n{obj.lead}"
+            else:
+                 # Mention
+                 obj.sentiment = new_value
+                 obj.sentiment_confidence = "alta"
+                 obj.save()
+                 # Mentions don't always have easy text ref stored, but we can try
+                 if not reference_text:
+                     reference_text = f"Mention: {obj.persona if hasattr(obj,'persona') else ''}"
+
+        elif correction_type == "cluster_summary" and isinstance(obj, StoryCluster):
+             obj.cluster_summary = new_value
+             obj.save(update_fields=["cluster_summary"])
+             if not reference_text:
+                 # Fetch headlines of articles in cluster
+                 headlines = "\n".join([m.article.title for m in obj.mentions.all()[:5]])
+                 reference_text = headlines
+
+        elif correction_type == "cluster_removal" and isinstance(obj, StoryMention):
+            # Remove article from cluster by deleting the StoryMention
+            cluster_id = obj.cluster.id
+            article_title = obj.article.title
+            obj.delete()  # This removes the article from the cluster
+            
+            # Gold label records the removal decision
+            MonitorGoldLabel.objects.create(
+                label_type="cluster",
+                reference_text=reference_text or f"Removed from cluster {cluster_id}: {article_title}",
+                output_json={"action": "remove", "cluster_id": cluster_id, "article_id": obj.article.id},
+                verified_by=request.user
+            )
+            return JsonResponse({"status": "success"})
+
+        elif correction_type == "mention_linking":
+            # Reassign mention to different persona/institution
+            if isinstance(obj, ArticlePersonaMention):
+                old_persona_id = obj.persona.id
+                new_persona = get_object_or_404(Persona, id=new_value)
+                obj.persona = new_persona
+                obj.save(update_fields=["persona"])
+                
+                # Gold label records the linking correction
+                MonitorGoldLabel.objects.create(
+                    label_type="linking",
+                    reference_text=reference_text or f"Article: {obj.article.title}",
+                    output_json={
+                        "old_persona_id": old_persona_id,
+                        "new_persona_id": new_persona.id,
+                        "matched_alias": obj.matched_alias
+                    },
+                    content_object=obj,
+                    verified_by=request.user
+                )
+                return JsonResponse({"status": "success"})
+                
+            elif isinstance(obj, ArticleInstitucionMention):
+                old_institucion_id = obj.institucion.id
+                new_institucion = get_object_or_404(Institucion, id=new_value)
+                obj.institucion = new_institucion
+                obj.save(update_fields=["institucion"])
+                
+                # Gold label records the linking correction
+                MonitorGoldLabel.objects.create(
+                    label_type="linking",
+                    reference_text=reference_text or f"Article: {obj.article.title}",
+                    output_json={
+                        "old_institucion_id": old_institucion_id,
+                        "new_institucion_id": new_institucion.id,
+                        "matched_alias": obj.matched_alias
+                    },
+                    content_object=obj,
+                    verified_by=request.user
+                )
+                return JsonResponse({"status": "success"})
+
+        # 3. Save Gold Label (for non-special cases)
+        MonitorGoldLabel.objects.create(
+            label_type=correction_type,
+            reference_text=reference_text,
+            output_json=new_value,
+            content_object=obj,
+            verified_by=request.user
+        )
+
+        return JsonResponse({"status": "success"})
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+@staff_member_required
+def review_clusters(request):
+    """
+    Post-Ingestion Review: Display recent clusters for editorial inspection.
+    Editors can remove articles that don't belong.
+    """
+    from django.utils import timezone
+    
+    # Show clusters from last 48 hours
+    since = timezone.now() - timezone.timedelta(hours=48)
+    
+    clusters = StoryCluster.objects.filter(
+        created_at__gte=since
+    ).select_related('base_article').prefetch_related(
+        'mentions__article__media_outlet'
+    ).order_by('-created_at')[:50]  # Limit to 50 most recent
+    
+    # Format data for template
+    cluster_data = []
+    for cluster in clusters:
+        articles = []
+        for mention in cluster.mentions.all():
+            articles.append({
+                'mention_id': mention.id,
+                'article_id': mention.article.id,
+                'title': mention.article.title,
+                'outlet': mention.article.media_outlet.name,
+                'match_score': mention.match_score,
+                'is_base': mention.is_base_candidate,
+                'url': mention.article.url,
+            })
+        
+        cluster_data.append({
+            'id': cluster.id,
+            'headline': cluster.headline,
+            'created_at': cluster.created_at,
+            'article_count': len(articles),
+            'articles': articles,
+        })
+    
+    context = {
+        'clusters': cluster_data,
+        'since': since,
+    }
+    return render(request, "monitor/dashboard/review_clusters.html", context)
+
+
+@staff_member_required
+def review_mentions(request):
+    """
+    Post-Ingestion Review: Display recent persona/institution mentions.
+    Editors can reassign mentions to correct entities.
+    """
+    from django.utils import timezone
+    
+    # Show mentions from last 48 hours
+    since = timezone.now() - timezone.timedelta(hours=48)
+    
+    persona_mentions = ArticlePersonaMention.objects.filter(
+        created_at__gte=since
+    ).select_related('article__media_outlet', 'persona').order_by('-created_at')[:100]
+    
+    institucion_mentions = ArticleInstitucionMention.objects.filter(
+        created_at__gte=since
+    ).select_related('article__media_outlet', 'institucion').order_by('-created_at')[:100]
+    
+    # Get all personas and instituciones for reassignment dropdown
+    all_personas = Persona.objects.all().order_by('nombre_completo')
+    all_instituciones = Institucion.objects.all().order_by('nombre')
+    
+    context = {
+        'persona_mentions': persona_mentions,
+        'institucion_mentions': institucion_mentions,
+        'all_personas': all_personas,
+        'all_instituciones': all_instituciones,
+        'since': since,
+    }
+    return render(request, "monitor/dashboard/review_mentions.html", context)

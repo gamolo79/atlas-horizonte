@@ -44,4 +44,7 @@ urlpatterns = [
 
     # Ops
     path("dashboard/ops/", views_dashboard.ops_run, name="monitor_dashboard_ops"),
+    path("dashboard/ops/correction/", views_dashboard.submit_gold_correction, name="monitor_dashboard_submit_correction"),
+    path("dashboard/ops/review-clusters/", views_dashboard.review_clusters, name="review_clusters"),
+    path("dashboard/ops/review-mentions/", views_dashboard.review_mentions, name="review_mentions"),
 ]

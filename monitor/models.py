@@ -1,5 +1,7 @@
 from django.db import models
 from django.conf import settings
+from django.contrib.contenttypes.fields import GenericForeignKey
+from django.contrib.contenttypes.models import ContentType
 from django.db.models import Q
 from django.utils import timezone
 
@@ -488,3 +490,40 @@ class DigestClientConfig(models.Model):
 
     def __str__(self):
         return f"Config: {self.client.name}"
+
+
+class MonitorGoldLabel(models.Model):
+    class LabelType(models.TextChoices):
+        TOPIC = "topic", "Tema"
+        SENTIMENT = "sentiment", "Sentimiento"
+        MENTION = "mention", "Mención"
+        LINKING = "linking", "Vinculación"
+        CLUSTER = "cluster", "Cluster"
+
+    label_type = models.CharField(max_length=20, choices=LabelType.choices)
+
+    # Context capture
+    reference_text = models.TextField(help_text="Texto de entrada (título + lead, o contexto de mención)")
+    
+    # Flexible relation to source object (Article, Mention, etc.) if needed
+    # We use simple ID refs or just text for now to keep it decoupled from deletion, 
+    # but having a generic relation is good for tracking.
+    content_type = models.ForeignKey(ContentType, on_delete=models.SET_NULL, null=True, blank=True)
+    object_id = models.PositiveIntegerField(null=True, blank=True)
+    content_object = GenericForeignKey("content_type", "object_id")
+
+    # The gold output
+    output_json = models.JSONField(help_text="Salida corregida (JSON válido para few-shot)")
+
+    # Meta
+    verified_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["label_type", "created_at"]),
+        ]
+
+    def __str__(self):
+        return f"{self.label_type} ({self.created_at.date()})"

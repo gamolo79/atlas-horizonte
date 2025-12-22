@@ -99,17 +99,44 @@ class Command(BaseCommand):
         return PROMPT_TEMPLATE.format(title=title, lead=lead, body=body)
 
     def _classify(self, client, model, payload):
+        from monitor.models import MonitorGoldLabel
+        
+        # Build messages with few-shot examples
+        messages = [
+            {
+                "role": "system",
+                "content": "Eres un analista editorial. Responde SOLO JSON.",
+            }
+        ]
+
+        # Inject Few-Shot Examples
+        try:
+            # Get last 3 gold labels for topics
+            examples = MonitorGoldLabel.objects.filter(
+                label_type=MonitorGoldLabel.LabelType.TOPIC
+            ).order_by("-created_at")[:3]
+            
+            # Reverse so they appear in chronological order (oldest -> newest) in the context? 
+            # Actually standard practice is just consistent order. 
+            # We use reversed() to put the oldest valid example first if we want, 
+            # or just recent ones. Let's provide them freely.
+            for ex in reversed(list(examples)):
+                messages.append({"role": "user", "content": ex.reference_text})
+                # Ensure output_json is dumped as string
+                out_str = json.dumps(ex.output_json, ensure_ascii=False)
+                messages.append({"role": "assistant", "content": out_str})
+
+        except Exception:
+            # If migration not run or DB error, skip examples
+            pass
+
+        messages.append({"role": "user", "content": payload})
+
         try:
             response = client.chat.completions.create(
                 model=model,
-                messages=[
-                    {
-                        "role": "system",
-                        "content": "Eres un analista editorial. Responde SOLO JSON.",
-                    },
-                    {"role": "user", "content": payload},
-                ],
-                temperature=0.2,
+                messages=messages,
+                temperature=0.2, # Lower temp since we have examples
                 response_format={"type": "json_object"},
             )
         except Exception as exc:

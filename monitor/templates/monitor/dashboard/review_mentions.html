@@ -1,0 +1,198 @@
+{% extends "monitor/dashboard/base.html" %}
+{% block title %}Review Mentions · Monitor{% endblock %}
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Revisión de Menciones</h1>
+        <p class="page-subtitle">Últimas menciones ({{ since|date:"d M H:i" }} - ahora). Corrige vinculaciones
+            incorrectas.</p>
+    </div>
+    <div class="actions">
+        <a class="secondary" href="/monitor/dashboard/ops/">Volver a Ops</a>
+    </div>
+</div>
+
+<section class="card">
+    <h3 class="card-title">Menciones de Personas ({{ persona_mentions|length }})</h3>
+    <p class="card-desc">Revisa y reasigna menciones vinculadas incorrectamente.</p>
+    <table>
+        <thead>
+            <tr>
+                <th>Artículo</th>
+                <th>Medio</th>
+                <th>Persona Actual</th>
+                <th>Alias Detectado</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for mention in persona_mentions %}
+            <tr id="persona-mention-{{ mention.id }}">
+                <td>
+                    <a href="{{ mention.article.url }}" target="_blank"
+                        style="color:var(--text); text-decoration:none;">
+                        {{ mention.article.title|truncatechars:50 }}
+                    </a>
+                </td>
+                <td>{{ mention.article.media_outlet.name }}</td>
+                <td>{{ mention.persona.nombre_completo }}</td>
+                <td><span class="pill" style="font-size: 10px;">{{ mention.matched_alias }}</span></td>
+                <td>
+                    <button class="actions ghost" style="padding: 4px 8px; font-size: 11px; cursor: pointer;"
+                        onclick="openReassignModal('{{ mention.id }}', 'persona', '{{ mention.persona.id }}', '{{ mention.article.title|escapejs }}')">
+                        Reasignar
+                    </button>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="5" class="table-empty">Sin menciones de personas recientes.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</section>
+
+<section class="card" style="margin-top: 20px;">
+    <h3 class="card-title">Menciones de Instituciones ({{ institucion_mentions|length }})</h3>
+    <p class="card-desc">Revisa y reasigna menciones vinculadas incorrectamente.</p>
+    <table>
+        <thead>
+            <tr>
+                <th>Artículo</th>
+                <th>Medio</th>
+                <th>Institución Actual</th>
+                <th>Alias Detectado</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for mention in institucion_mentions %}
+            <tr id="institucion-mention-{{ mention.id }}">
+                <td>
+                    <a href="{{ mention.article.url }}" target="_blank"
+                        style="color:var(--text); text-decoration:none;">
+                        {{ mention.article.title|truncatechars:50 }}
+                    </a>
+                </td>
+                <td>{{ mention.article.media_outlet.name }}</td>
+                <td>{{ mention.institucion.nombre }}</td>
+                <td><span class="pill" style="font-size: 10px;">{{ mention.matched_alias }}</span></td>
+                <td>
+                    <button class="actions ghost" style="padding: 4px 8px; font-size: 11px; cursor: pointer;"
+                        onclick="openReassignModal('{{ mention.id }}', 'institucion', '{{ mention.institucion.id }}', '{{ mention.article.title|escapejs }}')">
+                        Reasignar
+                    </button>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="5" class="table-empty">Sin menciones de instituciones recientes.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</section>
+
+<!-- Reassignment Modal -->
+<dialog id="reassignModal"
+    style="background: var(--surface); border: 1px solid var(--border); color: var(--text); padding: 20px; border-radius: 12px; max-width: 400px; margin: auto;">
+    <form method="dialog">
+        <h3 style="margin-top:0;">Reasignar Mención</h3>
+        <p id="modalRefText" style="font-size: 12px; color: var(--muted); margin-bottom: 16px;"></p>
+
+        <input type="hidden" id="modalMentionId">
+        <input type="hidden" id="modalMentionType">
+
+        <label id="reassignLabel">Nueva Persona/Institución:</label>
+        <select id="reassignSelect" style="margin-bottom: 16px;">
+            <!-- Populated dynamically -->
+        </select>
+
+        <div class="actions" style="justify-content: flex-end;">
+            <button value="cancel" class="ghost" type="button"
+                onclick="document.getElementById('reassignModal').close()">Cancelar</button>
+            <button type="button" onclick="submitReassignment()" style="background: var(--primary);">Guardar</button>
+        </div>
+    </form>
+</dialog>
+
+<script>
+    const reassignModal = document.getElementById("reassignModal");
+    const modalMentionId = document.getElementById("modalMentionId");
+    const modalMentionType = document.getElementById("modalMentionType");
+    const reassignSelect = document.getElementById("reassignSelect");
+    const reassignLabel = document.getElementById("reassignLabel");
+    const modalRefText = document.getElementById("modalRefText");
+
+    const personasData = [
+        {% for p in all_personas %}
+    { id: "{{ p.id }}", name: "{{ p.nombre_completo|escapejs }}" },
+    {% endfor %}
+    ];
+
+    const institucionesData = [
+        {% for i in all_instituciones %}
+    { id: "{{ i.id }}", name: "{{ i.nombre|escapejs }}" },
+    {% endfor %}
+    ];
+
+    function openReassignModal(mentionId, type, currentId, articleTitle) {
+        modalMentionId.value = mentionId;
+        modalMentionType.value = type;
+        modalRefText.innerText = articleTitle;
+
+        // Populate select
+        reassignSelect.innerHTML = "";
+        const data = type === 'persona' ? personasData : institucionesData;
+        reassignLabel.innerText = type === 'persona' ? 'Nueva Persona:' : 'Nueva Institución:';
+
+        data.forEach(item => {
+            const opt = document.createElement("option");
+            opt.value = item.id;
+            opt.innerText = item.name;
+            if (item.id === currentId) {
+                opt.selected = true;
+            }
+            reassignSelect.appendChild(opt);
+        });
+
+        reassignModal.showModal();
+    }
+
+    function submitReassignment() {
+        const mentionId = modalMentionId.value;
+        const type = modalMentionType.value;
+        const newEntityId = reassignSelect.value;
+        const refText = modalRefText.innerText;
+
+        const modelName = type === 'persona' ? 'persona_mention' : 'institucion_mention';
+
+        fetch("/monitor/dashboard/ops/correction/", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRFToken": "{{ csrf_token }}"
+            },
+            body: JSON.stringify({
+                object_id: mentionId,
+                model_name: modelName,
+                correction_type: "mention_linking",
+                new_value: newEntityId,
+                reference_text: refText
+            })
+        })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === "success") {
+                    alert("Mención reasignada correctamente.");
+                    reassignModal.close();
+                    window.location.reload();
+                } else {
+                    alert("Error: " + data.error);
+                }
+            })
+            .catch(err => alert("Error de red: " + err));
+    }
+</script>
+{% endblock %}

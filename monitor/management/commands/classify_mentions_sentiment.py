@@ -144,16 +144,34 @@ class Command(BaseCommand):
         )
 
     def _classify(self, client, model, payload):
+        from monitor.models import MonitorGoldLabel
+
+        messages = [
+            {
+                "role": "system",
+                "content": "Eres un analista de sentimiento editorial. Responde SOLO JSON.",
+            }
+        ]
+
+        # Inject Few-Shot Examples (Sentiment)
+        try:
+            examples = MonitorGoldLabel.objects.filter(
+                label_type=MonitorGoldLabel.LabelType.SENTIMENT
+            ).order_by("-created_at")[:3]
+            
+            for ex in reversed(list(examples)):
+                messages.append({"role": "user", "content": ex.reference_text})
+                out_str = json.dumps(ex.output_json, ensure_ascii=False)
+                messages.append({"role": "assistant", "content": out_str})
+        except Exception:
+            pass
+
+        messages.append({"role": "user", "content": payload})
+
         try:
             response = client.chat.completions.create(
                 model=model,
-                messages=[
-                    {
-                        "role": "system",
-                        "content": "Eres un analista de sentimiento editorial. Responde SOLO JSON.",
-                    },
-                    {"role": "user", "content": payload},
-                ],
+                messages=messages,
                 temperature=0.2,
                 response_format={"type": "json_object"},
             )
