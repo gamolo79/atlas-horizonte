@@ -11,6 +11,7 @@ from monitor.models import (
     ArticleInstitucionMention,
     IngestRun,
     Digest,
+    EntityLink,
 )
 
 
@@ -64,6 +65,30 @@ class Command(BaseCommand):
              self.stdout.write(self.style.WARNING(f"  PENDING CLASSIFICATION (Last 24h): {total_pending}"))
         else:
              self.stdout.write(self.style.SUCCESS("  ALL CLASSIFIED"))
+
+        linked_person_mentions = EntityLink.objects.filter(
+            status=EntityLink.Status.LINKED,
+            entity_type=EntityLink.EntityType.PERSON,
+            mention__article__published_at__gte=yesterday,
+        ).count()
+        linked_institution_mentions = EntityLink.objects.filter(
+            status=EntityLink.Status.LINKED,
+            entity_type=EntityLink.EntityType.INSTITUTION,
+            mention__article__published_at__gte=yesterday,
+        ).count()
+
+        person_delta = linked_person_mentions - p_mentions_24h
+        institution_delta = linked_institution_mentions - i_mentions_24h
+
+        if person_delta or institution_delta:
+            self.stdout.write(
+                self.style.WARNING(
+                    "  LINK INTEGRITY MISMATCH (Last 24h): "
+                    f"PERSONA delta={person_delta} / INSTITUCION delta={institution_delta}"
+                )
+            )
+        else:
+            self.stdout.write(self.style.SUCCESS("  LINK INTEGRITY OK (Last 24h)"))
 
 
         # 3. CLUSTERING STATUS
