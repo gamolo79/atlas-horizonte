@@ -2,7 +2,14 @@ from django.contrib import admin
 
 from monitor.models import InstitucionAlias, PersonaAlias
 
-from .models import Persona, Institucion, Cargo, Relacion
+from .models import (
+    Persona,
+    Institucion,
+    Cargo,
+    Relacion,
+    PeriodoAdministrativo,
+    Legislatura,
+)
 
 
 class PersonaAliasInline(admin.TabularInline):
@@ -34,8 +41,6 @@ class InstitucionAdmin(admin.ModelAdmin):
         "ciudad",
         "estado",
         "padre",
-        "fecha_inicio",
-        "fecha_fin",
     )
     list_filter = ("tipo", "ambito", "estado", "padre")
     search_fields = ("nombre", "slug")
@@ -44,23 +49,40 @@ class InstitucionAdmin(admin.ModelAdmin):
     inlines = (InstitucionAliasInline,)
 
 
+@admin.register(PeriodoAdministrativo)
+class PeriodoAdministrativoAdmin(admin.ModelAdmin):
+    list_display = ("nombre", "tipo", "nivel", "fecha_inicio", "fecha_fin", "institucion_raiz")
+    list_filter = ("tipo", "nivel")
+    search_fields = ("nombre",)
+    autocomplete_fields = ("institucion_raiz",)
+
+
+@admin.register(Legislatura)
+class LegislaturaAdmin(admin.ModelAdmin):
+    list_display = ("nombre", "numero", "periodo")
+    list_filter = ("periodo",)
+    search_fields = ("nombre",)
+    autocomplete_fields = ("periodo",)
+
+
 @admin.register(Cargo)
 class CargoAdmin(admin.ModelAdmin):
     list_display = (
         "persona",
         "nombre_cargo",
         "institucion",
+        "periodo",
         "fecha_inicio",
         "fecha_fin",
         "es_actual",
     )
-    list_filter = ("es_actual", "institucion__tipo", "institucion__ambito")
+    list_filter = ("es_actual", "periodo", "institucion__tipo", "institucion__ambito")
     search_fields = (
         "persona__nombre_completo",
         "nombre_cargo",
         "institucion__nombre",
     )
-    autocomplete_fields = ("persona", "institucion")
+    autocomplete_fields = ("persona", "institucion", "periodo")
 
 
 @admin.register(Relacion)

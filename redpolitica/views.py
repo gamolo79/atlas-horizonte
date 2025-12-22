@@ -244,7 +244,10 @@ class InstitucionGrafoView(APIView):
         nietas_data = InstitucionSerializer(nietas_qs, many=True).data
 
         # Cargos sólo en la institución central
-        cargos_qs = Cargo.objects.filter(institucion=institucion).select_related("persona")
+        cargos_qs = Cargo.objects.filter(institucion=institucion).select_related(
+            "persona",
+            "periodo",
+        )
 
         cargos_data = []
         personas_ids = set()
@@ -258,6 +261,8 @@ class InstitucionGrafoView(APIView):
                     "persona_id": c.persona_id,
                     "institucion_id": c.institucion_id,
                     "nombre_cargo": c.nombre_cargo,
+                    "periodo_id": c.periodo_id,
+                    "periodo_nombre": c.periodo.nombre if c.periodo else None,
                     "fecha_inicio": c.fecha_inicio,
                     "fecha_fin": c.fecha_fin,
                     "notas": c.notas,

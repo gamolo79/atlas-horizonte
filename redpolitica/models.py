@@ -59,17 +59,9 @@ class Institucion(models.Model):
         help_text="Institución de la cual depende (ej. Municipio, Poder Ejecutivo, Ayuntamiento).",
     )
 
-    # Periodo (para sexenios, ayuntamientos, etc.)
-    fecha_inicio = models.DateField(
-        null=True,
-        blank=True,
-        help_text="Inicio del periodo (ej. inicio de administración).",
-    )
-    fecha_fin = models.DateField(
-        null=True,
-        blank=True,
-        help_text="Fin del periodo (ej. fin de administración).",
-    )
+    # Nota: Las instituciones NO representan periodos administrativos.
+    # Los periodos (sexenios, trienios, legislaturas, etc.) deben modelarse
+    # con PeriodoAdministrativo para evitar duplicar el árbol institucional.
 
     class Meta:
         ordering = ["nombre"]
@@ -84,6 +76,73 @@ class Institucion(models.Model):
         return self.nombre
 
 
+class PeriodoAdministrativo(models.Model):
+    """
+    Periodos administrativos independientes de las instituciones.
+
+    Los periodos NO forman parte del árbol institucional y sólo se usan para
+    clasificar, filtrar y agrupar cargos, legislaturas y reportes.
+    """
+
+    TIPO_CHOICES = [
+        ("SEXENIO", "Sexenio"),
+        ("TRIENIO", "Trienio"),
+        ("LEGISLATURA", "Legislatura"),
+        ("PROCESO_ELECTORAL", "Proceso electoral"),
+    ]
+
+    NIVEL_CHOICES = [
+        ("ESTATAL", "Estatal"),
+        ("MUNICIPAL", "Municipal"),
+        ("LEGISLATIVO", "Legislativo"),
+    ]
+
+    tipo = models.CharField(max_length=20, choices=TIPO_CHOICES)
+    nivel = models.CharField(max_length=20, choices=NIVEL_CHOICES)
+    nombre = models.CharField(max_length=100, unique=True)
+    fecha_inicio = models.DateField()
+    fecha_fin = models.DateField()
+    institucion_raiz = models.ForeignKey(
+        "Institucion",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="periodos",
+        help_text="Institución raíz asociada (ej. Estado de Sonora).",
+    )
+
+    class Meta:
+        ordering = ["fecha_inicio"]
+
+    def __str__(self):
+        return self.nombre
+
+
+class Legislatura(models.Model):
+    """
+    Legislaturas separadas del árbol institucional.
+
+    Deben vincularse a PeriodoAdministrativo (tipo=LEGISLATURA).
+    """
+
+    nombre = models.CharField(max_length=100)
+    numero = models.PositiveIntegerField(null=True, blank=True)
+    periodo = models.ForeignKey(
+        PeriodoAdministrativo,
+        on_delete=models.PROTECT,
+        related_name="legislaturas",
+        limit_choices_to={"tipo": "LEGISLATURA"},
+    )
+    notas = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ["periodo__fecha_inicio", "nombre"]
+        unique_together = ("periodo", "nombre")
+
+    def __str__(self):
+        return self.nombre
+
+
 class Cargo(models.Model):
     persona = models.ForeignKey(
         Persona,
@@ -94,6 +153,16 @@ class Cargo(models.Model):
         Institucion,
         on_delete=models.CASCADE,
         related_name="cargos",
+    )
+    periodo = models.ForeignKey(
+        PeriodoAdministrativo,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="cargos",
+        help_text=(
+            "Periodo administrativo asociado (sexenio, trienio, legislatura, etc.)."
+        ),
     )
     nombre_cargo = models.CharField(max_length=255)
     fecha_inicio = models.DateField(null=True, blank=True)

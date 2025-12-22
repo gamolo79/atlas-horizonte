@@ -1,5 +1,19 @@
 from rest_framework import serializers
-from .models import Persona, Institucion, Cargo, Relacion
+from .models import Persona, Institucion, Cargo, Relacion, PeriodoAdministrativo
+
+
+class PeriodoAdministrativoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PeriodoAdministrativo
+        fields = [
+            "id",
+            "tipo",
+            "nivel",
+            "nombre",
+            "fecha_inicio",
+            "fecha_fin",
+            "institucion_raiz",
+        ]
 
 
 class InstitucionSerializer(serializers.ModelSerializer):
@@ -15,13 +29,12 @@ class InstitucionSerializer(serializers.ModelSerializer):
             "estado",
             "pais",
             "padre",         # <- ID de la institución padre
-            "fecha_inicio",
-            "fecha_fin",
         ]
 
 
 class CargoSerializer(serializers.ModelSerializer):
     institucion = InstitucionSerializer()
+    periodo = PeriodoAdministrativoSerializer(allow_null=True)
 
     class Meta:
         model = Cargo
@@ -29,6 +42,7 @@ class CargoSerializer(serializers.ModelSerializer):
             "id",
             "nombre_cargo",
             "institucion",
+            "periodo",
             "fecha_inicio",
             "fecha_fin",
             "es_actual",
