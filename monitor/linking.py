@@ -49,6 +49,16 @@ MENTION_STOP_WORDS = {
     "y",
 }
 
+# Lista negra de términos genéricos que NO deben ser entidades 
+# salvo que vengan validados muy fuertemente (aquí los bloqueamos de entrada en regex).
+STOP_SURFACES = {
+    "movilidad", "gobierno", "estado", "municipio",
+    "congreso", "seguridad", "educación", "salud",
+    "fiscalía", "policía", "guardia nacional", "ejército",
+    "el estado", "el gobierno", "la fiscalía",
+    "mora", "luna", "guerra", "barrera", "campo", # Apellidos que son sustantivos comunes
+}
+
 BASE_SCORES = {
     "exact_name": 0.95,
     "exact_alias": 0.90,
@@ -58,8 +68,8 @@ BASE_SCORES = {
 }
 
 STATUS_THRESHOLDS = {
-    "linked": 0.85,
-    "proposed": 0.60,
+    "linked": 0.88,      # Subido de 0.85
+    "proposed": 0.65,    # Subido de 0.60
 }
 
 
@@ -84,8 +94,8 @@ def extract_mentions(article, method="alias_regex", window_size=200):
     personas = list(PersonaAlias.objects.select_related("persona").all())
     instituciones = list(InstitucionAlias.objects.select_related("institucion").all())
 
-    persona_entries = _build_entries_for_aliases(personas, Persona.objects.only("id", "nombre_completo"))
-    institucion_entries = _build_entries_for_aliases(instituciones, Institucion.objects.only("id", "nombre"))
+    persona_entries = _build_entries_for_aliases(personas, Persona.objects.only("id", "nombre_completo"), is_person=True)
+    institucion_entries = _build_entries_for_aliases(instituciones, Institucion.objects.only("id", "nombre"), is_person=False)
 
     created_mentions = 0
     for kind, entries in [
@@ -192,6 +202,10 @@ def extract_mentions_ai(
             context_start = max(span_start - window_size // 2, 0)
             context_end = min(span_end + window_size // 2, len(text))
             context_window = text[context_start:context_end]
+            
+            # Recortar ventana si es demasiado grande
+            context_window = context_window[:window_size+50]
+
         mention, created = Mention.objects.get_or_create(
             article=article,
             entity_kind=kind,
@@ -482,12 +496,6 @@ def link_mentions(
     # AUTO_DEDUPE_SURFACE_BY_ARTICLE (state)
     seen_surface_by_article = set()
 
-    # AUTO_STOP_SURFACES (config)
-    STOP_SURFACES = {
-        "movilidad", "gobierno", "estado", "municipio",
-        "congreso", "seguridad", "educación", "salud",
-    }
-
     for mention in mentions:
         totals["mentions_analyzed"] += 1
         # AUTO_DEDUPE_SURFACE_BY_ARTICLE
@@ -497,8 +505,7 @@ def link_mentions(
             continue
         seen_surface_by_article.add(key)
 
-        # AUTO_STOP_SURFACES
-        # Stoplist de términos genéricos que suelen generar falsos positivos (ajusta a tu gusto)
+        # Usar STOP_SURFACES
         surface = (mention.surface or "").strip().lower()
         if surface in STOP_SURFACES:
             totals["no_candidates"] += 1
@@ -555,9 +562,11 @@ def link_mentions(
 
 
 
-def _build_entries_for_aliases(alias_objects, entities):
+def _build_entries_for_aliases(alias_objects, entities, is_person=True):
     seen = set()
     entries = []
+    
+    # 1. Alias explícitos
     for alias_obj in alias_objects:
         alias = (alias_obj.alias or "").strip()
         if not alias:
@@ -565,8 +574,15 @@ def _build_entries_for_aliases(alias_objects, entities):
         key = alias.lower()
         if key in seen:
             continue
+        
+        # Filtro estricto para alias cortos
+        if alias.lower() in STOP_SURFACES:
+            continue
+        
         entries.append(alias)
         seen.add(key)
+        
+    # 2. Nombres oficiales
     for entity in entities:
         name = (getattr(entity, "nombre_completo", None) or getattr(entity, "nombre", "") or "").strip()
         if not name:
@@ -574,6 +590,13 @@ def _build_entries_for_aliases(alias_objects, entities):
         key = name.lower()
         if key in seen:
             continue
+        
+        # Para personas, omitir si es solo un nombre de pila, a menos que sea muy raro.
+        # Pero aquí asumimos nombre_completo.
+        # Solo verificamos STOP_SURFACES.
+        if key in STOP_SURFACES:
+            continue
+
         entries.append(name)
         seen.add(key)
     return entries
@@ -651,6 +674,16 @@ def _is_acronym(surface):
     return surface.isupper() and len(surface) <= 6
 
 
+def _find_surface_span(surface, text):
+    # Función auxiliar para encontrar la posición (span) de una cadena en el texto
+    # (reimplementada simple para extract_mentions_ai)
+    try:
+        idx = text.index(surface)
+        return idx, idx + len(surface)
+    except ValueError:
+        return None, None
+
+
 def _should_skip_surface(surface: str) -> bool:
     cleaned = (surface or "").strip()
     if not cleaned:
@@ -661,5 +694,7 @@ def _should_skip_surface(surface: str) -> bool:
     if not normalized or normalized.isdigit():
         return True
     if normalized in MENTION_STOP_WORDS:
+        return True
+    if normalized in STOP_SURFACES:
         return True
     return False
