@@ -1,20 +1,19 @@
-import json
 import logging
-import os
-import sys
 from datetime import timedelta
 
 from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.utils import timezone
 
-from monitor.linking import (
-    extract_mentions,
-    extract_mentions_ai,
-    link_mentions,
-    STATUS_THRESHOLDS,
+from monitor.linking import link_mentions, sync_article_mentions_from_links, STATUS_THRESHOLDS
+from monitor.models import (
+    Article,
+    EntityLink,
+    ArticleEntity,
+    ArticlePersonaMention,
+    ArticleInstitucionMention,
+    DigestClientConfig,
 )
-from monitor.models import Article, EntityLink, Mention, ArticleEntity, DigestClientConfig
 
 LOGGER = logging.getLogger(__name__)
 
@@ -47,7 +46,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         self.stdout.write(self.style.WARNING("Starting link_entities command..."))
-        
+
         since = parse_since(options["since"])
         limit = options["limit"]
         dry_run = options["dry_run"]
@@ -72,73 +71,41 @@ class Command(BaseCommand):
 
         scope = self._load_scope(client_id)
         if scope:
-             self.stdout.write(f"Using scope: {len(scope.get('personas',[]))} personas, {len(scope.get('instituciones',[]))} institutions")
-
-        ai_client = None
-        require_ai = False
-        if not skip_ai_verify:
-            if not os.environ.get("OPENAI_API_KEY"):
-                self.stdout.write(self.style.WARNING("OPENAI_API_KEY no está configurada. Se omite verificación IA."))
-            else:
-                try:
-                    from openai import OpenAI
-                    ai_client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"), timeout=15)
-                    require_ai = True
-                except ImportError:
-                    self.stdout.write(self.style.WARNING("Paquete openai no disponible. Se omite verificación IA."))
+            self.stdout.write(
+                self.style.WARNING(
+                    "Scope filtering is not supported in the current linker. Proceeding without scope."
+                )
+            )
 
         if rebuild and not dry_run:
             self.stdout.write("Purging existing links (rebuild=True)...")
             with transaction.atomic():
                 self._purge_links(articles)
 
-        # 1. Ensure mentions exist
-        self.stdout.write("Extracting mentions...")
-        with transaction.atomic():
-            for i, article in enumerate(articles, 1):
-                if not Mention.objects.filter(article=article).exists():
-                     extract_mentions(article)
-                if i % 100 == 0:
-                     self.stdout.write(f"  Extracted mentions for {i}/{total_articles} articles...")
-
-        # 2. Link mentions
+        # Link mentions
         self.stdout.write("Linking mentions...")
-        
-        all_mentions = Mention.objects.filter(
-            article__in=articles,
-            entity_kind__in=[Mention.EntityKind.PERSON, Mention.EntityKind.ORG],
-        ).select_related("article")
-        
-        count_mentions = all_mentions.count()
-        self.stdout.write(f"Processing {count_mentions} mentions...")
 
-        if count_mentions == 0:
-             self.stdout.write(self.style.SUCCESS("No mentions found to link."))
-             return
-
-        totals, ai_error = link_mentions(
-            all_mentions,
-            scope=scope,
-            ai_client=ai_client,
+        thresholds = {**STATUS_THRESHOLDS, "proposed": ai_threshold}
+        totals = link_mentions(
+            articles,
+            limit=limit,
+            thresholds=thresholds,
             ai_model=ai_model,
-            ai_threshold=ai_threshold,
-            require_ai_validation=require_ai,
-            dry_run=dry_run
+            skip_ai_verify=skip_ai_verify,
         )
-        
-        if ai_error:
-             self.stdout.write(self.style.ERROR("Encountered AI errors during validation."))
+
+        sync_totals = sync_article_mentions_from_links(articles, dry_run=dry_run)
 
         self.stdout.write(
             self.style.SUCCESS(
                 "Done.\n"
-                f"Articles: {totals['mentions_analyzed']} mentions processed\n"
+                f"Articles processed: {totals['processed']}\n"
+                f"Mentions created: {totals['mentions_created']}\n"
                 f"Links created: {totals['links_created']}\n"
                 f"Links updated: {totals['links_updated']}\n"
-                f"Proposed: {totals['proposed']}\n"
-                f"AI rejected: {totals['ai_rejected']}\n"
-                f"Ambiguous/low: {totals['ambiguous']}\n"
-                f"No candidates: {totals['no_candidates']}"
+                f"Article entities synced: {sync_totals['article_entities_synced']}\n"
+                f"Persona mentions created: {sync_totals['persona_mentions_created']}\n"
+                f"Institucion mentions created: {sync_totals['institucion_mentions_created']}"
             )
         )
 
@@ -146,6 +113,8 @@ class Command(BaseCommand):
         article_ids = [article.id for article in articles]
         ArticleEntity.objects.filter(article_id__in=article_ids).delete()
         EntityLink.objects.filter(mention__article_id__in=article_ids).delete()
+        ArticlePersonaMention.objects.filter(article_id__in=article_ids).delete()
+        ArticleInstitucionMention.objects.filter(article_id__in=article_ids).delete()
         
     def _load_scope(self, client_id):
         if not client_id:

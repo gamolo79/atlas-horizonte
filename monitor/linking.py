@@ -50,7 +50,14 @@ STATUS_THRESHOLDS = {
 
 # --- PUBLIC API ---
 
-def link_mentions(article_pool, limit=1000, resolver_version="linker_v1", thresholds=None, ai_model=None, skip_ai_verify=True):
+def link_mentions(
+    article_pool,
+    limit=1000,
+    resolver_version="linker_v1",
+    thresholds=None,
+    ai_model=None,
+    skip_ai_verify=True,
+):
     """
     Main entry point for batch linking.
     """
@@ -330,9 +337,41 @@ def persist_link(mention, winner, resolver_version="linker_v1", dry_run=False):
         link = EntityLink.objects.create(mention=mention, **defaults)
         return link, "created"
 
+def sync_article_mentions_from_links(articles, dry_run=False):
+    if dry_run:
+        return {
+            "article_entities_synced": 0,
+            "persona_mentions_created": 0,
+            "institucion_mentions_created": 0,
+        }
+
+    linked_links = EntityLink.objects.filter(
+        status=EntityLink.Status.LINKED,
+        mention__article__in=articles,
+    ).select_related("mention", "mention__article")
+
+    totals = {
+        "article_entities_synced": 0,
+        "persona_mentions_created": 0,
+        "institucion_mentions_created": 0,
+    }
+    for link in linked_links.iterator():
+        result = _sync_article_entity(
+            link.mention.article,
+            link.entity_type,
+            link.entity_id,
+            link.confidence,
+        )
+        totals["article_entities_synced"] += int(result["article_entity_created"])
+        totals["persona_mentions_created"] += int(result["persona_mentions_created"])
+        totals["institucion_mentions_created"] += int(result["institucion_mentions_created"])
+
+    return totals
+
+
 def _sync_article_entity(article, entity_type, entity_id, confidence):
     # 1. Base sync to ArticleEntity
-    article_entity, _ = ArticleEntity.objects.get_or_create(
+    article_entity, article_entity_created = ArticleEntity.objects.get_or_create(
         article=article,
         entity_type=entity_type,
         entity_id=entity_id,
@@ -346,17 +385,25 @@ def _sync_article_entity(article, entity_type, entity_id, confidence):
     # These tables are denormalized for fast dashboard querying (e.g. sentiment tracking)
     # We delay import to avoid circular dependency in some contexts
     from monitor.models import ArticlePersonaMention, ArticleInstitucionMention, EntityLink
-    
+
+    persona_mentions_created = False
+    institucion_mentions_created = False
     if entity_type == EntityLink.EntityType.PERSON:
         # Ensure Persona Mention exists
-        ArticlePersonaMention.objects.get_or_create(
+        _, persona_mentions_created = ArticlePersonaMention.objects.get_or_create(
             article=article,
             persona_id=entity_id,
             defaults={} # Sentiment is updated elsewhere
         )
     elif entity_type == EntityLink.EntityType.INSTITUTION:
-        ArticleInstitucionMention.objects.get_or_create(
+        _, institucion_mentions_created = ArticleInstitucionMention.objects.get_or_create(
             article=article,
             institucion_id=entity_id,
             defaults={}
         )
+
+    return {
+        "article_entity_created": article_entity_created,
+        "persona_mentions_created": persona_mentions_created,
+        "institucion_mentions_created": institucion_mentions_created,
+    }
