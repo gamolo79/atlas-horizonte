@@ -26,6 +26,7 @@ from .models import (
     IngestRun,
     MediaOutlet,
     StoryCluster,
+    StoryMention,
 )
 
 
