@@ -116,11 +116,9 @@ class Command(BaseCommand):
         priority_clusters = priority_clusters[:top_n]
         topic_clusters = topic_clusters[:top_n]
         
-        # For General, we might want MORE than top_n if priority/topic sections are empty
-        # If we have very few priority items, expand general?
         effective_general_limit = top_n
         if len(priority_clusters) + len(topic_clusters) < 5:
-            effective_general_limit = max(top_n, 20) # Ensure at least 20 items total if sections are distinct
+            effective_general_limit = max(top_n, 20) 
         
         general_clusters = general_clusters[:effective_general_limit]
         
@@ -206,23 +204,28 @@ class Command(BaseCommand):
 
     def _build_html(self, title, date_obj, sections):
         html = []
-        html.append(f"<h1>{escape(title)}</h1>")
-        html.append(f"<p style='color: #666;'>Fecha: {date_obj}</p>")
+        # Force white background and dark text for contrast
+        html.append("<div style='background-color: #ffffff; color: #333333; padding: 20px; font-family: sans-serif; max-width: 800px; margin: 0 auto;'>")
+        
+        html.append(f"<h1 style='color: #111111; border-bottom: 3px solid #000; padding-bottom: 10px;'>{escape(title)}</h1>")
+        html.append(f"<p style='color: #555555;'>Fecha: {date_obj}</p>")
         
         for sec in sections:
-            html.append(f"<h2 style='margin-top: 25px; border-bottom: 2px solid #000; padding_bottom: 5px;'>{escape(sec['label'])}</h2>")
+            html.append(f"<h2 style='margin-top: 30px; border-bottom: 2px solid #000; padding_bottom: 5px; color: #222222;'>{escape(sec['label'])}</h2>")
             for item in sec['items']:
                 # Improve formatting
-                html.append("<div style='margin-bottom: 25px; padding-bottom: 15px; border-bottom: 1px solid #eee;'>")
-                html.append(f"<h3 style='margin-bottom: 5px; color: #111;'>{escape(item['headline'])}</h3>")
+                html.append("<div style='margin-bottom: 25px; padding-bottom: 15px; border-bottom: 1px solid #eeeeee;'>")
+                html.append(f"<h3 style='margin-bottom: 8px; color: #000000; margin-top: 15px;'>{escape(item['headline'])}</h3>")
                 if item['lead']:
-                    html.append(f"<p style='margin-top: 5px; color: #444;'>{escape(item['lead'])}</p>")
+                    html.append(f"<p style='margin-top: 5px; color: #444444; line-height: 1.5;'>{escape(item['lead'])}</p>")
                 
-                html.append("<div style='margin-top: 8px;'>")
-                html.append(f"<span style='font-size: 0.85em; font-weight: bold; background: #eee; padding: 2px 6px; border-radius: 4px; margin-right: 10px;'>Cobertura: {item['volume']} fuentes</span>")
+                html.append("<div style='margin-top: 10px;'>")
+                html.append(f"<span style='font-size: 0.85em; font-weight: bold; background: #f0f0f0; padding: 2px 8px; border-radius: 4px; margin-right: 10px; color: #333;'>Cobertura: {item['volume']} fuentes</span>")
                 
                 for chip in item['chips']:
-                    html.append(f"<a href='{chip['url']}' target='_blank' style='text-decoration: none; color: #0066cc; margin-right: 8px; font-size: 0.85em;'>[{chip['media']}]</a>")
+                    html.append(f"<a href='{chip['url']}' target='_blank' style='text-decoration: none; color: #0066cc; margin-right: 10px; font-size: 0.85em; font-weight: bold;'>[{chip['media']}]</a>")
                 html.append("</div>")
                 html.append("</div>")
+        
+        html.append("</div>") # Close container
         return "\n".join(html)

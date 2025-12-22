@@ -29,7 +29,7 @@ def cosine(a, b):
     return dot / (math.sqrt(na) * math.sqrt(nb))
 
 class Command(BaseCommand):
-    help = "Cluster articles using strict Leader-Based Incremental Clustering with Entity Guards."
+    help = "Cluster articles using strict Leader-Based Incremental Clustering with Entity & Topic Guards."
 
     def add_arguments(self, parser):
         parser.add_argument("--hours", type=int, default=72)
@@ -38,7 +38,7 @@ class Command(BaseCommand):
         parser.add_argument("--dry-run", action="store_true")
 
     def handle(self, *args, **opts):
-        self.stdout.write(self.style.WARNING("Starting Strict Leader-Based Clustering..."))
+        self.stdout.write(self.style.WARNING("Starting Strict Leader-Based Clustering (Entity+Topic Guided)..."))
         
         hours = opts["hours"]
         limit = opts["limit"]
@@ -84,27 +84,36 @@ class Command(BaseCommand):
             if not cluster.base_article or not cluster.base_article.embedding:
                 continue
                 
-            # Pre-calc entities for guard
+            # Pre-calc entities
             entities = set()
             ents_json = cluster.base_article.entities_extracted or {}
-            # Flatten "PERS": ["Name", ...], "ORG": ["Name"...] to a single set of normalized names
             for kind, names in ents_json.items():
                 if isinstance(names, list):
                     for n in names:
                         entities.add(n.strip().lower())
             
+            # Pre-calc Topics
+            topics = set()
+            tops_json = cluster.base_article.topics or []
+            for t in tops_json:
+                # Format: {"label": "X", "confidence": "media"} OR "label"
+                lbl = t.get("label") if isinstance(t, dict) else t
+                if lbl:
+                    topics.add(lbl.strip().lower())
+
             active_clusters.append({
                 "obj": cluster,
                 "vector": cluster.base_article.embedding,
                 "id": cluster.id,
                 "headline": cluster.headline,
-                "entities": entities
+                "entities": entities,
+                "topics": topics
             })
 
         created_clusters = 0
         joined_clusters = 0
 
-        # Optimization: Pre-calc entities for new articles
+        # Optimization: Pre-calc meta for new articles
         processed_unclustered = []
         for a in unclustered_articles:
             entities = set()
@@ -113,7 +122,15 @@ class Command(BaseCommand):
                 if isinstance(names, list):
                     for n in names:
                         entities.add(n.strip().lower())
-            processed_unclustered.append({"article": a, "entities": entities})
+            
+            topics = set()
+            tops_json = a.topics or []
+            for t in tops_json:
+                lbl = t.get("label") if isinstance(t, dict) else t
+                if lbl:
+                    topics.add(lbl.strip().lower())
+
+            processed_unclustered.append({"article": a, "entities": entities, "topics": topics})
 
         # 4. Loop Incremental
         transaction_ctx = transaction.atomic() if not dry else transaction.non_atomic_requests()
@@ -121,6 +138,7 @@ class Command(BaseCommand):
             for item in processed_unclustered:
                 article = item["article"]
                 a_entities = item["entities"]
+                a_topics = item["topics"]
                 vec = article.embedding
                 
                 best_cluster = None
@@ -128,20 +146,23 @@ class Command(BaseCommand):
                 
                 for c in active_clusters:
                     raw_score = cosine(vec, c["vector"])
+                    final_score = raw_score
+                    
+                    # --- TOPIC GUARD ---
+                    # If articles have topics but SHARE NONE -> Penalize
+                    # Note: articles might lack topics if extraction failed. If so, ignore guard?
+                    # Let's be strict: if BOTH have topics and overlap is empty -> penalize.
+                    if a_topics and c["topics"]:
+                        if not a_topics.intersection(c["topics"]):
+                             # "Seguridad" vs "Obras" -> Penalize
+                             final_score -= 0.15 
                     
                     # --- ENTITY GUARD ---
-                    # Logic: If raw_score is 'borderline' (e.g. 0.82 - 0.90), enforce entity overlap.
-                    # If score is > 0.90, semantic match is strong enough (probably same story).
-                    # If score is < threshold, irrelevant.
-                    
-                    final_score = raw_score
-                    if raw_score >= threshold and raw_score < 0.90:
-                        # Check overlap
+                    # If score is still high (borderline), enforce entity sync
+                    if final_score >= threshold and final_score < 0.90:
                         if a_entities and c["entities"]:
-                            overlap = a_entities.intersection(c["entities"])
-                            if not overlap:
-                                # Penalize: likely same generic topic but different people/orgs
-                                final_score = raw_score - 0.10
+                            if not a_entities.intersection(c["entities"]):
+                                final_score -= 0.10
                     
                     if final_score > best_score:
                         best_score = final_score
@@ -161,7 +182,8 @@ class Command(BaseCommand):
                             "vector": vec,
                             "id": f"new_{article.id}",
                             "headline": article.title,
-                            "entities": a_entities
+                            "entities": a_entities,
+                            "topics": a_topics
                         })
                     else:
                         new_cluster_obj = StoryCluster.objects.create(
@@ -176,7 +198,8 @@ class Command(BaseCommand):
                             "vector": vec,
                             "id": new_cluster_obj.id,
                             "headline": new_cluster_obj.headline,
-                            "entities": a_entities
+                            "entities": a_entities,
+                            "topics": a_topics
                         })
 
         if dry:
