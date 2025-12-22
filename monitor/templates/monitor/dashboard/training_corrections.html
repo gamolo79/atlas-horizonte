@@ -63,38 +63,20 @@
                     {% endif %}
                 </td>
                 <td>
-                    {% with topics_id="article-topics-"|add:article.id %}
-                    {{ article.topics|json_script:topics_id }}
                     <div style="display: flex; flex-wrap: wrap; gap: 6px;">
-                        <button class="actions ghost btn-correct-article"
-                            style="padding: 4px 8px; font-size: 12px; cursor: pointer;"
-                            data-article-id="{{ article.id }}" data-article-title="{{ article.title|escapejs }}"
-                            data-topics-id="{{ topics_id }}"
-                            data-sentiment="{% if article.sentiment %}{{ article.sentiment.sentiment }}{% endif %}"
-                            data-article-type="{% if article.article_type %}{{ article.article_type }}{% endif %}"
-                            data-correction-type="topic">
+                        <button class="actions ghost" style="padding: 4px 8px; font-size: 12px; cursor: pointer;"
+                            onclick="openModal('{{ article.id }}', '{{ article.title|escapejs }}', 'topic', '{% if article.sentiment %}{{ article.sentiment.sentiment }}{% endif %}', '{% if article.article_type %}{{ article.article_type }}{% endif %}')">
                             Corregir tema
                         </button>
-                        <button class="actions ghost btn-correct-article"
-                            style="padding: 4px 8px; font-size: 12px; cursor: pointer;"
-                            data-article-id="{{ article.id }}" data-article-title="{{ article.title|escapejs }}"
-                            data-topics-id="{{ topics_id }}"
-                            data-sentiment="{% if article.sentiment %}{{ article.sentiment.sentiment }}{% endif %}"
-                            data-article-type="{% if article.article_type %}{{ article.article_type }}{% endif %}"
-                            data-correction-type="sentiment">
+                        <button class="actions ghost" style="padding: 4px 8px; font-size: 12px; cursor: pointer;"
+                            onclick="openModal('{{ article.id }}', '{{ article.title|escapejs }}', 'sentiment', '{% if article.sentiment %}{{ article.sentiment.sentiment }}{% endif %}', '{% if article.article_type %}{{ article.article_type }}{% endif %}')">
                             Corregir sentimiento
                         </button>
-                        <button class="actions ghost btn-correct-article"
-                            style="padding: 4px 8px; font-size: 12px; cursor: pointer;"
-                            data-article-id="{{ article.id }}" data-article-title="{{ article.title|escapejs }}"
-                            data-topics-id="{{ topics_id }}"
-                            data-sentiment="{% if article.sentiment %}{{ article.sentiment.sentiment }}{% endif %}"
-                            data-article-type="{% if article.article_type %}{{ article.article_type }}{% endif %}"
-                            data-correction-type="article_type">
+                        <button class="actions ghost" style="padding: 4px 8px; font-size: 12px; cursor: pointer;"
+                            onclick="openModal('{{ article.id }}', '{{ article.title|escapejs }}', 'article_type', '{% if article.sentiment %}{{ article.sentiment.sentiment }}{% endif %}', '{% if article.article_type %}{{ article.article_type }}{% endif %}')">
                             Corregir tipo
                         </button>
                     </div>
-                    {% endwith %}
                 </td>
             </tr>
             {% empty %}
@@ -105,6 +87,11 @@
         </tbody>
     </table>
 </section>
+
+<!-- Store topics data as hidden inputs -->
+{% for article in recent_articles %}
+<input type="hidden" id="topics-{{ article.id }}" value="{{ article.topics|escapejs }}">
+{% endfor %}
 
 <!-- Article Correction Modal (Topics, Sentiment, Classification) -->
 <dialog id="articleModal"
