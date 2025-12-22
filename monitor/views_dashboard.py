@@ -46,9 +46,6 @@ def dashboard_home(request):
         },
         "recent_runs": recent_runs,
         "digest_latest": digest_latest,
-        # For Editorial Loop (Topic Correction)
-        "recent_articles": Article.objects.select_related('media_outlet', 'sentiment').order_by("-published_at")[:20],
-        "all_personas": Persona.objects.all().order_by('nombre_completo'),
     }
     return render(request, "monitor/dashboard/home.html", context)
 
@@ -644,6 +641,20 @@ def ingest_dashboard(request):
 @staff_member_required
 def ops_run(request):
     return ingest_dashboard(request)
+
+
+@staff_member_required
+def training_corrections(request):
+    """
+    Training section for editorial corrections (topic, sentiment, article_type).
+    Editors can correct classification errors to improve the model.
+    """
+    context = {
+        "recent_articles": Article.objects.select_related('media_outlet', 'sentiment').order_by("-published_at")[:20],
+        "all_personas": Persona.objects.all().order_by('nombre_completo'),
+    }
+    return render(request, "monitor/dashboard/training_corrections.html", context)
+
 
 
 @staff_member_required
