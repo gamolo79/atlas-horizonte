@@ -7,6 +7,11 @@
         <p class="page-subtitle">Corrige clasificaciones para mejorar la precisión del modelo de análisis.</p>
     </div>
     <div class="actions">
+        {% if show_reviewed %}
+        <a class="secondary" href="/monitor/dashboard/training/">Ocultar revisadas</a>
+        {% else %}
+        <a class="secondary" href="/monitor/dashboard/training/?show_reviewed=1">Ver revisadas</a>
+        {% endif %}
         <a class="secondary" href="/monitor/dashboard/">Volver a Home</a>
     </div>
 </div>
@@ -26,6 +31,7 @@
                 <th>Instituciones</th>
                 <th>Sentimiento</th>
                 <th>Tipo</th>
+                <th>Estado</th>
                 <th>Acciones</th>
             </tr>
         </thead>
@@ -75,6 +81,13 @@
                     {% endif %}
                 </td>
                 <td>
+                    {% if article.training_reviewed %}
+                    <span class="pill" style="font-size:10px;">Revisada</span>
+                    {% else %}
+                    <span style="font-size:10px; color:var(--muted);">Pendiente</span>
+                    {% endif %}
+                </td>
+                <td>
                     <div style="display: flex; flex-wrap: wrap; gap: 6px;">
                         <button class="actions ghost" style="padding: 4px 8px; font-size: 12px; cursor: pointer;"
                             onclick="openModal('{{ article.id }}', '{{ article.title|escapejs }}', 'topic', '{% if article.sentiment %}{{ article.sentiment.sentiment }}{% endif %}', '{% if article.content_classification %}{{ article.content_classification.content_type }}{% endif %}')">
@@ -88,16 +101,23 @@
                             onclick="openModal('{{ article.id }}', '{{ article.title|escapejs }}', 'article_type', '{% if article.sentiment %}{{ article.sentiment.sentiment }}{% endif %}', '{% if article.content_classification %}{{ article.content_classification.content_type }}{% endif %}')">
                             Corregir tipo
                         </button>
+                        {% if article.training_reviewed %}
+                        <button class="actions ghost" style="padding: 4px 8px; font-size: 12px; cursor: pointer;"
+                            onclick="restoreArticle('{{ article.id }}', '{{ article.title|escapejs }}')">
+                            Reincorporar
+                        </button>
+                        {% else %}
                         <button class="actions ghost" style="padding: 4px 8px; font-size: 12px; cursor: pointer;"
                             onclick="discardArticle('{{ article.id }}', '{{ article.title|escapejs }}')">
                             Descartar nota
                         </button>
+                        {% endif %}
                     </div>
                 </td>
             </tr>
             {% empty %}
             <tr>
-                <td colspan="9" class="table-empty">Sin artículos recientes.</td>
+                <td colspan="10" class="table-empty">Sin artículos recientes.</td>
             </tr>
             {% endfor %}
         </tbody>
@@ -338,6 +358,16 @@
             return;
         }
         submitCorrection(articleId, "training_discard", true, title);
+        setTimeout(() => {
+            window.location.reload();
+        }, 300);
+    }
+
+    function restoreArticle(articleId, title) {
+        if (!confirm(`¿Reincorporar la nota "${title}" al listado de entrenamiento?`)) {
+            return;
+        }
+        submitCorrection(articleId, "training_restore", true, title);
         setTimeout(() => {
             window.location.reload();
         }, 300);
