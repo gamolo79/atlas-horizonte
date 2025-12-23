@@ -13,18 +13,18 @@
     <header>
       <div class="header-inner">
         <div class="header-row">
-          <div class="brand">
+          <a class="brand" href="{% url 'atlas-home' %}">
             <img src="{% static 'img/logo-horizonte-atlas.png' %}" alt="Atlas" class="brand-logo">
             <div class="brand-texts">
               <div class="brand-text-main">Atlas</div>
               <div class="brand-text-sub">Relaciones · Personas · Instituciones</div>
             </div>
-          </div>
+          </a>
         </div>
         <div class="header-row header-row-nav">
           <nav class="nav-chip-row" aria-label="Secciones de Atlas">
             <a class="nav-chip" href="{% url 'index-apps' %}">Ecosistema</a>
-            <a class="nav-chip" href="{% url 'atlas-home' %}">Home Atlas</a>
+            <a class="nav-chip is-active" href="{% url 'atlas-home' %}">Home Atlas</a>
             <a class="nav-chip" href="{% url 'atlas-personas-list' %}">Personas</a>
             <a class="nav-chip" href="{% url 'atlas-instituciones-list' %}">Instituciones</a>
           </nav>
