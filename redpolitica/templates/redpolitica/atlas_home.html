@@ -20,7 +20,13 @@
             <div class="brand-text-sub">Relaciones · Personas · Instituciones</div>
           </div>
         </div>
-        <div class="nav-right">
+        <nav class="app-nav" aria-label="Navegación principal">
+          <a class="app-nav-link" href="{% url 'atlas-home' %}">Inicio</a>
+          <a class="app-nav-link" href="{% url 'atlas-personas-list' %}">Personas</a>
+          <a class="app-nav-link" href="{% url 'atlas-instituciones-list' %}">Instituciones</a>
+        </nav>
+        <div class="header-actions">
+          <a class="app-nav-link app-switch" href="{% url 'index-apps' %}">Ecosistema</a>
           <div class="mobile-nav">
             <button class="menu-button" type="button" aria-label="Abrir menú" aria-expanded="false" aria-controls="atlas-offcanvas">
               <span></span>
@@ -34,15 +40,15 @@
                 <button class="offcanvas-close" type="button" aria-label="Cerrar menú">×</button>
               </div>
               <nav class="offcanvas-section">
-                <div class="offcanvas-section-title">Navegación principal</div>
-                <a class="offcanvas-link" href="{% url 'atlas-home' %}">Home</a>
+                <div class="offcanvas-section-title">Explorar Atlas</div>
+                <a class="offcanvas-link" href="{% url 'atlas-home' %}">Inicio</a>
                 <a class="offcanvas-link" href="{% url 'atlas-personas-list' %}">Personas</a>
                 <a class="offcanvas-link" href="{% url 'atlas-instituciones-list' %}">Instituciones</a>
               </nav>
               <div class="offcanvas-divider"></div>
               <nav class="offcanvas-section">
-                <div class="offcanvas-section-title">Accesos operativos</div>
-                <a class="offcanvas-link" href="{% url 'index-apps' %}">Home del Ecosistema</a>
+                <div class="offcanvas-section-title">Ecosistema</div>
+                <a class="offcanvas-link" href="{% url 'index-apps' %}">Volver al ecosistema</a>
               </nav>
               <div class="offcanvas-footer">
                 <a href="{% url 'privacy-notice' %}">Aviso de privacidad</a>
