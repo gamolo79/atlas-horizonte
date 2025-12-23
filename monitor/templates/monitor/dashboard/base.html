@@ -89,6 +89,149 @@
       background: rgba(22, 163, 74, 0.18);
     }
 
+    .mobile-header {
+      display: none;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface-strong);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    .mobile-header .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .mobile-header .brand-logo {
+      height: 28px;
+      width: auto;
+    }
+
+    .mobile-menu-toggle {
+      position: absolute;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .menu-button {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: rgba(15, 23, 42, 0.6);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: border-color 0.2s ease, background 0.2s ease;
+    }
+
+    .menu-button span {
+      display: block;
+      width: 18px;
+      height: 2px;
+      background: var(--text);
+      position: relative;
+    }
+
+    .menu-button span::before,
+    .menu-button span::after {
+      content: "";
+      position: absolute;
+      left: 0;
+      width: 18px;
+      height: 2px;
+      background: var(--text);
+    }
+
+    .menu-button span::before {
+      top: -6px;
+    }
+
+    .menu-button span::after {
+      bottom: -6px;
+    }
+
+    .mobile-offcanvas {
+      position: fixed;
+      top: 0;
+      right: 0;
+      width: min(320px, 84vw);
+      height: 100vh;
+      background: var(--surface-strong);
+      border-left: 1px solid var(--border);
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      transform: translateX(100%);
+      transition: transform 0.2s ease;
+      z-index: 40;
+    }
+
+    .offcanvas-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .offcanvas-close {
+      font-size: 24px;
+      line-height: 1;
+      cursor: pointer;
+    }
+
+    .offcanvas-links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .chip-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      background: rgba(15, 23, 42, 0.6);
+      font-size: 12px;
+      color: var(--text);
+      text-decoration: none;
+      transition: border-color 0.2s ease, background 0.2s ease;
+    }
+
+    .chip-link:hover {
+      border-color: rgba(34, 197, 94, 0.6);
+      background: rgba(15, 23, 42, 0.85);
+    }
+
+    .offcanvas-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(3, 7, 18, 0.6);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+      z-index: 30;
+    }
+
+    .mobile-menu-toggle:checked ~ .mobile-offcanvas {
+      transform: translateX(0);
+    }
+
+    .mobile-menu-toggle:checked ~ .offcanvas-backdrop {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
     .content {
       padding: 32px;
       background: radial-gradient(circle at top left, rgba(22, 163, 74, 0.16), rgba(5, 7, 11, 0.9) 40%, var(--bg) 100%);
@@ -533,10 +676,58 @@
       border-color: #4b5563;
       background: #1f2937;
     }
+
+    @media (max-width: 960px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar {
+        display: none;
+      }
+
+      .content {
+        padding: 24px 16px 32px;
+      }
+
+      .mobile-header {
+        display: flex;
+      }
+    }
   </style>
 </head>
 
 <body>
+  <input type="checkbox" id="monitor-menu-toggle" class="mobile-menu-toggle">
+  <header class="mobile-header">
+    <div class="brand">
+      <img src="{% static 'img/logo-horizonte-monitor.png' %}" alt="Monitor" class="brand-logo">
+    </div>
+    <label for="monitor-menu-toggle" class="menu-button" aria-label="Abrir menú">
+      <span></span>
+    </label>
+  </header>
+  <div class="mobile-offcanvas">
+    <div class="offcanvas-header">
+      <span>Menú Monitor</span>
+      <label for="monitor-menu-toggle" class="offcanvas-close" aria-label="Cerrar menú">×</label>
+    </div>
+    <div class="offcanvas-links">
+      <a class="chip-link" href="https://horizonte.digital/">Home del Ecosistema</a>
+      <a class="chip-link" href="https://horizonte.digital/apps/monitor/">Home de Monitor</a>
+      <a class="chip-link" href="/monitor/dashboard/personas/">Personas</a>
+      <a class="chip-link" href="/monitor/dashboard/instituciones/">Instituciones</a>
+      <a class="chip-link" href="/monitor/dashboard/benchmark/">Benchmark personas</a>
+      <a class="chip-link" href="/monitor/dashboard/instituciones/benchmark/">Benchmark instituciones</a>
+      <a class="chip-link" href="/monitor/dashboard/ingest/">Ingest/Digest</a>
+      <a class="chip-link" href="/monitor/dashboard/clients/">Clientes</a>
+      {% if request.user.is_staff %}
+      <a class="chip-link" href="/monitor/dashboard/training/">Entrenamiento</a>
+      <a class="chip-link" href="/monitor/dashboard/ops/">Ops</a>
+      {% endif %}
+    </div>
+  </div>
+  <label for="monitor-menu-toggle" class="offcanvas-backdrop" aria-hidden="true"></label>
   <div class="layout">
     <aside class="sidebar">
       <div class="brand">
