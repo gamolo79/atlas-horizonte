@@ -35,7 +35,10 @@
       </div>
 
       <div class="nav-right">
-        <a href="/apps/atlas/" class="nav-link">← Volver a <strong>Atlas</strong></a>
+        <a class="chip-link" href="{% url 'index-apps' %}">Home del Ecosistema</a>
+        <a class="chip-link" href="{% url 'atlas-home' %}">Home de Atlas</a>
+        <a class="chip-link" href="{% url 'atlas-personas-list' %}">Lista de personas</a>
+        <a class="chip-link" href="{% url 'atlas-instituciones-list' %}">Lista de instituciones</a>
         <span class="tag-app">
           <span class="tag-dot"></span> Vista de grafo
         </span>
