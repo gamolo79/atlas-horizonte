@@ -120,6 +120,7 @@ class Article(models.Model):
     topics_justification = models.TextField(blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
+    training_reviewed = models.BooleanField(default=False)
 
     class Meta:
         indexes = [

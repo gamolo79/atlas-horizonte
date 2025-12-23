@@ -7,6 +7,11 @@
         <p class="page-subtitle">Corrige clasificaciones para mejorar la precisión del modelo de análisis.</p>
     </div>
     <div class="actions">
+        {% if show_reviewed %}
+        <a class="secondary" href="/monitor/dashboard/training/">Ocultar revisadas</a>
+        {% else %}
+        <a class="secondary" href="/monitor/dashboard/training/?show_reviewed=1">Ver revisadas</a>
+        {% endif %}
         <a class="secondary" href="/monitor/dashboard/">Volver a Home</a>
     </div>
 </div>
@@ -22,8 +27,11 @@
                 <th>Medio</th>
                 <th>Titular</th>
                 <th>Temas</th>
+                <th>Personas</th>
+                <th>Instituciones</th>
                 <th>Sentimiento</th>
                 <th>Tipo</th>
+                <th>Estado</th>
                 <th>Acciones</th>
             </tr>
         </thead>
@@ -43,6 +51,16 @@
                     {% endfor %}
                 </td>
                 <td>
+                    {% for mention in article.person_mentions.all|slice:":2" %}
+                    <span class="pill" style="font-size:10px;">{{ mention.persona.nombre_completo }}</span>
+                    {% endfor %}
+                </td>
+                <td>
+                    {% for mention in article.institution_mentions.all|slice:":2" %}
+                    <span class="pill" style="font-size:10px;">{{ mention.institucion.nombre }}</span>
+                    {% endfor %}
+                </td>
+                <td>
                     {% if article.sentiment %}
                     {% if article.sentiment.sentiment == "positivo" %}
                     <span class="kpi-pill positive" style="font-size:10px;">Positivo</span>
@@ -56,32 +74,50 @@
                     {% endif %}
                 </td>
                 <td>
-                    {% if article.article_type %}
-                    <span class="pill" style="font-size:10px;">{{ article.article_type|title }}</span>
+                    {% if article.content_classification %}
+                    <span class="pill" style="font-size:10px;">{{ article.content_classification.content_type|title }}</span>
                     {% else %}
                     <span style="font-size:10px; color:var(--muted);">—</span>
                     {% endif %}
                 </td>
                 <td>
+                    {% if article.training_reviewed %}
+                    <span class="pill" style="font-size:10px;">Revisada</span>
+                    {% else %}
+                    <span style="font-size:10px; color:var(--muted);">Pendiente</span>
+                    {% endif %}
+                </td>
+                <td>
                     <div style="display: flex; flex-wrap: wrap; gap: 6px;">
                         <button class="actions ghost" style="padding: 4px 8px; font-size: 12px; cursor: pointer;"
-                            onclick="openModal('{{ article.id }}', '{{ article.title|escapejs }}', 'topic', '{% if article.sentiment %}{{ article.sentiment.sentiment }}{% endif %}', '{% if article.article_type %}{{ article.article_type }}{% endif %}')">
+                            onclick="openModal('{{ article.id }}', '{{ article.title|escapejs }}', 'topic', '{% if article.sentiment %}{{ article.sentiment.sentiment }}{% endif %}', '{% if article.content_classification %}{{ article.content_classification.content_type }}{% endif %}')">
                             Corregir tema
                         </button>
                         <button class="actions ghost" style="padding: 4px 8px; font-size: 12px; cursor: pointer;"
-                            onclick="openModal('{{ article.id }}', '{{ article.title|escapejs }}', 'sentiment', '{% if article.sentiment %}{{ article.sentiment.sentiment }}{% endif %}', '{% if article.article_type %}{{ article.article_type }}{% endif %}')">
+                            onclick="openModal('{{ article.id }}', '{{ article.title|escapejs }}', 'sentiment', '{% if article.sentiment %}{{ article.sentiment.sentiment }}{% endif %}', '{% if article.content_classification %}{{ article.content_classification.content_type }}{% endif %}')">
                             Corregir sentimiento
                         </button>
                         <button class="actions ghost" style="padding: 4px 8px; font-size: 12px; cursor: pointer;"
-                            onclick="openModal('{{ article.id }}', '{{ article.title|escapejs }}', 'article_type', '{% if article.sentiment %}{{ article.sentiment.sentiment }}{% endif %}', '{% if article.article_type %}{{ article.article_type }}{% endif %}')">
+                            onclick="openModal('{{ article.id }}', '{{ article.title|escapejs }}', 'article_type', '{% if article.sentiment %}{{ article.sentiment.sentiment }}{% endif %}', '{% if article.content_classification %}{{ article.content_classification.content_type }}{% endif %}')">
                             Corregir tipo
                         </button>
+                        {% if article.training_reviewed %}
+                        <button class="actions ghost" style="padding: 4px 8px; font-size: 12px; cursor: pointer;"
+                            onclick="restoreArticle('{{ article.id }}', '{{ article.title|escapejs }}')">
+                            Reincorporar
+                        </button>
+                        {% else %}
+                        <button class="actions ghost" style="padding: 4px 8px; font-size: 12px; cursor: pointer;"
+                            onclick="discardArticle('{{ article.id }}', '{{ article.title|escapejs }}')">
+                            Descartar nota
+                        </button>
+                        {% endif %}
                     </div>
                 </td>
             </tr>
             {% empty %}
             <tr>
-                <td colspan="7" class="table-empty">Sin artículos recientes.</td>
+                <td colspan="10" class="table-empty">Sin artículos recientes.</td>
             </tr>
             {% endfor %}
         </tbody>
@@ -91,6 +127,8 @@
 <!-- Store topics data as hidden inputs -->
 {% for article in recent_articles %}
 <input type="hidden" id="topics-{{ article.id }}" value="{{ article.topics|escapejs }}">
+<input type="hidden" id="personas-{{ article.id }}" value="{{ article.persona_ids_json|escapejs }}">
+<input type="hidden" id="instituciones-{{ article.id }}" value="{{ article.institucion_ids_json|escapejs }}">
 {% endfor %}
 
 <!-- Article Correction Modal (Topics, Sentiment, Classification) -->
@@ -211,6 +249,32 @@
             option.selected = false;
         }
 
+        const personasInput = document.getElementById('personas-' + articleId);
+        if (personasInput) {
+            try {
+                const personasValue = personasInput.value;
+                const personaIds = personasValue ? JSON.parse(personasValue) : [];
+                for (let option of articlePersonasSelect.options) {
+                    option.selected = personaIds.includes(parseInt(option.value, 10));
+                }
+            } catch (e) {
+                console.error("Error parsing personas:", e);
+            }
+        }
+
+        const institucionesInput = document.getElementById('instituciones-' + articleId);
+        if (institucionesInput) {
+            try {
+                const institucionesValue = institucionesInput.value;
+                const institucionIds = institucionesValue ? JSON.parse(institucionesValue) : [];
+                for (let option of articleInstitucionesSelect.options) {
+                    option.selected = institucionIds.includes(parseInt(option.value, 10));
+                }
+            } catch (e) {
+                console.error("Error parsing instituciones:", e);
+            }
+        }
+
         toggleCorrectionSections(correctionType);
         articleModal.showModal();
     }
@@ -287,6 +351,26 @@
                 if (data.status !== "success") console.error("Error:", data.error);
             })
             .catch(err => console.error("Error:", err));
+    }
+
+    function discardArticle(articleId, title) {
+        if (!confirm(`¿Descartar la nota "${title}" del listado de entrenamiento?`)) {
+            return;
+        }
+        submitCorrection(articleId, "training_discard", true, title);
+        setTimeout(() => {
+            window.location.reload();
+        }, 300);
+    }
+
+    function restoreArticle(articleId, title) {
+        if (!confirm(`¿Reincorporar la nota "${title}" al listado de entrenamiento?`)) {
+            return;
+        }
+        submitCorrection(articleId, "training_restore", true, title);
+        setTimeout(() => {
+            window.location.reload();
+        }, 300);
     }
 </script>
 {% endblock %}

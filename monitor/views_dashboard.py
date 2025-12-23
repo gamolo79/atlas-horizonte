@@ -20,6 +20,7 @@ from .models import (
     ArticleInstitucionMention,
     ArticlePersonaMention,
     ArticleSentiment,
+    ContentClassification,
     Digest,
     DigestClient,
     DigestClientConfig,
@@ -649,10 +650,28 @@ def training_corrections(request):
     Training section for editorial corrections (topic, sentiment, article_type).
     Editors can correct classification errors to improve the model.
     """
+    import json
+
+    show_reviewed = request.GET.get("show_reviewed") == "1"
+    recent_articles = Article.objects.select_related(
+        "media_outlet", "sentiment", "content_classification"
+    ).prefetch_related("person_mentions__persona", "institution_mentions__institucion")
+    if not show_reviewed:
+        recent_articles = recent_articles.filter(training_reviewed=False)
+    recent_articles = recent_articles.order_by("-published_at")[:20]
+    for article in recent_articles:
+        article.persona_ids_json = json.dumps(
+            list(article.person_mentions.values_list("persona_id", flat=True))
+        )
+        article.institucion_ids_json = json.dumps(
+            list(article.institution_mentions.values_list("institucion_id", flat=True))
+        )
+
     context = {
-        "recent_articles": Article.objects.select_related('media_outlet', 'sentiment').order_by("-published_at")[:20],
+        "recent_articles": recent_articles,
         "all_personas": Persona.objects.all().order_by('nombre_completo'),
         "all_instituciones": Institucion.objects.all().order_by('nombre'),
+        "show_reviewed": show_reviewed,
     }
     return render(request, "monitor/dashboard/training_corrections.html", context)
 
@@ -746,12 +765,23 @@ def submit_gold_correction(request):
                 reference_text = f"{obj.title}\n{obj.lead}"
 
         elif correction_type == "article_type" and isinstance(obj, Article):
-            # Store article_type as JSONField or CharField
-            # Since it doesn't exist in model, store in MonitorGoldLabel only for now
-            # Or we could add it dynamically (not recommended)
-            # For now, just save as gold label
+            # Store article type in ContentClassification
+            item, _ = ContentClassification.objects.get_or_create(article=obj)
+            item.content_type = new_value
+            item.confidence = "alta"
+            item.save()
             if not reference_text:
                 reference_text = f"{obj.title}\n{obj.lead}"
+
+        elif correction_type == "training_discard" and isinstance(obj, Article):
+            obj.training_reviewed = True
+            obj.save(update_fields=["training_reviewed"])
+            return JsonResponse({"status": "success"})
+
+        elif correction_type == "training_restore" and isinstance(obj, Article):
+            obj.training_reviewed = False
+            obj.save(update_fields=["training_reviewed"])
+            return JsonResponse({"status": "success"})
 
         elif correction_type == "article_personas" and isinstance(obj, Article):
             # new_value is a list of persona IDs
