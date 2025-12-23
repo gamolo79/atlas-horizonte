@@ -7,56 +7,27 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{% static 'css/atlas-design-system.css' %}">
-  <script src="{% static 'js/offcanvas-menu.js' %}" defer></script>
 </head>
 <body>
   <div class="page">
     <header>
       <div class="header-inner">
-        <div class="brand">
-          <img src="{% static 'img/logo-horizonte-atlas.png' %}" alt="Atlas" class="brand-logo">
-          <div class="brand-texts">
-            <div class="brand-text-main">Atlas · Personas</div>
-            <div class="brand-text-sub">Explora grafos</div>
+        <div class="header-row">
+          <div class="brand">
+            <img src="{% static 'img/logo-horizonte-atlas.png' %}" alt="Atlas" class="brand-logo">
+            <div class="brand-texts">
+              <div class="brand-text-main">Atlas · Personas</div>
+              <div class="brand-text-sub">Explora grafos</div>
+            </div>
           </div>
         </div>
-        <nav class="app-nav" aria-label="Navegación principal">
-          <a class="app-nav-link" href="{% url 'atlas-home' %}">Inicio</a>
-          <a class="app-nav-link" href="{% url 'atlas-personas-list' %}">Personas</a>
-          <a class="app-nav-link" href="{% url 'atlas-instituciones-list' %}">Instituciones</a>
-        </nav>
-        <div class="header-actions">
-          <a class="app-nav-link app-switch" href="{% url 'index-apps' %}">Ecosistema</a>
-          <div class="mobile-nav">
-            <button class="menu-button" type="button" aria-label="Abrir menú" aria-expanded="false" aria-controls="atlas-offcanvas">
-              <span></span>
-            </button>
-            <div class="offcanvas" id="atlas-offcanvas">
-              <div class="offcanvas-header">
-                <div class="offcanvas-title">
-                  <div class="offcanvas-product">Atlas</div>
-                  <div class="offcanvas-subtitle">Personas · Instituciones · Relaciones</div>
-                </div>
-                <button class="offcanvas-close" type="button" aria-label="Cerrar menú">×</button>
-              </div>
-              <nav class="offcanvas-section">
-                <div class="offcanvas-section-title">Explorar Atlas</div>
-                <a class="offcanvas-link" href="{% url 'atlas-home' %}">Inicio</a>
-                <a class="offcanvas-link" href="{% url 'atlas-personas-list' %}">Personas</a>
-                <a class="offcanvas-link" href="{% url 'atlas-instituciones-list' %}">Instituciones</a>
-              </nav>
-              <div class="offcanvas-divider"></div>
-              <nav class="offcanvas-section">
-                <div class="offcanvas-section-title">Ecosistema</div>
-                <a class="offcanvas-link" href="{% url 'index-apps' %}">Volver al ecosistema</a>
-              </nav>
-              <div class="offcanvas-footer">
-                <a href="{% url 'privacy-notice' %}">Aviso de privacidad</a>
-                <a href="{% url 'terms-conditions' %}">Términos y condiciones</a>
-              </div>
-            </div>
-            <button class="offcanvas-backdrop" type="button" aria-hidden="true"></button>
-          </div>
+        <div class="header-row header-row-nav">
+          <nav class="nav-chip-row" aria-label="Secciones de Atlas">
+            <a class="nav-chip" href="{% url 'index-apps' %}">Ecosistema</a>
+            <a class="nav-chip" href="{% url 'atlas-home' %}">Home Atlas</a>
+            <a class="nav-chip" href="{% url 'atlas-personas-list' %}">Personas</a>
+            <a class="nav-chip" href="{% url 'atlas-instituciones-list' %}">Instituciones</a>
+          </nav>
         </div>
       </div>
     </header>
