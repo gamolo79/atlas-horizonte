@@ -152,18 +152,18 @@
       left: 0;
     }
 
-    .mobile-offcanvas {
+    .offcanvas {
       position: fixed;
       top: 0;
       right: 0;
-      width: min(320px, 84vw);
+      width: min(320px, 88vw);
       height: 100vh;
-      background: var(--surface-strong);
-      border-left: 1px solid var(--border);
+      background: #0b0f14;
+      border-left: 1px solid rgba(148, 163, 184, 0.2);
       padding: 20px;
       display: flex;
       flex-direction: column;
-      gap: 16px;
+      gap: 18px;
       transform: translateX(100%);
       transition: transform 0.2s ease;
       z-index: 9999;
@@ -171,10 +171,9 @@
 
     .offcanvas-header {
       display: flex;
-      align-items: center;
+      align-items: flex-start;
       justify-content: space-between;
-      font-size: 14px;
-      font-weight: 600;
+      gap: 16px;
     }
 
     .offcanvas-close {
@@ -187,35 +186,82 @@
       padding: 0;
     }
 
-    .offcanvas-links {
+    .offcanvas-title {
       display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
+      flex-direction: column;
+      gap: 4px;
     }
 
-    .chip-link {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 6px 12px;
-      border-radius: 999px;
-      border: 1px solid rgba(148, 163, 184, 0.35);
-      background: rgba(15, 23, 42, 0.6);
+    .offcanvas-product {
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    .offcanvas-subtitle {
       font-size: 12px;
+      color: var(--muted);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .offcanvas-section {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .offcanvas-section-title {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+
+    .offcanvas-link {
+      padding: 8px 10px;
+      border-radius: 10px;
+      border: 1px solid transparent;
+      font-size: 14px;
       color: var(--text);
       text-decoration: none;
       transition: border-color 0.2s ease, background 0.2s ease;
     }
 
-    .chip-link:hover {
+    .offcanvas-link:hover {
       border-color: rgba(34, 197, 94, 0.6);
-      background: rgba(15, 23, 42, 0.85);
+      background: rgba(255, 255, 255, 0.04);
+    }
+
+    .offcanvas-divider {
+      height: 1px;
+      background: rgba(148, 163, 184, 0.2);
+      margin: 4px 0;
+    }
+
+    .offcanvas-footer {
+      margin-top: auto;
+      padding-top: 12px;
+      border-top: 1px solid rgba(148, 163, 184, 0.2);
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .offcanvas-footer a {
+      font-size: 12px;
+      color: var(--muted);
+      text-decoration: none;
+    }
+
+    .offcanvas-footer a:hover {
+      color: var(--text);
     }
 
     .offcanvas-backdrop {
       position: fixed;
       inset: 0;
-      background: rgba(3, 7, 18, 0.6);
+      background: #0b0f14;
       opacity: 0;
       pointer-events: none;
       transition: opacity 0.2s ease;
@@ -224,7 +270,7 @@
       padding: 0;
     }
 
-    .mobile-offcanvas.is-open {
+    .offcanvas.is-open {
       transform: translateX(0);
     }
 
@@ -708,24 +754,34 @@
       <span></span>
     </button>
   </header>
-  <div class="mobile-offcanvas" id="monitor-offcanvas">
+  <div class="offcanvas" id="monitor-offcanvas">
     <div class="offcanvas-header">
-      <span>Menú Monitor</span>
+      <div class="offcanvas-title">
+        <div class="offcanvas-product">Monitor</div>
+        <div class="offcanvas-subtitle">Cobertura · Benchmark · Alertas</div>
+      </div>
       <button class="offcanvas-close" type="button" aria-label="Cerrar menú">×</button>
     </div>
-    <div class="offcanvas-links">
-      <a class="chip-link" href="{% url 'index-apps' %}">Home del Ecosistema</a>
-      <a class="chip-link" href="{% url 'monitor-home' %}">Home de Monitor</a>
-      <a class="chip-link" href="{% url 'monitor_dashboard_personas' %}">Personas</a>
-      <a class="chip-link" href="{% url 'monitor_dashboard_instituciones' %}">Instituciones</a>
-      <a class="chip-link" href="{% url 'monitor_dashboard_benchmark' %}">Benchmark personas</a>
-      <a class="chip-link" href="{% url 'monitor_dashboard_instituciones_benchmark' %}">Benchmark instituciones</a>
-      <a class="chip-link" href="{% url 'monitor_dashboard_ingest' %}">Ingest/Digest</a>
-      <a class="chip-link" href="{% url 'monitor_dashboard_client_list' %}">Clientes</a>
+    <nav class="offcanvas-section">
+      <div class="offcanvas-section-title">Navegación principal</div>
+      <a class="offcanvas-link" href="{% url 'monitor_dashboard_home' %}">Home</a>
+      <a class="offcanvas-link" href="{% url 'monitor_dashboard_personas' %}">Personas</a>
+      <a class="offcanvas-link" href="{% url 'monitor_dashboard_instituciones' %}">Instituciones</a>
+      <a class="offcanvas-link" href="{% url 'monitor_dashboard_benchmark' %}">Benchmark</a>
+      <a class="offcanvas-link" href="{% url 'monitor_dashboard_ingest' %}">Ingest/Digest</a>
+    </nav>
+    <div class="offcanvas-divider"></div>
+    <nav class="offcanvas-section">
+      <div class="offcanvas-section-title">Accesos operativos</div>
+      <a class="offcanvas-link" href="{% url 'monitor_dashboard_client_list' %}">Clientes</a>
       {% if request.user.is_staff %}
-      <a class="chip-link" href="{% url 'monitor_dashboard_training' %}">Entrenamiento</a>
-      <a class="chip-link" href="{% url 'monitor_dashboard_ops' %}">Ops</a>
+      <a class="offcanvas-link" href="{% url 'monitor_dashboard_training' %}">Entrenamiento</a>
+      <a class="offcanvas-link" href="{% url 'monitor_dashboard_ops' %}">Ops</a>
       {% endif %}
+    </nav>
+    <div class="offcanvas-footer">
+      <a href="{% url 'privacy-notice' %}">Aviso de privacidad</a>
+      <a href="{% url 'terms-conditions' %}">Términos y condiciones</a>
     </div>
   </div>
   <button class="offcanvas-backdrop" type="button" aria-hidden="true"></button>
@@ -766,8 +822,8 @@
   <script>
     document.addEventListener("DOMContentLoaded", () => {
       const toggle = document.querySelector(".mobile-header .menu-button");
-      const offcanvas = document.querySelector(".mobile-offcanvas");
-      const close = document.querySelector(".mobile-offcanvas .offcanvas-close");
+      const offcanvas = document.querySelector(".offcanvas");
+      const close = document.querySelector(".offcanvas .offcanvas-close");
       const backdrop = document.querySelector(".offcanvas-backdrop");
 
       if (!toggle || !offcanvas || !backdrop) {
