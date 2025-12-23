@@ -27,19 +27,29 @@
             </button>
             <div class="offcanvas" id="monitor-offcanvas">
               <div class="offcanvas-header">
-                <span>Menú Monitor</span>
+                <div class="offcanvas-title">
+                  <div class="offcanvas-product">Monitor</div>
+                  <div class="offcanvas-subtitle">Cobertura · Benchmark · Alertas</div>
+                </div>
                 <button class="offcanvas-close" type="button" aria-label="Cerrar menú">×</button>
               </div>
-              <div class="offcanvas-links">
-                <a class="chip-link" href="{% url 'index-apps' %}">Home del Ecosistema</a>
-                <a class="chip-link" href="{% url 'monitor-home' %}">Home de Monitor</a>
-                <a class="chip-link" href="/monitor/dashboard/">Home</a>
-                <a class="chip-link" href="/monitor/dashboard/personas/">Personas</a>
-                <a class="chip-link" href="/monitor/dashboard/instituciones/">Instituciones</a>
-                <a class="chip-link" href="/monitor/dashboard/benchmark/">Benchmark</a>
-                <a class="chip-link" href="/monitor/dashboard/ingest/">Ingest/Digest</a>
-                <a class="chip-link" href="/monitor/dashboard/clients/">Clientes</a>
-                <a class="chip-link" href="/monitor/dashboard/ops/">Ops</a>
+              <nav class="offcanvas-section">
+                <div class="offcanvas-section-title">Navegación principal</div>
+                <a class="offcanvas-link" href="/monitor/dashboard/">Home</a>
+                <a class="offcanvas-link" href="/monitor/dashboard/personas/">Personas</a>
+                <a class="offcanvas-link" href="/monitor/dashboard/instituciones/">Instituciones</a>
+                <a class="offcanvas-link" href="/monitor/dashboard/benchmark/">Benchmark</a>
+                <a class="offcanvas-link" href="/monitor/dashboard/ingest/">Ingest/Digest</a>
+              </nav>
+              <div class="offcanvas-divider"></div>
+              <nav class="offcanvas-section">
+                <div class="offcanvas-section-title">Accesos operativos</div>
+                <a class="offcanvas-link" href="/monitor/dashboard/clients/">Clientes</a>
+                <a class="offcanvas-link" href="/monitor/dashboard/ops/">Ops</a>
+              </nav>
+              <div class="offcanvas-footer">
+                <a href="{% url 'privacy-notice' %}">Aviso de privacidad</a>
+                <a href="{% url 'terms-conditions' %}">Términos y condiciones</a>
               </div>
             </div>
             <button class="offcanvas-backdrop" type="button" aria-hidden="true"></button>
