@@ -22,11 +22,9 @@
           </a>
         </div>
         <div class="header-row header-row-nav">
-          <nav class="nav-chip-row" aria-label="Secciones de Atlas">
-            <a class="nav-chip" href="{% url 'index-apps' %}">Ecosistema</a>
-            <a class="nav-chip" href="{% url 'atlas-home' %}">Home Atlas</a>
-            <a class="nav-chip" href="{% url 'atlas-personas-list' %}">Personas</a>
-            <a class="nav-chip is-active" href="{% url 'atlas-instituciones-list' %}">Instituciones</a>
+          <nav class="chips-row" aria-label="Navegación de Atlas">
+            <a class="chip-link" href="{% url 'atlas-home' %}">Home</a>
+            <a class="chip-link" href="javascript:history.back()">Regresar</a>
           </nav>
         </div>
       </div>
