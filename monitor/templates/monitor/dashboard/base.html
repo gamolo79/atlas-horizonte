@@ -7,6 +7,7 @@
   <title>{% block title %}Monitor Dashboard{% endblock %}</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="{% static 'js/offcanvas-menu.js' %}" defer></script>
   <style>
     :root {
       color-scheme: dark;
@@ -32,84 +33,107 @@
       color: var(--text);
     }
 
-    .layout {
-      display: grid;
-      grid-template-columns: 240px 1fr;
+    .page {
       min-height: 100vh;
+      display: flex;
+      flex-direction: column;
     }
 
-    .sidebar {
-      background: var(--surface-strong);
-      color: var(--text);
-      padding: 24px 18px;
-      border-right: 1px solid var(--border);
+    header {
+      border-bottom: 1px solid var(--border);
+      background: radial-gradient(circle at top left, rgba(22, 163, 74, 0.18), transparent 55%);
+      position: sticky;
+      top: 0;
+      z-index: 30;
+      backdrop-filter: blur(14px);
     }
 
-    .sidebar .brand {
+    .header-inner {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 14px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .brand {
       display: flex;
       align-items: center;
       gap: 10px;
-      margin-bottom: 24px;
     }
 
-    .sidebar .brand-logo {
-      height: 28px;
+    .brand-logo {
+      height: 30px;
       width: auto;
     }
 
-    .sidebar .brand-texts {
+    .brand-texts {
       display: flex;
       flex-direction: column;
       gap: 2px;
     }
 
-    .sidebar .brand-text-main {
+    .brand-text-main {
       font-size: 16px;
       font-weight: 600;
     }
 
-    .sidebar .brand-text-sub {
+    .brand-text-sub {
       font-size: 11px;
       color: var(--muted);
       letter-spacing: 0.12em;
       text-transform: uppercase;
     }
 
-    .nav a {
-      display: block;
-      padding: 10px 12px;
-      color: var(--muted);
-      text-decoration: none;
-      border-radius: 8px;
-      margin-bottom: 6px;
-    }
-
-    .nav a:hover {
-      color: var(--text);
-      background: rgba(22, 163, 74, 0.18);
-    }
-
-    .mobile-header {
+    .app-nav {
       display: none;
       align-items: center;
-      justify-content: space-between;
-      padding: 12px 16px;
-      border-bottom: 1px solid var(--border);
-      background: var(--surface-strong);
-      position: sticky;
-      top: 0;
-      z-index: 10;
+      gap: 8px;
+      flex: 1;
+      justify-content: center;
     }
 
-    .mobile-header .brand {
+    .app-nav-link {
+      font-size: 13px;
+      color: var(--muted);
+      padding: 6px 12px;
+      border-radius: 999px;
+      border: 1px solid transparent;
+      background: rgba(15, 23, 42, 0.4);
+      text-decoration: none;
+      transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease;
+    }
+
+    .app-nav-link:hover {
+      color: var(--text);
+      border-color: rgba(148, 163, 184, 0.4);
+      background: rgba(15, 23, 42, 0.8);
+    }
+
+    .app-nav-link.is-active {
+      color: var(--text);
+      border-color: var(--primary);
+      background: rgba(15, 23, 42, 0.9);
+      box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.4);
+    }
+
+    .header-actions {
       display: flex;
       align-items: center;
       gap: 10px;
     }
 
-    .mobile-header .brand-logo {
-      height: 28px;
-      width: auto;
+    .app-switch {
+      font-size: 12px;
+      border-color: rgba(148, 163, 184, 0.35);
+      background: transparent;
+    }
+
+    .mobile-nav {
+      display: block;
+      position: relative;
     }
 
     .menu-button {
@@ -123,6 +147,7 @@
       justify-content: center;
       cursor: pointer;
       transition: border-color 0.2s ease, background 0.2s ease;
+      position: relative;
     }
 
     .menu-button span,
@@ -280,9 +305,9 @@
     }
 
     .content {
+      flex: 1;
       padding: 32px;
       background: radial-gradient(circle at top left, rgba(22, 163, 74, 0.16), rgba(5, 7, 11, 0.9) 40%, var(--bg) 100%);
-      min-height: 100vh;
     }
 
     .page-header {
@@ -725,89 +750,101 @@
     }
 
     @media (max-width: 960px) {
-      .layout {
-        grid-template-columns: 1fr;
-      }
-
-      .sidebar {
-        display: none;
-      }
-
       .content {
         padding: 24px 16px 32px;
       }
+    }
 
-      .mobile-header {
+    @media (max-width: 820px) {
+      .brand-texts {
+        display: none;
+      }
+    }
+
+    @media (min-width: 900px) {
+      .app-nav {
         display: flex;
+      }
+
+      .mobile-nav {
+        display: none;
       }
     }
   </style>
 </head>
 
 <body>
-  <header class="mobile-header">
-    <div class="brand">
-      <img src="{% static 'img/logo-horizonte-monitor.png' %}" alt="Monitor" class="brand-logo">
-    </div>
-    <button class="menu-button" type="button" aria-label="Abrir menú" aria-expanded="false"
-      aria-controls="monitor-offcanvas">
-      <span></span>
-    </button>
-  </header>
-  <div class="offcanvas" id="monitor-offcanvas">
-    <div class="offcanvas-header">
-      <div class="offcanvas-title">
-        <div class="offcanvas-product">Monitor</div>
-        <div class="offcanvas-subtitle">Cobertura · Benchmark · Alertas</div>
-      </div>
-      <button class="offcanvas-close" type="button" aria-label="Cerrar menú">×</button>
-    </div>
-    <nav class="offcanvas-section">
-      <div class="offcanvas-section-title">Navegación principal</div>
-      <a class="offcanvas-link" href="{% url 'monitor_dashboard_home' %}">Home</a>
-      <a class="offcanvas-link" href="{% url 'monitor_dashboard_personas' %}">Personas</a>
-      <a class="offcanvas-link" href="{% url 'monitor_dashboard_instituciones' %}">Instituciones</a>
-      <a class="offcanvas-link" href="{% url 'monitor_dashboard_benchmark' %}">Benchmark</a>
-      <a class="offcanvas-link" href="{% url 'monitor_dashboard_ingest' %}">Ingest/Digest</a>
-    </nav>
-    <div class="offcanvas-divider"></div>
-    <nav class="offcanvas-section">
-      <div class="offcanvas-section-title">Accesos operativos</div>
-      <a class="offcanvas-link" href="{% url 'monitor_dashboard_client_list' %}">Clientes</a>
-      {% if request.user.is_staff %}
-      <a class="offcanvas-link" href="{% url 'monitor_dashboard_training' %}">Entrenamiento</a>
-      <a class="offcanvas-link" href="{% url 'monitor_dashboard_ops' %}">Ops</a>
-      {% endif %}
-    </nav>
-    <div class="offcanvas-footer">
-      <a href="{% url 'privacy-notice' %}">Aviso de privacidad</a>
-      <a href="{% url 'terms-conditions' %}">Términos y condiciones</a>
-    </div>
-  </div>
-  <button class="offcanvas-backdrop" type="button" aria-hidden="true"></button>
-  <div class="layout">
-    <aside class="sidebar">
-      <div class="brand">
-        <img src="{% static 'img/logo-horizonte-monitor.png' %}" alt="Monitor" class="brand-logo">
-        <div class="brand-texts">
-          <div class="brand-text-main">Monitor</div>
-          <div class="brand-text-sub">Cobertura · Benchmark</div>
+  <div class="page">
+    <header>
+      <div class="header-inner">
+        <div class="brand">
+          <img src="{% static 'img/logo-horizonte-monitor.png' %}" alt="Monitor" class="brand-logo">
+          <div class="brand-texts">
+            <div class="brand-text-main">Monitor</div>
+            <div class="brand-text-sub">Cobertura · Benchmark · Alertas</div>
+          </div>
+        </div>
+        <nav class="app-nav" aria-label="Navegación principal">
+          <a class="app-nav-link" href="{% url 'monitor_dashboard_home' %}">Inicio</a>
+          <a class="app-nav-link" href="{% url 'monitor_dashboard_personas' %}">Personas</a>
+          <a class="app-nav-link" href="{% url 'monitor_dashboard_instituciones' %}">Instituciones</a>
+          <a class="app-nav-link" href="{% url 'monitor_dashboard_benchmark' %}">Benchmark</a>
+          <a class="app-nav-link" href="{% url 'monitor_dashboard_instituciones_benchmark' %}">Benchmark instituciones</a>
+          <a class="app-nav-link" href="{% url 'monitor_dashboard_ingest' %}">Ingest/Digest</a>
+          <a class="app-nav-link" href="{% url 'monitor_dashboard_client_list' %}">Clientes</a>
+          {% if request.user.is_staff %}
+          <a class="app-nav-link" href="{% url 'monitor_dashboard_training' %}">Entrenamiento</a>
+          <a class="app-nav-link" href="{% url 'monitor_dashboard_ops' %}">Ops</a>
+          {% endif %}
+        </nav>
+        <div class="header-actions">
+          <a class="app-nav-link app-switch" href="{% url 'index-apps' %}">Ecosistema</a>
+          <div class="mobile-nav">
+            <button class="menu-button" type="button" aria-label="Abrir menú" aria-expanded="false"
+              aria-controls="monitor-offcanvas">
+              <span></span>
+            </button>
+            <div class="offcanvas" id="monitor-offcanvas">
+              <div class="offcanvas-header">
+                <div class="offcanvas-title">
+                  <div class="offcanvas-product">Monitor</div>
+                  <div class="offcanvas-subtitle">Cobertura · Benchmark · Alertas</div>
+                </div>
+                <button class="offcanvas-close" type="button" aria-label="Cerrar menú">×</button>
+              </div>
+              <nav class="offcanvas-section">
+                <div class="offcanvas-section-title">Explorar Monitor</div>
+                <a class="offcanvas-link" href="{% url 'monitor_dashboard_home' %}">Inicio</a>
+                <a class="offcanvas-link" href="{% url 'monitor_dashboard_personas' %}">Personas</a>
+                <a class="offcanvas-link" href="{% url 'monitor_dashboard_instituciones' %}">Instituciones</a>
+                <a class="offcanvas-link" href="{% url 'monitor_dashboard_benchmark' %}">Benchmark</a>
+                <a class="offcanvas-link" href="{% url 'monitor_dashboard_instituciones_benchmark' %}">Benchmark instituciones</a>
+                <a class="offcanvas-link" href="{% url 'monitor_dashboard_ingest' %}">Ingest/Digest</a>
+              </nav>
+              <div class="offcanvas-divider"></div>
+              <nav class="offcanvas-section">
+                <div class="offcanvas-section-title">Operación</div>
+                <a class="offcanvas-link" href="{% url 'monitor_dashboard_client_list' %}">Clientes</a>
+                {% if request.user.is_staff %}
+                <a class="offcanvas-link" href="{% url 'monitor_dashboard_training' %}">Entrenamiento</a>
+                <a class="offcanvas-link" href="{% url 'monitor_dashboard_ops' %}">Ops</a>
+                {% endif %}
+              </nav>
+              <div class="offcanvas-divider"></div>
+              <nav class="offcanvas-section">
+                <div class="offcanvas-section-title">Ecosistema</div>
+                <a class="offcanvas-link" href="{% url 'index-apps' %}">Volver al ecosistema</a>
+              </nav>
+              <div class="offcanvas-footer">
+                <a href="{% url 'privacy-notice' %}">Aviso de privacidad</a>
+                <a href="{% url 'terms-conditions' %}">Términos y condiciones</a>
+              </div>
+            </div>
+            <button class="offcanvas-backdrop" type="button" aria-hidden="true"></button>
+          </div>
         </div>
       </div>
-      <nav class="nav">
-        <a href="{% url 'monitor_dashboard_home' %}">Home</a>
-        <a href="{% url 'monitor_dashboard_personas' %}">Personas</a>
-        <a href="{% url 'monitor_dashboard_instituciones' %}">Instituciones</a>
-        <a href="{% url 'monitor_dashboard_benchmark' %}">Benchmark</a>
-        <a href="{% url 'monitor_dashboard_instituciones_benchmark' %}">Benchmark instituciones</a>
-        <a href="{% url 'monitor_dashboard_ingest' %}">Ingest/Digest</a>
-        <a href="{% url 'monitor_dashboard_client_list' %}">Clientes</a>
-        {% if request.user.is_staff %}
-        <a href="{% url 'monitor_dashboard_training' %}">Entrenamiento</a>
-        <a href="{% url 'monitor_dashboard_ops' %}">Ops</a>
-        {% endif %}
-      </nav>
-    </aside>
+    </header>
     <main class="content">
       {% if messages %}
       <div class="messages">
@@ -819,46 +856,6 @@
       {% block content %}{% endblock %}
     </main>
   </div>
-  <script>
-    document.addEventListener("DOMContentLoaded", () => {
-      const toggle = document.querySelector(".mobile-header .menu-button");
-      const offcanvas = document.querySelector(".offcanvas");
-      const close = document.querySelector(".offcanvas .offcanvas-close");
-      const backdrop = document.querySelector(".offcanvas-backdrop");
-      const links = document.querySelectorAll(".offcanvas-link");
-
-      if (!toggle || !offcanvas || !backdrop) {
-        return;
-      }
-
-      const openMenu = () => {
-        offcanvas.classList.add("is-open");
-        backdrop.classList.add("is-visible");
-        toggle.setAttribute("aria-expanded", "true");
-        document.body.style.overflow = "hidden";
-      };
-
-      const closeMenu = () => {
-        offcanvas.classList.remove("is-open");
-        backdrop.classList.remove("is-visible");
-        toggle.setAttribute("aria-expanded", "false");
-        document.body.style.overflow = "";
-      };
-
-      toggle.addEventListener("click", openMenu);
-      close?.addEventListener("click", closeMenu);
-      backdrop.addEventListener("click", closeMenu);
-      links.forEach((link) => {
-        link.addEventListener("click", closeMenu);
-      });
-
-      document.addEventListener("keydown", (event) => {
-        if (event.key === "Escape" && offcanvas.classList.contains("is-open")) {
-          closeMenu();
-        }
-      });
-    });
-  </script>
   {% block extra_scripts %}{% endblock %}
 </body>
 
