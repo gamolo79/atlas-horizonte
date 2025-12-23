@@ -825,6 +825,7 @@
       const offcanvas = document.querySelector(".offcanvas");
       const close = document.querySelector(".offcanvas .offcanvas-close");
       const backdrop = document.querySelector(".offcanvas-backdrop");
+      const links = document.querySelectorAll(".offcanvas-link");
 
       if (!toggle || !offcanvas || !backdrop) {
         return;
@@ -847,6 +848,9 @@
       toggle.addEventListener("click", openMenu);
       close?.addEventListener("click", closeMenu);
       backdrop.addEventListener("click", closeMenu);
+      links.forEach((link) => {
+        link.addEventListener("click", closeMenu);
+      });
 
       document.addEventListener("keydown", (event) => {
         if (event.key === "Escape" && offcanvas.classList.contains("is-open")) {

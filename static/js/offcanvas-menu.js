@@ -4,6 +4,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const offcanvas = nav.querySelector(".offcanvas");
     const close = nav.querySelector(".offcanvas-close");
     const backdrop = nav.querySelector(".offcanvas-backdrop");
+    const links = nav.querySelectorAll(".offcanvas-link");
 
     if (!toggle || !offcanvas || !backdrop) {
       return;
@@ -30,6 +31,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
     close?.addEventListener("click", closeMenu);
     backdrop.addEventListener("click", closeMenu);
+    links.forEach((link) => {
+      link.addEventListener("click", closeMenu);
+    });
 
     document.addEventListener("keydown", (event) => {
       if (event.key === "Escape" && offcanvas.classList.contains("is-open")) {
