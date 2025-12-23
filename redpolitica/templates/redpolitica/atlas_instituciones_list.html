@@ -20,7 +20,10 @@
           </div>
         </div>
         <div class="nav-right">
-          <a class="nav-link" href="/apps/atlas/">← Volver a Atlas</a>
+          <a class="chip-link" href="{% url 'index-apps' %}">Home del Ecosistema</a>
+          <a class="chip-link" href="{% url 'atlas-home' %}">Home de Atlas</a>
+          <a class="chip-link" href="{% url 'atlas-personas-list' %}">Lista de personas</a>
+          <a class="chip-link" href="{% url 'atlas-instituciones-list' %}">Lista de instituciones</a>
         </div>
         <div class="mobile-nav">
           <input type="checkbox" id="atlas-menu-toggle" class="menu-toggle">
