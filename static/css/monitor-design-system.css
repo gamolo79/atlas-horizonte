@@ -136,16 +136,18 @@ header {
 }
 
 .mobile-nav {
-  display: none;
+  display: block;
   position: relative;
 }
 
 .menu-toggle {
   position: absolute;
   opacity: 0;
+  width: 1px;
+  height: 1px;
   pointer-events: none;
-  width: 0;
-  height: 0;
+  clip-path: inset(50%);
+  overflow: hidden;
   appearance: none;
   -webkit-appearance: none;
 }
@@ -268,14 +270,6 @@ header {
   .brand-texts,
   .brand-labels {
     display: none;
-  }
-
-  .nav-right {
-    display: none;
-  }
-
-  .mobile-nav {
-    display: block;
   }
 }
 
