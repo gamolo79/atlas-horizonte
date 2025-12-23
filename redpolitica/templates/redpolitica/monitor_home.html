@@ -19,7 +19,32 @@
             <div class="brand-text-sub">Cobertura · Benchmark · Alertas</div>
           </div>
         </div>
-        <a class="btn" href="/">← Ecosistema</a>
+        <div class="nav-right">
+          <div class="mobile-nav">
+            <input type="checkbox" id="monitor-menu-toggle" class="menu-toggle">
+            <label for="monitor-menu-toggle" class="menu-button" aria-label="Abrir menú">
+              <span></span>
+            </label>
+            <div class="offcanvas">
+              <div class="offcanvas-header">
+                <span>Menú Monitor</span>
+                <label for="monitor-menu-toggle" class="offcanvas-close" aria-label="Cerrar menú">×</label>
+              </div>
+              <div class="offcanvas-links">
+                <a class="chip-link" href="{% url 'index-apps' %}">Home del Ecosistema</a>
+                <a class="chip-link" href="{% url 'monitor-home' %}">Home de Monitor</a>
+                <a class="chip-link" href="/monitor/dashboard/">Home</a>
+                <a class="chip-link" href="/monitor/dashboard/personas/">Personas</a>
+                <a class="chip-link" href="/monitor/dashboard/instituciones/">Instituciones</a>
+                <a class="chip-link" href="/monitor/dashboard/benchmark/">Benchmark</a>
+                <a class="chip-link" href="/monitor/dashboard/ingest/">Ingest/Digest</a>
+                <a class="chip-link" href="/monitor/dashboard/clients/">Clientes</a>
+                <a class="chip-link" href="/monitor/dashboard/ops/">Ops</a>
+              </div>
+            </div>
+            <label for="monitor-menu-toggle" class="offcanvas-backdrop" aria-hidden="true"></label>
+          </div>
+        </div>
       </div>
     </header>
 

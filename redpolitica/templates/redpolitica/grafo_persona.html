@@ -26,29 +26,28 @@
       </div>
 
       <div class="nav-right">
-        <a href="/apps/atlas/" class="nav-link">← Volver a <strong>Atlas</strong></a>
         <span class="tag-app">
           <span class="tag-dot"></span> Vista de grafo
         </span>
-      </div>
-      <div class="mobile-nav">
-        <input type="checkbox" id="atlas-menu-toggle" class="menu-toggle">
-        <label for="atlas-menu-toggle" class="menu-button" aria-label="Abrir menú">
-          <span></span>
-        </label>
-        <div class="offcanvas">
-          <div class="offcanvas-header">
-            <span>Menú Atlas</span>
-            <label for="atlas-menu-toggle" class="offcanvas-close" aria-label="Cerrar menú">×</label>
+        <div class="mobile-nav">
+          <input type="checkbox" id="atlas-menu-toggle" class="menu-toggle">
+          <label for="atlas-menu-toggle" class="menu-button" aria-label="Abrir menú">
+            <span></span>
+          </label>
+          <div class="offcanvas">
+            <div class="offcanvas-header">
+              <span>Menú Atlas</span>
+              <label for="atlas-menu-toggle" class="offcanvas-close" aria-label="Cerrar menú">×</label>
+            </div>
+            <div class="offcanvas-links">
+              <a class="chip-link" href="{% url 'index-apps' %}">Home del Ecosistema</a>
+              <a class="chip-link" href="{% url 'atlas-home' %}">Home de Atlas</a>
+              <a class="chip-link" href="{% url 'atlas-personas-list' %}">Lista de personas</a>
+              <a class="chip-link" href="{% url 'atlas-instituciones-list' %}">Lista de instituciones</a>
+            </div>
           </div>
-          <div class="offcanvas-links">
-            <a class="chip-link" href="https://horizonte.digital/">Home del Ecosistema</a>
-            <a class="chip-link" href="https://horizonte.digital/apps/atlas/">Home de Atlas</a>
-            <a class="chip-link" href="https://horizonte.digital/apps/atlas/personas/">Lista de personas</a>
-            <a class="chip-link" href="https://horizonte.digital/apps/atlas/instituciones/">Lista de instituciones</a>
-          </div>
+          <label for="atlas-menu-toggle" class="offcanvas-backdrop" aria-hidden="true"></label>
         </div>
-        <label for="atlas-menu-toggle" class="offcanvas-backdrop" aria-hidden="true"></label>
       </div>
     </div>
   </header>
