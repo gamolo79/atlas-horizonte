@@ -90,8 +90,13 @@ header {
 .header-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 12px;
+  width: 100%;
+}
+
+.header-row-nav {
+  width: 100%;
 }
 
 .brand {
@@ -133,6 +138,7 @@ header {
   padding-bottom: 6px;
   scrollbar-width: thin;
   -webkit-overflow-scrolling: touch;
+  width: 100%;
 }
 
 .nav-chip-row::-webkit-scrollbar {
@@ -148,12 +154,15 @@ header {
   flex: 0 0 auto;
   font-size: 11px;
   color: var(--text-main);
-  padding: 4px 10px;
+  padding: 4px 8px;
   border-radius: var(--radius-pill);
   border: 1px solid #1f2937;
   background: #111827;
   transition: border-color var(--transition-fast), background var(--transition-fast), color var(--transition-fast), transform var(--transition-fast);
   white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .nav-chip:hover {
