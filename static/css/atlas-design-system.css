@@ -71,12 +71,16 @@ main {
 header {
   border-bottom: 1px solid #111827;
   background: radial-gradient(circle at top left, rgba(193, 68, 210, 0.18), transparent 55%);
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  backdrop-filter: blur(14px);
 }
 
 .header-inner {
   max-width: var(--max-width);
   margin: 0 auto;
-  padding: 14px 16px;
+  padding: 14px 20px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -90,7 +94,7 @@ header {
 }
 
 .brand-logo {
-  height: 32px;
+  height: 30px;
   width: auto;
 }
 
@@ -102,7 +106,7 @@ header {
 }
 
 .brand-text-main {
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 600;
   letter-spacing: 0.02em;
 }
@@ -112,6 +116,49 @@ header {
   text-transform: uppercase;
   letter-spacing: 0.18em;
   color: var(--text-muted);
+}
+
+.app-nav {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  justify-content: center;
+}
+
+.app-nav-link {
+  font-size: 13px;
+  color: var(--text-muted);
+  padding: 6px 12px;
+  border-radius: var(--radius-pill);
+  border: 1px solid transparent;
+  background: rgba(15, 23, 42, 0.4);
+  transition: border-color var(--transition-fast), background var(--transition-fast), color var(--transition-fast);
+}
+
+.app-nav-link:hover {
+  color: var(--text-main);
+  border-color: rgba(148, 163, 184, 0.4);
+  background: rgba(15, 23, 42, 0.8);
+}
+
+.app-nav-link.is-active {
+  color: var(--text-main);
+  border-color: var(--accent);
+  background: rgba(15, 23, 42, 0.9);
+  box-shadow: 0 0 0 1px rgba(193, 68, 210, 0.4);
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.app-switch {
+  font-size: 12px;
+  border-color: rgba(148, 163, 184, 0.35);
+  background: transparent;
 }
 
 .nav-link {
@@ -332,6 +379,16 @@ header {
 @media (max-width: 820px) {
   .brand-texts,
   .brand-labels {
+    display: none;
+  }
+}
+
+@media (min-width: 880px) {
+  .app-nav {
+    display: flex;
+  }
+
+  .mobile-nav {
     display: none;
   }
 }
