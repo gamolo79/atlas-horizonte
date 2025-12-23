@@ -125,30 +125,31 @@
       transition: border-color 0.2s ease, background 0.2s ease;
     }
 
-    .menu-button span {
-      display: block;
-      width: 18px;
-      height: 2px;
-      background: var(--text);
-      position: relative;
-    }
-
+    .menu-button span,
     .menu-button span::before,
     .menu-button span::after {
       content: "";
       position: absolute;
-      left: 0;
+      left: 10px;
       width: 18px;
       height: 2px;
-      background: var(--text);
+      background: #ffffff !important;
+      box-shadow: 0 0 2px rgba(0, 0, 0, 0.5);
+    }
+
+    .menu-button span {
+      position: relative;
+      left: 0;
     }
 
     .menu-button span::before {
       top: -6px;
+      left: 0;
     }
 
     .menu-button span::after {
       bottom: -6px;
+      left: 0;
     }
 
     .mobile-offcanvas {
@@ -165,7 +166,7 @@
       gap: 16px;
       transform: translateX(100%);
       transition: transform 0.2s ease;
-      z-index: 40;
+      z-index: 9999;
     }
 
     .offcanvas-header {
@@ -218,7 +219,7 @@
       opacity: 0;
       pointer-events: none;
       transition: opacity 0.2s ease;
-      z-index: 30;
+      z-index: 9998;
       border: none;
       padding: 0;
     }
@@ -702,7 +703,8 @@
     <div class="brand">
       <img src="{% static 'img/logo-horizonte-monitor.png' %}" alt="Monitor" class="brand-logo">
     </div>
-    <button class="menu-button" type="button" aria-label="Abrir menú" aria-expanded="false" aria-controls="monitor-offcanvas">
+    <button class="menu-button" type="button" aria-label="Abrir menú" aria-expanded="false"
+      aria-controls="monitor-offcanvas">
       <span></span>
     </button>
   </header>
@@ -712,17 +714,17 @@
       <button class="offcanvas-close" type="button" aria-label="Cerrar menú">×</button>
     </div>
     <div class="offcanvas-links">
-      <a class="chip-link" href="https://horizonte.digital/">Home del Ecosistema</a>
-      <a class="chip-link" href="https://horizonte.digital/apps/monitor/">Home de Monitor</a>
-      <a class="chip-link" href="/monitor/dashboard/personas/">Personas</a>
-      <a class="chip-link" href="/monitor/dashboard/instituciones/">Instituciones</a>
-      <a class="chip-link" href="/monitor/dashboard/benchmark/">Benchmark personas</a>
-      <a class="chip-link" href="/monitor/dashboard/instituciones/benchmark/">Benchmark instituciones</a>
-      <a class="chip-link" href="/monitor/dashboard/ingest/">Ingest/Digest</a>
-      <a class="chip-link" href="/monitor/dashboard/clients/">Clientes</a>
+      <a class="chip-link" href="{% url 'index-apps' %}">Home del Ecosistema</a>
+      <a class="chip-link" href="{% url 'monitor-home' %}">Home de Monitor</a>
+      <a class="chip-link" href="{% url 'monitor_dashboard_personas' %}">Personas</a>
+      <a class="chip-link" href="{% url 'monitor_dashboard_instituciones' %}">Instituciones</a>
+      <a class="chip-link" href="{% url 'monitor_dashboard_benchmark' %}">Benchmark personas</a>
+      <a class="chip-link" href="{% url 'monitor_dashboard_instituciones_benchmark' %}">Benchmark instituciones</a>
+      <a class="chip-link" href="{% url 'monitor_dashboard_ingest' %}">Ingest/Digest</a>
+      <a class="chip-link" href="{% url 'monitor_dashboard_client_list' %}">Clientes</a>
       {% if request.user.is_staff %}
-      <a class="chip-link" href="/monitor/dashboard/training/">Entrenamiento</a>
-      <a class="chip-link" href="/monitor/dashboard/ops/">Ops</a>
+      <a class="chip-link" href="{% url 'monitor_dashboard_training' %}">Entrenamiento</a>
+      <a class="chip-link" href="{% url 'monitor_dashboard_ops' %}">Ops</a>
       {% endif %}
     </div>
   </div>
@@ -737,16 +739,16 @@
         </div>
       </div>
       <nav class="nav">
-        <a href="/monitor/dashboard/">Home</a>
-        <a href="/monitor/dashboard/personas/">Personas</a>
-        <a href="/monitor/dashboard/instituciones/">Instituciones</a>
-        <a href="/monitor/dashboard/benchmark/">Benchmark</a>
-        <a href="/monitor/dashboard/instituciones/benchmark/">Benchmark instituciones</a>
-        <a href="/monitor/dashboard/ingest/">Ingest/Digest</a>
-        <a href="/monitor/dashboard/clients/">Clientes</a>
+        <a href="{% url 'monitor_dashboard_home' %}">Home</a>
+        <a href="{% url 'monitor_dashboard_personas' %}">Personas</a>
+        <a href="{% url 'monitor_dashboard_instituciones' %}">Instituciones</a>
+        <a href="{% url 'monitor_dashboard_benchmark' %}">Benchmark</a>
+        <a href="{% url 'monitor_dashboard_instituciones_benchmark' %}">Benchmark instituciones</a>
+        <a href="{% url 'monitor_dashboard_ingest' %}">Ingest/Digest</a>
+        <a href="{% url 'monitor_dashboard_client_list' %}">Clientes</a>
         {% if request.user.is_staff %}
-        <a href="/monitor/dashboard/training/">Entrenamiento</a>
-        <a href="/monitor/dashboard/ops/">Ops</a>
+        <a href="{% url 'monitor_dashboard_training' %}">Entrenamiento</a>
+        <a href="{% url 'monitor_dashboard_ops' %}">Ops</a>
         {% endif %}
       </nav>
     </aside>
@@ -776,12 +778,14 @@
         offcanvas.classList.add("is-open");
         backdrop.classList.add("is-visible");
         toggle.setAttribute("aria-expanded", "true");
+        document.body.style.overflow = "hidden";
       };
 
       const closeMenu = () => {
         offcanvas.classList.remove("is-open");
         backdrop.classList.remove("is-visible");
         toggle.setAttribute("aria-expanded", "false");
+        document.body.style.overflow = "";
       };
 
       toggle.addEventListener("click", openMenu);
@@ -789,7 +793,7 @@
       backdrop.addEventListener("click", closeMenu);
 
       document.addEventListener("keydown", (event) => {
-        if (event.key === "Escape") {
+        if (event.key === "Escape" && offcanvas.classList.contains("is-open")) {
           closeMenu();
         }
       });

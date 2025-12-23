@@ -176,8 +176,16 @@ header {
 }
 
 .menu-button:hover {
-  border-color: rgba(193, 68, 210, 0.6);
-  background: rgba(15, 23, 42, 0.9);
+  border-color: var(--accent);
+  background: rgba(15, 23, 42, 0.95);
+}
+
+/* Visibility fix for hamburger icon lines */
+.menu-button span,
+.menu-button span::before,
+.menu-button span::after {
+  background: #ffffff !important;
+  box-shadow: 0 0 2px rgba(0,0,0,0.5);
 }
 
 .offcanvas {
@@ -195,7 +203,7 @@ header {
   gap: 16px;
   transform: translateX(100%);
   transition: transform var(--transition-fast);
-  z-index: 40;
+  z-index: 9999; /* Max priority */
 }
 
 .offcanvas-header {
@@ -236,8 +244,9 @@ header {
 }
 
 .chip-link:hover {
-  border-color: rgba(193, 68, 210, 0.6);
-  background: rgba(15, 23, 42, 0.9);
+  border-color: var(--accent);
+  background: rgba(15, 23, 42, 0.95);
+  transform: translateY(-1px);
 }
 
 .offcanvas-backdrop {
@@ -247,7 +256,7 @@ header {
   opacity: 0;
   pointer-events: none;
   transition: opacity var(--transition-fast);
-  z-index: 30;
+  z-index: 9998; /* Just below offcanvas */
   border: none;
   padding: 0;
 }

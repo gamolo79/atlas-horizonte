@@ -13,20 +13,26 @@ document.addEventListener("DOMContentLoaded", () => {
       offcanvas.classList.add("is-open");
       backdrop.classList.add("is-visible");
       toggle.setAttribute("aria-expanded", "true");
+      document.body.style.overflow = "hidden"; // Prevent scroll
     };
 
     const closeMenu = () => {
       offcanvas.classList.remove("is-open");
       backdrop.classList.remove("is-visible");
       toggle.setAttribute("aria-expanded", "false");
+      document.body.style.overflow = ""; // Restore scroll
     };
 
-    toggle.addEventListener("click", openMenu);
+    toggle.addEventListener("click", (e) => {
+      e.stopPropagation();
+      openMenu();
+    });
+
     close?.addEventListener("click", closeMenu);
     backdrop.addEventListener("click", closeMenu);
 
     document.addEventListener("keydown", (event) => {
-      if (event.key === "Escape") {
+      if (event.key === "Escape" && offcanvas.classList.contains("is-open")) {
         closeMenu();
       }
     });
