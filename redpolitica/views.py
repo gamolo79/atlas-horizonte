@@ -1,6 +1,6 @@
 from collections import deque
 
-from django.shortcuts import get_object_or_404, render
+from django.shortcuts import get_object_or_404, redirect, render
 from django.views.generic import ListView
 from rest_framework import generics
 from rest_framework.response import Response
@@ -27,7 +27,7 @@ def atlas_home(request):
 
 
 def monitor_placeholder(request):
-    return render(request, "redpolitica/monitor_home.html")
+    return redirect("/monitor/dashboard/")
 
 
 def social_placeholder(request):
