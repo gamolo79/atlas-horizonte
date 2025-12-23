@@ -218,6 +218,27 @@ header {
   .brand-text-main {
     font-size: 15px;
   }
+
+  .header-row-nav .chips-row {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 6px;
+    scrollbar-width: thin;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .header-row-nav .chips-row::-webkit-scrollbar {
+    height: 6px;
+  }
+
+  .header-row-nav .chips-row::-webkit-scrollbar-thumb {
+    background: rgba(148, 163, 184, 0.4);
+    border-radius: 999px;
+  }
+
+  .header-row-nav .chip-link {
+    flex: 0 0 auto;
+  }
 }
 
 @media (max-width: 720px) {
