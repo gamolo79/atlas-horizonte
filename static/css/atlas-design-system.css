@@ -136,18 +136,6 @@ header {
   position: relative;
 }
 
-.menu-toggle {
-  position: absolute;
-  opacity: 0;
-  width: 1px;
-  height: 1px;
-  pointer-events: none;
-  clip-path: inset(50%);
-  overflow: hidden;
-  appearance: none;
-  -webkit-appearance: none;
-}
-
 .menu-button {
   width: 40px;
   height: 40px;
@@ -195,7 +183,7 @@ header {
 .offcanvas {
   position: fixed;
   top: 0;
-  right: -100%;
+  right: 0;
   width: min(300px, 80vw);
   height: 100vh;
   padding: 20px;
@@ -205,7 +193,8 @@ header {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  transition: right var(--transition-fast);
+  transform: translateX(100%);
+  transition: transform var(--transition-fast);
   z-index: 40;
 }
 
@@ -221,6 +210,10 @@ header {
   font-size: 24px;
   line-height: 1;
   cursor: pointer;
+  background: transparent;
+  border: none;
+  color: inherit;
+  padding: 0;
 }
 
 .offcanvas-links {
@@ -255,13 +248,15 @@ header {
   pointer-events: none;
   transition: opacity var(--transition-fast);
   z-index: 30;
+  border: none;
+  padding: 0;
 }
 
-.menu-toggle:checked ~ .offcanvas {
-  right: 0;
+.offcanvas.is-open {
+  transform: translateX(0);
 }
 
-.menu-toggle:checked ~ .offcanvas-backdrop {
+.offcanvas-backdrop.is-visible {
   opacity: 1;
   pointer-events: auto;
 }

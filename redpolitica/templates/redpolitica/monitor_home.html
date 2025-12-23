@@ -7,6 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{% static 'css/monitor-design-system.css' %}">
+  <script src="{% static 'js/offcanvas-menu.js' %}" defer></script>
 </head>
 <body>
   <div class="page">
@@ -21,14 +22,13 @@
         </div>
         <div class="nav-right">
           <div class="mobile-nav">
-            <input type="checkbox" id="monitor-menu-toggle" class="menu-toggle">
-            <label for="monitor-menu-toggle" class="menu-button" aria-label="Abrir menú">
+            <button class="menu-button" type="button" aria-label="Abrir menú" aria-expanded="false" aria-controls="monitor-offcanvas">
               <span></span>
-            </label>
-            <div class="offcanvas">
+            </button>
+            <div class="offcanvas" id="monitor-offcanvas">
               <div class="offcanvas-header">
                 <span>Menú Monitor</span>
-                <label for="monitor-menu-toggle" class="offcanvas-close" aria-label="Cerrar menú">×</label>
+                <button class="offcanvas-close" type="button" aria-label="Cerrar menú">×</button>
               </div>
               <div class="offcanvas-links">
                 <a class="chip-link" href="{% url 'index-apps' %}">Home del Ecosistema</a>
@@ -42,7 +42,7 @@
                 <a class="chip-link" href="/monitor/dashboard/ops/">Ops</a>
               </div>
             </div>
-            <label for="monitor-menu-toggle" class="offcanvas-backdrop" aria-hidden="true"></label>
+            <button class="offcanvas-backdrop" type="button" aria-hidden="true"></button>
           </div>
         </div>
       </div>

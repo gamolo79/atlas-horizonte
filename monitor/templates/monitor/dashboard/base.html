@@ -112,12 +112,6 @@
       width: auto;
     }
 
-    .mobile-menu-toggle {
-      position: absolute;
-      opacity: 0;
-      pointer-events: none;
-    }
-
     .menu-button {
       width: 40px;
       height: 40px;
@@ -186,6 +180,10 @@
       font-size: 24px;
       line-height: 1;
       cursor: pointer;
+      background: transparent;
+      border: none;
+      color: inherit;
+      padding: 0;
     }
 
     .offcanvas-links {
@@ -221,13 +219,15 @@
       pointer-events: none;
       transition: opacity 0.2s ease;
       z-index: 30;
+      border: none;
+      padding: 0;
     }
 
-    .mobile-menu-toggle:checked ~ .mobile-offcanvas {
+    .mobile-offcanvas.is-open {
       transform: translateX(0);
     }
 
-    .mobile-menu-toggle:checked ~ .offcanvas-backdrop {
+    .offcanvas-backdrop.is-visible {
       opacity: 1;
       pointer-events: auto;
     }
@@ -698,19 +698,18 @@
 </head>
 
 <body>
-  <input type="checkbox" id="monitor-menu-toggle" class="mobile-menu-toggle">
   <header class="mobile-header">
     <div class="brand">
       <img src="{% static 'img/logo-horizonte-monitor.png' %}" alt="Monitor" class="brand-logo">
     </div>
-    <label for="monitor-menu-toggle" class="menu-button" aria-label="Abrir menú">
+    <button class="menu-button" type="button" aria-label="Abrir menú" aria-expanded="false" aria-controls="monitor-offcanvas">
       <span></span>
-    </label>
+    </button>
   </header>
-  <div class="mobile-offcanvas">
+  <div class="mobile-offcanvas" id="monitor-offcanvas">
     <div class="offcanvas-header">
       <span>Menú Monitor</span>
-      <label for="monitor-menu-toggle" class="offcanvas-close" aria-label="Cerrar menú">×</label>
+      <button class="offcanvas-close" type="button" aria-label="Cerrar menú">×</button>
     </div>
     <div class="offcanvas-links">
       <a class="chip-link" href="https://horizonte.digital/">Home del Ecosistema</a>
@@ -727,7 +726,7 @@
       {% endif %}
     </div>
   </div>
-  <label for="monitor-menu-toggle" class="offcanvas-backdrop" aria-hidden="true"></label>
+  <button class="offcanvas-backdrop" type="button" aria-hidden="true"></button>
   <div class="layout">
     <aside class="sidebar">
       <div class="brand">
@@ -762,6 +761,40 @@
       {% block content %}{% endblock %}
     </main>
   </div>
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      const toggle = document.querySelector(".mobile-header .menu-button");
+      const offcanvas = document.querySelector(".mobile-offcanvas");
+      const close = document.querySelector(".mobile-offcanvas .offcanvas-close");
+      const backdrop = document.querySelector(".offcanvas-backdrop");
+
+      if (!toggle || !offcanvas || !backdrop) {
+        return;
+      }
+
+      const openMenu = () => {
+        offcanvas.classList.add("is-open");
+        backdrop.classList.add("is-visible");
+        toggle.setAttribute("aria-expanded", "true");
+      };
+
+      const closeMenu = () => {
+        offcanvas.classList.remove("is-open");
+        backdrop.classList.remove("is-visible");
+        toggle.setAttribute("aria-expanded", "false");
+      };
+
+      toggle.addEventListener("click", openMenu);
+      close?.addEventListener("click", closeMenu);
+      backdrop.addEventListener("click", closeMenu);
+
+      document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") {
+          closeMenu();
+        }
+      });
+    });
+  </script>
   {% block extra_scripts %}{% endblock %}
 </body>
 

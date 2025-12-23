@@ -9,6 +9,7 @@
   <!-- Lexend -->
   <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{% static 'css/atlas-design-system.css' %}">
+  <script src="{% static 'js/offcanvas-menu.js' %}" defer></script>
 
   <!-- Cytoscape -->
   <script src="https://unpkg.com/cytoscape@3.28.0/dist/cytoscape.min.js"></script>
@@ -30,14 +31,13 @@
           <span class="tag-dot"></span> Vista de grafo
         </span>
         <div class="mobile-nav">
-          <input type="checkbox" id="atlas-menu-toggle" class="menu-toggle">
-          <label for="atlas-menu-toggle" class="menu-button" aria-label="Abrir menú">
+          <button class="menu-button" type="button" aria-label="Abrir menú" aria-expanded="false" aria-controls="atlas-offcanvas">
             <span></span>
-          </label>
-          <div class="offcanvas">
+          </button>
+          <div class="offcanvas" id="atlas-offcanvas">
             <div class="offcanvas-header">
               <span>Menú Atlas</span>
-              <label for="atlas-menu-toggle" class="offcanvas-close" aria-label="Cerrar menú">×</label>
+              <button class="offcanvas-close" type="button" aria-label="Cerrar menú">×</button>
             </div>
             <div class="offcanvas-links">
               <a class="chip-link" href="{% url 'index-apps' %}">Home del Ecosistema</a>
@@ -46,7 +46,7 @@
               <a class="chip-link" href="{% url 'atlas-instituciones-list' %}">Lista de instituciones</a>
             </div>
           </div>
-          <label for="atlas-menu-toggle" class="offcanvas-backdrop" aria-hidden="true"></label>
+          <button class="offcanvas-backdrop" type="button" aria-hidden="true"></button>
         </div>
       </div>
     </div>
