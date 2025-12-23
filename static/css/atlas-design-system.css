@@ -80,7 +80,7 @@ header {
 .header-inner {
   max-width: var(--max-width);
   margin: 0 auto;
-  padding: 14px 16px;
+  padding: 14px 20px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -94,7 +94,7 @@ header {
 }
 
 .brand-logo {
-  height: 32px;
+  height: 30px;
   width: auto;
 }
 
@@ -106,7 +106,7 @@ header {
 }
 
 .brand-text-main {
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 600;
   letter-spacing: 0.02em;
 }
