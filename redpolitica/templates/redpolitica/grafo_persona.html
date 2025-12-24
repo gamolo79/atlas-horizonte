@@ -133,6 +133,10 @@
               <span>Instituciones</span>
             </div>
             <div class="legend-item">
+              <span class="legend-color topic"></span>
+              <span>Temas</span>
+            </div>
+            <div class="legend-item">
               <span class="legend-color line"></span>
               <span>Relaciones / cargos</span>
             </div>
@@ -149,6 +153,12 @@
         <div class="panel-section" id="related-institutions-section" style="display:none;">
           <div class="panel-section-title">Instituciones vinculadas</div>
           <div id="related-institutions"></div>
+        </div>
+
+        <!-- Temas relacionados -->
+        <div class="panel-section" id="related-topics-section" style="display:none;">
+          <div class="panel-section-title">Temas relacionados</div>
+          <div id="related-topics"></div>
         </div>
       </aside>
     </div>
@@ -179,6 +189,8 @@
 
   const relatedInstitutionsSection = document.getElementById("related-institutions-section");
   const relatedInstitutionsContainer = document.getElementById("related-institutions");
+  const relatedTopicsSection = document.getElementById("related-topics-section");
+  const relatedTopicsContainer = document.getElementById("related-topics");
 
   function mostrarErrorCarga(mensaje) {
     console.error(mensaje);
@@ -186,9 +198,10 @@
     panelContent.innerHTML = `<p>${mensaje}</p>`;
   }
 
-  function renderRelatedChips(personasRelacionadas, institucionesRelacionadas) {
+  function renderRelatedChips(personasRelacionadas, institucionesRelacionadas, temasRelacionados) {
     relatedPeopleContainer.innerHTML = "";
     relatedInstitutionsContainer.innerHTML = "";
+    relatedTopicsContainer.innerHTML = "";
 
     if (personasRelacionadas.length) {
       relatedPeopleSection.style.display = "block";
@@ -221,10 +234,25 @@
     } else {
       relatedInstitutionsSection.style.display = "none";
     }
+
+    if (temasRelacionados.length) {
+      relatedTopicsSection.style.display = "block";
+      temasRelacionados.forEach(tema => {
+        const chip = document.createElement("a");
+        chip.className = "chip-link";
+        chip.href = `/apps/atlas/temas/${tema.slug}/`;
+        chip.textContent = tema.nombre;
+        relatedTopicsContainer.appendChild(chip);
+      });
+    } else {
+      relatedTopicsSection.style.display = "none";
+    }
   }
 
   let personasMap = {};
   let institucionesMap = {};
+  let temasMap = {};
+  let temaRelacionMap = {};
   let cy = null;
 
   function logDebug(msg, obj) {
@@ -336,6 +364,24 @@
     panelContent.innerHTML = html || "<p>Sin detalles adicionales.</p>";
   }
 
+  function setPanelForTema(tema, relacion) {
+    panelTitle.textContent = tema.nombre;
+    let html = `<p><strong>Tipo:</strong> ${tema.topic_kind_label || tema.topic_kind || "—"}</p>`;
+
+    if (relacion) {
+      if (relacion.tipo === "manual") {
+        html += `<p><strong>Vínculo manual:</strong> ${relacion.role || "—"}</p>`;
+      } else if (relacion.tipo === "heredado") {
+        html += `<p><strong>Vínculo por cargo:</strong> ${relacion.cargo_nombre || "—"}</p>`;
+        if (relacion.institucion_id && institucionesMap[relacion.institucion_id]) {
+          html += `<p><strong>Institución:</strong> ${institucionesMap[relacion.institucion_id].nombre}</p>`;
+        }
+      }
+    }
+
+    panelContent.innerHTML = html || "<p>Sin detalles adicionales.</p>";
+  }
+
   function getTopParent(inst) {
     if (!inst) return null;
     let current = inst;
@@ -365,7 +411,7 @@
     const showRelaciones = toggleRelacionesEl.checked;
 
     const tiposPorVista = {
-      instituciones: ["cargo"],
+      instituciones: ["cargo", "tema_manual", "tema_heredado"],
       familiar: ["familiar"],
       politica: ["grupo_politico", "socio", "amistad"],
       laboral: ["laboral"],
@@ -376,7 +422,9 @@
         "socio",
         "grupo_politico",
         "laboral",
-        "otro"
+        "otro",
+        "tema_manual",
+        "tema_heredado"
       ]
     };
 
@@ -464,6 +512,8 @@
       const elements = [];
       personasMap = {};
       institucionesMap = {};
+      temasMap = {};
+      temaRelacionMap = {};
 
       // 1) Mapa de instituciones (todas, para resolver padres)
       (data.instituciones || []).forEach(inst => {
@@ -570,6 +620,40 @@
         });
       });
 
+      // 7) Temas relacionados con la persona central
+      (data.temas || []).forEach(tema => {
+        temasMap[tema.id] = tema;
+        elements.push({
+          data: {
+            id: `t-${tema.id}`,
+            tema_id: tema.id,
+            label: tema.nombre,
+            tipo: "tema"
+          }
+        });
+      });
+
+      (data.tema_relaciones || []).forEach((rel, idx) => {
+        if (!temasMap[rel.tema_id]) return;
+        if (!temaRelacionMap[rel.tema_id]) {
+          temaRelacionMap[rel.tema_id] = rel;
+        }
+        elements.push({
+          data: {
+            id: `tema-rel-${rel.tema_id}-${idx}`,
+            source: `p-${central.id}`,
+            target: `t-${rel.tema_id}`,
+            tipo: rel.tipo === "manual" ? "tema_manual" : "tema_heredado",
+            relacion_tipo: rel.tipo,
+            role: rel.role,
+            institucion_id: rel.institucion_id,
+            cargo_nombre: rel.cargo_nombre,
+            fecha_inicio: rel.fecha_inicio || null,
+            fecha_fin: rel.fecha_fin || null
+          }
+        });
+      });
+
       logDebug("Elementos generados para Cytoscape:", elements);
 
       cy = cytoscape({
@@ -651,6 +735,24 @@
               "text-background-opacity": 0.9
             }
           },
+          /* Temas */
+          {
+            selector: "node[tipo = 'tema']",
+            style: {
+              "shape": "round-rectangle",
+              "background-color": "#1f2937",
+              "border-width": 1,
+              "border-color": "#f59e0b",
+              "width": 130,
+              "height": 40,
+              "font-size": 11,
+              "font-weight": "600",
+              "text-wrap": "wrap",
+              "text-max-width": 120,
+              "text-background-color": "#0c1220",
+              "text-background-opacity": 0.9
+            }
+          },
           /* Instituciones principales (padre) */
           {
             selector: "node[tipo = 'institucion'][principal]",
@@ -679,6 +781,22 @@
             selector: "edge[tipo = 'cargo']",
             style: {
               "width": 2.5
+            }
+          },
+          {
+            selector: "edge[tipo = 'tema_manual']",
+            style: {
+              "line-color": "#f59e0b",
+              "target-arrow-color": "#f59e0b",
+              "width": 2.4
+            }
+          },
+          {
+            selector: "edge[tipo = 'tema_heredado']",
+            style: {
+              "line-color": "#38bdf8",
+              "target-arrow-color": "#38bdf8",
+              "width": 2.4
             }
           },
           {
@@ -754,6 +872,10 @@
           const instId = node.data("institucion_id");
           const inst = institucionesMap[instId];
           if (inst) setPanelForInstitucion(inst);
+        } else if (tipo === "tema") {
+          const temaId = node.data("tema_id");
+          const tema = temasMap[temaId];
+          if (tema) setPanelForTema(tema, temaRelacionMap[temaId]);
         } else {
           const personaId = node.data("persona_id");
           const persona = personasMap[personaId];
@@ -778,6 +900,11 @@
             notas: edge.data("notas")
           };
           setPanelForRelacion(rel, personasMap, institucionesMap);
+        } else if (tipo === "tema_manual" || tipo === "tema_heredado") {
+          const temaId = parseInt(String(edge.data("target")).replace("t-", ""), 10);
+          const tema = temasMap[temaId];
+          const relacion = temaRelacionMap[temaId];
+          if (tema) setPanelForTema(tema, relacion);
         } else {
           const rel = {
             id: edge.data("relacion_id"),
@@ -799,7 +926,7 @@
         .map(id => institucionesMap[id])
         .filter(Boolean);
 
-      renderRelatedChips(relacionadas, institucionesRelacionadas);
+      renderRelatedChips(relacionadas, institucionesRelacionadas, data.temas || []);
 
       // Listeners de filtros
       toggleCargosEl.addEventListener("change", applyFilters);

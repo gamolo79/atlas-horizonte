@@ -469,9 +469,20 @@ header {
   border: 1px solid var(--card-border);
 }
 
+.form-grid {
+  display: grid;
+  gap: 12px;
+}
+
 .form-row {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+}
+
+.form-actions {
+  display: flex;
+  flex-wrap: wrap;
   gap: 10px;
 }
 
@@ -511,6 +522,25 @@ header {
 .page-subtitle {
   color: var(--text-muted);
   font-size: 14px;
+}
+
+/* Tables */
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.table th,
+.table td {
+  text-align: left;
+  padding: 10px;
+  border-bottom: 1px solid var(--card-border);
+}
+
+.table thead th {
+  color: var(--text-main);
+  font-weight: 600;
 }
 
 /* Pagination */
@@ -731,6 +761,10 @@ header {
 
 .legend-color.inst-padre {
   background: #4b5563;
+}
+
+.legend-color.topic {
+  background: #f59e0b;
 }
 
 .legend-color.inst-central {

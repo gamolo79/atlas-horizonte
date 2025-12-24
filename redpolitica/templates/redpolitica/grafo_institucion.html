@@ -119,6 +119,10 @@
               <span>Personas con cargos</span>
             </div>
             <div class="legend-item">
+              <span class="legend-color topic"></span>
+              <span>Temas</span>
+            </div>
+            <div class="legend-item">
               <span class="legend-color line"></span>
               <span>Cargos / relaciones</span>
             </div>
@@ -135,6 +139,12 @@
         <div class="panel-section" id="people-chips-section" style="display:none;">
           <div class="panel-section-title">Personas relacionadas</div>
           <div id="people-chips"></div>
+        </div>
+
+        <!-- Temas relacionados -->
+        <div class="panel-section" id="topics-chips-section" style="display:none;">
+          <div class="panel-section-title">Temas vinculados</div>
+          <div id="topics-chips"></div>
         </div>
       </aside>
     </div>
@@ -158,9 +168,12 @@
     const chipsContainer = document.getElementById("institutions-chips");
     const peopleChipsSection = document.getElementById("people-chips-section");
     const peopleChips = document.getElementById("people-chips");
+    const topicsChipsSection = document.getElementById("topics-chips-section");
+    const topicsChips = document.getElementById("topics-chips");
 
     let personasMap = {};
     let institucionesMap = {};
+    let temasMap = {};
 
     function logDebug(msg, obj) {
       if (!debugEl) return;
@@ -234,6 +247,18 @@
       panelContent.innerHTML = html;
     }
 
+    function setPanelForTema(tema, relacion) {
+      panelTitle.textContent = tema.nombre || "Tema";
+      let html = `<p><strong>Tipo:</strong> ${tema.topic_kind_label || tema.topic_kind || "—"}</p>`;
+      if (relacion && relacion.role) {
+        html += `<p><strong>Rol:</strong> ${relacion.role}</p>`;
+      }
+      if (relacion && relacion.note) {
+        html += `<p><strong>Nota:</strong> ${relacion.note}</p>`;
+      }
+      panelContent.innerHTML = html || "<p>Sin detalles adicionales.</p>";
+    }
+
     logDebug("Cargando grafo de institución desde " + API_URL);
 
     fetch(API_URL)
@@ -247,6 +272,7 @@
         const elements = [];
         personasMap = {};
         institucionesMap = {};
+        temasMap = {};
 
         // --- 1) Institución central ---
         const instCentral = data.institucion_central;
@@ -421,6 +447,35 @@
           });
         });
 
+        // --- 7) Temas vinculados a la institución central ---
+        (data.temas || []).forEach(tema => {
+          if (!tema || tema.id == null) return;
+          temasMap[tema.id] = tema;
+          elements.push({
+            data: {
+              id: `t-${tema.id}`,
+              tema_id: tema.id,
+              label: tema.nombre,
+              tipo: "tema",
+              level: nivelCentral + MAX_NIVEL_ORGANIGRAMA + 2
+            }
+          });
+        });
+
+        (data.tema_relaciones || []).forEach((rel, idx) => {
+          if (!temasMap[rel.tema_id]) return;
+          elements.push({
+            data: {
+              id: `tema-rel-${rel.tema_id}-${idx}`,
+              source: `i-${instCentral.id}`,
+              target: `t-${rel.tema_id}`,
+              tipo: "tema",
+              role: rel.role,
+              note: rel.note
+            }
+          });
+        });
+
         logDebug("Elementos generados para Cytoscape:", elements);
 
         const organigramaRootSelector = institucionRaiz ? `#i-${institucionRaiz.id}` : undefined;
@@ -548,6 +603,21 @@
               }
             },
             {
+              selector: "node[tipo = 'tema']",
+              style: {
+                "shape": "round-rectangle",
+                "background-color": "#1f2937",
+                "border-width": 1,
+                "border-color": "#f59e0b",
+                "width": 160,
+                "height": 44,
+                "font-size": 11,
+                "font-weight": "600",
+                "text-wrap": "wrap",
+                "text-max-width": 140
+              }
+            },
+            {
               selector: "edge",
               style: {
                 "width": 2,
@@ -563,6 +633,14 @@
             {
               selector: "edge[tipo = 'cargo']",
               style: {
+                "width": 2.4
+              }
+            },
+            {
+              selector: "edge[tipo = 'tema']",
+              style: {
+                "line-color": "#f59e0b",
+                "target-arrow-color": "#f59e0b",
                 "width": 2.4
               }
             },
@@ -638,6 +716,22 @@
           });
         }
 
+        const temasRelacionados = Object.values(temasMap);
+        if (temasRelacionados.length && topicsChipsSection && topicsChips) {
+          topicsChips.innerHTML = "";
+          topicsChipsSection.style.display = "block";
+
+          temasRelacionados.forEach(tema => {
+            const a = document.createElement("a");
+            a.className = "chip-link";
+            a.href = `/apps/atlas/temas/${tema.slug}/`;
+            a.textContent = tema.nombre;
+            topicsChips.appendChild(a);
+          });
+        } else if (topicsChipsSection) {
+          topicsChipsSection.style.display = "none";
+        }
+
         // --- Toggle de personas / cargos ---
         function applyPersonasVisibility(show) {
           const displayVal = show ? "element" : "none";
@@ -701,6 +795,11 @@
             const personaId = node.data("persona_id");
             const persona = personasMap[personaId];
             if (persona) setPanelForPersona(persona);
+          } else if (tipo === "tema") {
+            const temaId = node.data("tema_id");
+            const tema = temasMap[temaId];
+            const relacion = (data.tema_relaciones || []).find(rel => rel.tema_id === temaId);
+            if (tema) setPanelForTema(tema, relacion);
           }
         });
 
