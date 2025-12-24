@@ -39,6 +39,7 @@
             <div class="hero-actions">
               <a class="btn btn-primary" href="{% url 'atlas-personas-list' %}">Ver personas</a>
               <a class="btn" href="{% url 'atlas-instituciones-list' %}">Ver instituciones</a>
+              <a class="btn" href="{% url 'atlas-topics-list' %}">Ver temas</a>
             </div>
           </div>
           <div>
@@ -56,6 +57,10 @@
             <a class="card-link" href="{% url 'atlas-instituciones-list' %}">
               <div class="card-title">Lista de instituciones</div>
               <div class="card-desc">Filtra instituciones por tipo o ámbito y navega sus conexiones.</div>
+            </a>
+            <a class="card-link" href="{% url 'atlas-topics-list' %}">
+              <div class="card-title">Catálogo de temas</div>
+              <div class="card-desc">Explora temas, jerarquías y vínculos con personas e instituciones.</div>
             </a>
           </div>
         </section>

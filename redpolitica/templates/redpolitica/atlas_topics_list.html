@@ -1,0 +1,123 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Atlas · Temas</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/atlas-design-system.css' %}">
+</head>
+<body>
+  <div class="page">
+    <header>
+      <div class="header-inner">
+        <div class="header-row">
+          <a class="brand" href="{% url 'atlas-home' %}">
+            <img src="{% static 'img/logo-horizonte-atlas.png' %}" alt="Atlas" class="brand-logo">
+            <div class="brand-texts">
+              <div class="brand-text-main">Atlas · Temas</div>
+              <div class="brand-text-sub">Catálogo editorial y jerarquías</div>
+            </div>
+          </a>
+        </div>
+        <div class="header-row header-row-nav">
+          <nav class="chips-row" aria-label="Navegación de Atlas">
+            <a class="chip-link" href="{% url 'atlas-home' %}">Home</a>
+            <a class="chip-link" href="{% url 'atlas-personas-list' %}">Personas</a>
+            <a class="chip-link" href="{% url 'atlas-instituciones-list' %}">Instituciones</a>
+          </nav>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <div class="main-inner">
+        <div class="panel">
+          <div class="panel-title">Temas registrados</div>
+          <div class="panel-desc">Busca por nombre, filtra por tipo o estado y navega la jerarquía.</div>
+
+          <form class="search-bar" method="get">
+            <input type="text" name="q" value="{{ q }}" placeholder="Buscar por nombre" class="search-input">
+            <select name="kind" class="search-input" style="max-width: 220px;">
+              <option value="">Tipo de tema</option>
+              {% for value, label in kind_choices %}
+                <option value="{{ value }}" {% if value == kind %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+            <select name="status" class="search-input" style="max-width: 160px;">
+              <option value="">Estado</option>
+              {% for value, label in status_choices %}
+                <option value="{{ value }}" {% if value == status %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+            <select name="view" class="search-input" style="max-width: 180px;">
+              <option value="list" {% if view == "list" %}selected{% endif %}>Lista</option>
+              <option value="tree" {% if view == "tree" %}selected{% endif %}>Vista árbol</option>
+            </select>
+            <button type="submit" class="btn btn-primary">Aplicar</button>
+            <a class="btn" href="{% url 'atlas-topics-list' %}">Limpiar</a>
+            <a class="btn btn-primary" href="{% url 'atlas-topic-create' %}">Crear tema</a>
+          </form>
+        </div>
+
+        {% if view == "tree" and topics_tree %}
+          <div class="panel">
+            <div class="panel-title">Jerarquía de temas</div>
+            {% for parent in topics_tree %}
+              <div class="card" style="margin-bottom: 12px;">
+                <div class="card-title">
+                  <a href="{% url 'atlas-topic-detail' slug=parent.slug %}">{{ parent.name }}</a>
+                </div>
+                <div class="card-meta">{{ parent.get_topic_kind_display }} · {{ parent.get_status_display }}</div>
+                {% if parent.description %}
+                  <div class="card-desc">{{ parent.description|truncatewords:20 }}</div>
+                {% endif %}
+                {% if parent.children.all %}
+                  <div class="chips-row" style="margin-top: 8px;">
+                    {% for child in parent.children.all %}
+                      <a class="chip-link" href="{% url 'atlas-topic-detail' slug=child.slug %}">{{ child.name }}</a>
+                    {% empty %}
+                      <span class="card-meta">Sin temas hijos.</span>
+                    {% endfor %}
+                  </div>
+                {% endif %}
+              </div>
+            {% empty %}
+              <div class="card">
+                <div class="card-title">No hay temas con jerarquía</div>
+                <div class="card-desc">Crea un tema padre o ajusta los filtros.</div>
+              </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="cards-grid">
+            {% for topic in topics %}
+              <a class="card" href="{% url 'atlas-topic-detail' slug=topic.slug %}">
+                <div class="card-title">{{ topic.name }}</div>
+                <div class="card-meta">{{ topic.get_topic_kind_display }} · {{ topic.get_status_display }}</div>
+                {% if topic.parent %}
+                  <div class="card-meta">Padre: {{ topic.parent.name }}</div>
+                {% endif %}
+                {% if topic.description %}
+                  <div class="card-desc">{{ topic.description|truncatewords:24 }}</div>
+                {% endif %}
+                <div class="card-link-action">Ver detalle →</div>
+              </a>
+            {% empty %}
+              <div class="card">
+                <div class="card-title">No hay temas</div>
+                <div class="card-desc">Ajusta los filtros o crea un nuevo tema.</div>
+              </div>
+            {% endfor %}
+          </div>
+        {% endif %}
+      </div>
+    </main>
+
+    <footer>
+      Horizonte Digital · Atlas · <a href="{% url 'privacy-notice' %}">Aviso de privacidad</a> · <a href="{% url 'terms-conditions' %}">Términos y condiciones</a>
+    </footer>
+  </div>
+</body>
+</html>

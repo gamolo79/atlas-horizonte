@@ -1,4 +1,5 @@
 from django.db import models
+from django.utils.text import slugify
 
 from atlas_core.text_utils import normalize_name
 
@@ -207,3 +208,120 @@ class Relacion(models.Model):
 
     def __str__(self):
         return f"{self.origen} → {self.destino} ({self.tipo})"
+
+
+class Topic(models.Model):
+    TOPIC_KIND_CHOICES = [
+        ("public_function", "Función Pública"),
+        ("private_objective", "Objetivo Privado"),
+        ("cross_cutting", "Transversal"),
+    ]
+    STATUS_CHOICES = [
+        ("active", "Activo"),
+        ("archived", "Archivado"),
+    ]
+
+    name = models.CharField(max_length=150, unique=True)
+    slug = models.SlugField(max_length=150, unique=True, blank=True)
+    description = models.TextField(blank=True, null=True)
+    parent = models.ForeignKey(
+        "self",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="children",
+    )
+    topic_kind = models.CharField(
+        max_length=40,
+        choices=TOPIC_KIND_CHOICES,
+        default="cross_cutting",
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default="active",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["name"]
+        indexes = [
+            models.Index(fields=["slug"]),
+            models.Index(fields=["name"]),
+            models.Index(fields=["topic_kind", "status"]),
+        ]
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            base_slug = slugify(self.name)[:150]
+            slug = base_slug or "tema"
+            counter = 2
+            while Topic.objects.filter(slug=slug).exclude(pk=self.pk).exists():
+                suffix = f"-{counter}"
+                slug = f"{base_slug[:150 - len(suffix)]}{suffix}"
+                counter += 1
+            self.slug = slug
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return self.name
+
+
+class InstitutionTopic(models.Model):
+    institution = models.ForeignKey(
+        Institucion,
+        on_delete=models.CASCADE,
+        related_name="temas_relacionados",
+    )
+    topic = models.ForeignKey(
+        Topic,
+        on_delete=models.CASCADE,
+        related_name="institution_links",
+    )
+    role = models.CharField(max_length=100)
+    note = models.TextField(blank=True, null=True)
+    valid_from = models.DateField(blank=True, null=True)
+    valid_to = models.DateField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["institution", "topic", "role"],
+                name="uniq_institution_topic_role",
+            )
+        ]
+        ordering = ["topic", "institution", "role"]
+
+    def __str__(self):
+        return f"{self.institution} · {self.topic} ({self.role})"
+
+
+class PersonTopicManual(models.Model):
+    person = models.ForeignKey(
+        Persona,
+        on_delete=models.CASCADE,
+        related_name="temas_manual",
+    )
+    topic = models.ForeignKey(
+        Topic,
+        on_delete=models.CASCADE,
+        related_name="person_links",
+    )
+    role = models.CharField(max_length=100)
+    note = models.TextField(blank=True, null=True)
+    source_url = models.URLField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["person", "topic", "role"],
+                name="uniq_person_topic_role",
+            )
+        ]
+        ordering = ["topic", "person", "role"]
+
+    def __str__(self):
+        return f"{self.person} · {self.topic} ({self.role})"

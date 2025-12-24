@@ -1,12 +1,24 @@
 from collections import deque
 
+from django.contrib import messages
+from django.db import IntegrityError
+from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.generic import ListView
 from rest_framework import generics
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import Cargo, Institucion, Persona, Relacion
+from .forms import InstitutionTopicForm, PersonTopicManualForm, TopicForm
+from .models import (
+    Cargo,
+    Institucion,
+    Persona,
+    Relacion,
+    Topic,
+    InstitutionTopic,
+    PersonTopicManual,
+)
 from .serializers import InstitucionSerializer, PersonaSerializer, RelacionSerializer
 
 
@@ -193,12 +205,75 @@ class PersonaGrafoView(APIView):
         instituciones = Institucion.objects.filter(id__in=instituciones_ids)
         instituciones_data = InstitucionSerializer(instituciones, many=True).data
 
+        temas_map = {}
+        tema_relaciones = []
+        manual_links = PersonTopicManual.objects.filter(person=persona).select_related("topic")
+        for link in manual_links:
+            temas_map.setdefault(
+                link.topic_id,
+                {
+                    "id": link.topic_id,
+                    "nombre": link.topic.name,
+                    "slug": link.topic.slug,
+                    "topic_kind": link.topic.topic_kind,
+                    "topic_kind_label": link.topic.get_topic_kind_display(),
+                    "status": link.topic.status,
+                },
+            )
+            tema_relaciones.append(
+                {
+                    "tema_id": link.topic_id,
+                    "tipo": "manual",
+                    "role": link.role,
+                    "note": link.note,
+                }
+            )
+
+        cargos_persona = Cargo.objects.filter(persona=persona).select_related("institucion")
+        temas_cargo_vistos = set()
+        for cargo in cargos_persona:
+            if not cargo.institucion_id:
+                continue
+            inst_topics = InstitutionTopic.objects.filter(
+                institution=cargo.institucion
+            ).select_related("topic")
+            for inst_topic in inst_topics:
+                temas_map.setdefault(
+                    inst_topic.topic_id,
+                    {
+                        "id": inst_topic.topic_id,
+                        "nombre": inst_topic.topic.name,
+                        "slug": inst_topic.topic.slug,
+                        "topic_kind": inst_topic.topic.topic_kind,
+                        "topic_kind_label": inst_topic.topic.get_topic_kind_display(),
+                        "status": inst_topic.topic.status,
+                    },
+                )
+                rel_key = (inst_topic.topic_id, cargo.id)
+                if rel_key in temas_cargo_vistos:
+                    continue
+                temas_cargo_vistos.add(rel_key)
+                tema_relaciones.append(
+                    {
+                        "tema_id": inst_topic.topic_id,
+                        "tipo": "heredado",
+                        "role": inst_topic.role,
+                        "institucion_id": cargo.institucion_id,
+                        "cargo_id": cargo.id,
+                        "cargo_nombre": cargo.nombre_cargo,
+                        "fecha_inicio": cargo.fecha_inicio,
+                        "fecha_fin": cargo.fecha_fin,
+                    }
+                )
+
         return Response(
             {
                 "persona_central": persona_data,
                 "personas_conectadas": personas_conectadas_data,
                 "relaciones": relaciones_data,
                 "instituciones": instituciones_data,
+                "temas": list(temas_map.values()),
+                "tema_relaciones": tema_relaciones,
             }
         )
 
@@ -286,6 +361,34 @@ class InstitucionGrafoView(APIView):
             visitados.add(actual.id)
             actual = actual.padre
 
+        temas_map = {}
+        tema_relaciones = []
+        inst_links = InstitutionTopic.objects.filter(
+            institution=institucion
+        ).select_related("topic")
+        for link in inst_links:
+            temas_map.setdefault(
+                link.topic_id,
+                {
+                    "id": link.topic_id,
+                    "nombre": link.topic.name,
+                    "slug": link.topic.slug,
+                    "topic_kind": link.topic.topic_kind,
+                    "topic_kind_label": link.topic.get_topic_kind_display(),
+                    "status": link.topic.status,
+                },
+            )
+            tema_relaciones.append(
+                {
+                    "tema_id": link.topic_id,
+                    "tipo": "institucion",
+                    "role": link.role,
+                    "note": link.note,
+                    "valid_from": link.valid_from,
+                    "valid_to": link.valid_to,
+                }
+            )
+
         return Response(
             {
                 "institucion_central": institucion_central_data,
@@ -295,6 +398,8 @@ class InstitucionGrafoView(APIView):
                 "instituciones_ancestros": ancestros_data,  # cadena de padres
                 "personas": personas_data,              # personas con cargos en la central
                 "cargos": cargos_data,                  # cargos en la central
+                "temas": list(temas_map.values()),
+                "tema_relaciones": tema_relaciones,
             }
         )
 
@@ -309,4 +414,314 @@ def grafo_institucion_page(request, slug):
         request,
         "redpolitica/grafo_institucion.html",
         {"institucion": institucion},
+    )
+
+
+# ===========
+# TEMAS
+# ===========
+
+
+def atlas_topics_list(request):
+    topics = Topic.objects.select_related("parent").prefetch_related("children")
+    q = request.GET.get("q", "").strip()
+    if q:
+        topics = topics.filter(name__icontains=q)
+
+    kind = request.GET.get("kind", "").strip()
+    if kind:
+        topics = topics.filter(topic_kind=kind)
+
+    status = request.GET.get("status", "").strip()
+    if status:
+        topics = topics.filter(status=status)
+
+    view_mode = request.GET.get("view", "list")
+    topics_tree = None
+    if view_mode == "tree":
+        topics_tree = topics.filter(parent__isnull=True).prefetch_related("children")
+
+    context = {
+        "topics": topics,
+        "topics_tree": topics_tree,
+        "q": q,
+        "kind": kind,
+        "status": status,
+        "view": view_mode,
+        "kind_choices": Topic.TOPIC_KIND_CHOICES,
+        "status_choices": Topic.STATUS_CHOICES,
+    }
+    return render(request, "redpolitica/atlas_topics_list.html", context)
+
+
+def atlas_topic_create(request):
+    if request.method == "POST":
+        form = TopicForm(request.POST)
+        if form.is_valid():
+            topic = form.save()
+            messages.success(request, "Tema creado correctamente.")
+            return redirect("atlas-topic-detail", slug=topic.slug)
+    else:
+        form = TopicForm()
+    return render(
+        request,
+        "redpolitica/atlas_topic_form.html",
+        {"form": form, "is_edit": False},
+    )
+
+
+def atlas_topic_edit(request, slug):
+    topic = get_object_or_404(Topic, slug=slug)
+    if request.method == "POST":
+        form = TopicForm(request.POST, instance=topic)
+        if form.is_valid():
+            topic = form.save()
+            messages.success(request, "Tema actualizado correctamente.")
+            return redirect("atlas-topic-detail", slug=topic.slug)
+    else:
+        form = TopicForm(instance=topic)
+    return render(
+        request,
+        "redpolitica/atlas_topic_form.html",
+        {"form": form, "topic": topic, "is_edit": True},
+    )
+
+
+def atlas_topic_detail(request, slug):
+    topic = get_object_or_404(
+        Topic.objects.select_related("parent").prefetch_related("children"),
+        slug=slug,
+    )
+    institution_links = InstitutionTopic.objects.filter(topic=topic).select_related(
+        "institution"
+    )
+    person_links = PersonTopicManual.objects.filter(topic=topic).select_related("person")
+
+    instituciones = Institucion.objects.filter(temas_relacionados__topic=topic).distinct()
+    inherited_cargos = (
+        Cargo.objects.filter(institucion__in=instituciones)
+        .select_related("persona", "institucion", "periodo")
+        .order_by("persona__nombre_completo")
+    )
+
+    breadcrumb = []
+    current = topic.parent
+    while current:
+        breadcrumb.append(current)
+        current = current.parent
+    breadcrumb.reverse()
+
+    context = {
+        "topic": topic,
+        "breadcrumb": breadcrumb,
+        "children": topic.children.all(),
+        "institution_links": institution_links,
+        "person_links": person_links,
+        "inherited_cargos": inherited_cargos,
+        "institution_form": InstitutionTopicForm(),
+        "person_form": PersonTopicManualForm(),
+    }
+    return render(request, "redpolitica/atlas_topic_detail.html", context)
+
+
+def atlas_topic_link_institution(request, slug):
+    topic = get_object_or_404(Topic, slug=slug)
+    if request.method != "POST":
+        return redirect("atlas-topic-detail", slug=topic.slug)
+    form = InstitutionTopicForm(request.POST)
+    if form.is_valid():
+        link = form.save(commit=False)
+        link.topic = topic
+        try:
+            link.save()
+            messages.success(request, "Institución vinculada al tema.")
+        except IntegrityError:
+            messages.error(request, "Ya existe un vínculo con esa institución y rol.")
+    else:
+        messages.error(request, "Revisa los datos del formulario de institución.")
+    return redirect("atlas-topic-detail", slug=topic.slug)
+
+
+def atlas_topic_link_person(request, slug):
+    topic = get_object_or_404(Topic, slug=slug)
+    if request.method != "POST":
+        return redirect("atlas-topic-detail", slug=topic.slug)
+    form = PersonTopicManualForm(request.POST)
+    if form.is_valid():
+        link = form.save(commit=False)
+        link.topic = topic
+        try:
+            link.save()
+            messages.success(request, "Persona vinculada al tema.")
+        except IntegrityError:
+            messages.error(request, "Ya existe un vínculo con esa persona y rol.")
+    else:
+        messages.error(request, "Revisa los datos del formulario de persona.")
+    return redirect("atlas-topic-detail", slug=topic.slug)
+
+
+def atlas_topic_unlink_institution(request, slug, link_id):
+    topic = get_object_or_404(Topic, slug=slug)
+    link = get_object_or_404(InstitutionTopic, id=link_id, topic=topic)
+    if request.method == "POST":
+        link.delete()
+        messages.success(request, "Vínculo con institución eliminado.")
+    return redirect("atlas-topic-detail", slug=topic.slug)
+
+
+def atlas_topic_unlink_person(request, slug, link_id):
+    topic = get_object_or_404(Topic, slug=slug)
+    link = get_object_or_404(PersonTopicManual, id=link_id, topic=topic)
+    if request.method == "POST":
+        link.delete()
+        messages.success(request, "Vínculo con persona eliminado.")
+    return redirect("atlas-topic-detail", slug=topic.slug)
+
+
+def atlas_topic_graph_json(request, slug):
+    topic = get_object_or_404(Topic, slug=slug)
+    include_hierarchy = request.GET.get("hierarchy") in {"1", "true", "True"}
+
+    nodes = [
+        {
+            "id": f"topic:{topic.id}",
+            "label": topic.name,
+            "type": "topic",
+        }
+    ]
+    edges = []
+    node_ids = {f"topic:{topic.id}"}
+
+    institution_links = InstitutionTopic.objects.filter(topic=topic).select_related(
+        "institution"
+    )
+    for link in institution_links:
+        inst = link.institution
+        node_id = f"inst:{inst.id}"
+        if node_id not in node_ids:
+            nodes.append(
+                {
+                    "id": node_id,
+                    "label": inst.nombre,
+                    "type": "institution",
+                }
+            )
+            node_ids.add(node_id)
+        edges.append(
+            {
+                "source": f"topic:{topic.id}",
+                "target": node_id,
+                "label": link.role,
+                "type": "institution_topic",
+            }
+        )
+
+    person_manual_links = PersonTopicManual.objects.filter(topic=topic).select_related(
+        "person"
+    )
+    for link in person_manual_links:
+        person = link.person
+        node_id = f"person:{person.id}"
+        if node_id not in node_ids:
+            nodes.append(
+                {
+                    "id": node_id,
+                    "label": person.nombre_completo,
+                    "type": "person",
+                }
+            )
+            node_ids.add(node_id)
+        edges.append(
+            {
+                "source": f"topic:{topic.id}",
+                "target": node_id,
+                "label": link.role,
+                "type": "person_topic_manual",
+            }
+        )
+
+    instituciones = Institucion.objects.filter(temas_relacionados__topic=topic).distinct()
+    inherited_cargos = Cargo.objects.filter(institucion__in=instituciones).select_related(
+        "persona",
+        "institucion",
+    )
+    inherited_pairs = set()
+    for cargo in inherited_cargos:
+        person = cargo.persona
+        if not person:
+            continue
+        node_id = f"person:{person.id}"
+        if node_id not in node_ids:
+            nodes.append(
+                {
+                    "id": node_id,
+                    "label": person.nombre_completo,
+                    "type": "person",
+                }
+            )
+            node_ids.add(node_id)
+        edge_key = (person.id, cargo.id)
+        if edge_key in inherited_pairs:
+            continue
+        inherited_pairs.add(edge_key)
+        edges.append(
+            {
+                "source": f"topic:{topic.id}",
+                "target": node_id,
+                "label": "por cargo",
+                "type": "person_topic_inherited",
+                "cargo": cargo.nombre_cargo,
+                "institucion": cargo.institucion.nombre if cargo.institucion else None,
+                "fecha_inicio": cargo.fecha_inicio,
+                "fecha_fin": cargo.fecha_fin,
+            }
+        )
+
+    if include_hierarchy:
+        if topic.parent:
+            parent = topic.parent
+            node_id = f"topic:{parent.id}"
+            if node_id not in node_ids:
+                nodes.append(
+                    {
+                        "id": node_id,
+                        "label": parent.name,
+                        "type": "topic_parent",
+                    }
+                )
+                node_ids.add(node_id)
+            edges.append(
+                {
+                    "source": f"topic:{parent.id}",
+                    "target": f"topic:{topic.id}",
+                    "label": "padre",
+                    "type": "topic_hierarchy",
+                }
+            )
+        for child in topic.children.all():
+            node_id = f"topic:{child.id}"
+            if node_id not in node_ids:
+                nodes.append(
+                    {
+                        "id": node_id,
+                        "label": child.name,
+                        "type": "topic_child",
+                    }
+                )
+                node_ids.add(node_id)
+            edges.append(
+                {
+                    "source": f"topic:{topic.id}",
+                    "target": f"topic:{child.id}",
+                    "label": "hijo",
+                    "type": "topic_hierarchy",
+                }
+            )
+
+    return JsonResponse(
+        {
+            "nodes": nodes,
+            "edges": edges,
+            "meta": {"topic_id": topic.id},
+        }
     )

@@ -1,0 +1,78 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Atlas · {% if is_edit %}Editar{% else %}Nuevo{% endif %} tema</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/atlas-design-system.css' %}">
+</head>
+<body>
+  <div class="page">
+    <header>
+      <div class="header-inner">
+        <div class="header-row">
+          <a class="brand" href="{% url 'atlas-home' %}">
+            <img src="{% static 'img/logo-horizonte-atlas.png' %}" alt="Atlas" class="brand-logo">
+            <div class="brand-texts">
+              <div class="brand-text-main">Atlas · {% if is_edit %}Editar{% else %}Nuevo{% endif %} tema</div>
+              <div class="brand-text-sub">Gestión editorial de temas</div>
+            </div>
+          </a>
+        </div>
+        <div class="header-row header-row-nav">
+          <nav class="chips-row" aria-label="Navegación de Atlas">
+            <a class="chip-link" href="{% url 'atlas-home' %}">Home</a>
+            <a class="chip-link" href="{% url 'atlas-topics-list' %}">Temas</a>
+            <a class="chip-link" href="javascript:history.back()">Regresar</a>
+          </nav>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <div class="main-inner">
+        <section class="panel">
+          <div class="panel-title">{% if is_edit %}Editar{% else %}Crear{% endif %} tema</div>
+          <form method="post" class="form-grid">
+            {% csrf_token %}
+            <div class="form-row">
+              <label>Nombre</label>
+              {{ form.name }}
+            </div>
+            <div class="form-row">
+              <label>Slug</label>
+              {{ form.slug }}
+            </div>
+            <div class="form-row">
+              <label>Descripción</label>
+              {{ form.description }}
+            </div>
+            <div class="form-row">
+              <label>Tema padre</label>
+              {{ form.parent }}
+            </div>
+            <div class="form-row">
+              <label>Tipo</label>
+              {{ form.topic_kind }}
+            </div>
+            <div class="form-row">
+              <label>Estado</label>
+              {{ form.status }}
+            </div>
+            <div class="form-actions">
+              <button type="submit" class="btn btn-primary">Guardar</button>
+              <a class="btn" href="{% url 'atlas-topics-list' %}">Cancelar</a>
+            </div>
+          </form>
+        </section>
+      </div>
+    </main>
+
+    <footer>
+      Horizonte Digital · Atlas · <a href="{% url 'privacy-notice' %}">Aviso de privacidad</a> · <a href="{% url 'terms-conditions' %}">Términos y condiciones</a>
+    </footer>
+  </div>
+</body>
+</html>
