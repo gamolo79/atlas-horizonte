@@ -3,7 +3,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <title>Atlas · {{ topic.name }}</title>
+  <title>Atlas · Grafo de {{ topic.name }}</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{% static 'css/atlas-design-system.css' %}">
@@ -17,7 +17,7 @@
           <a class="brand" href="{% url 'atlas-home' %}">
             <img src="{% static 'img/logo-horizonte-atlas.png' %}" alt="Atlas" class="brand-logo">
             <div class="brand-texts">
-              <div class="brand-text-main">Atlas · Tema</div>
+              <div class="brand-text-main">Atlas · Grafo por tema</div>
               <div class="brand-text-sub">{{ topic.name }}</div>
             </div>
           </a>
@@ -34,226 +34,84 @@
     </header>
 
     <main>
-      <div class="main-inner">
-        <section class="panel">
-          <div class="panel-title">{{ topic.name }}</div>
-          <div class="panel-desc">{{ topic.get_topic_kind_display }} · {{ topic.get_status_display }}</div>
-          {% if topic.description %}
-            <p>{{ topic.description }}</p>
-          {% endif %}
-          {% if breadcrumb %}
-            <div class="chips-row" style="margin-top: 8px;">
-              {% for parent in breadcrumb %}
-                <a class="chip-link" href="{% url 'atlas-topic-detail' slug=parent.slug %}">{{ parent.name }}</a>
-              {% endfor %}
-              <span class="chip-link" aria-current="page">{{ topic.name }}</span>
+      <div class="layout">
+        <section class="graph-area">
+          <div class="graph-frame">
+            <div class="graph-grid"></div>
+            <div class="graph-label">
+              Grafo temático de {{ topic.name }}
             </div>
-          {% endif %}
-          {% if children %}
-            <div style="margin-top: 12px;">
-              <strong>Temas hijos:</strong>
-              <div class="chips-row" style="margin-top: 6px;">
-                {% for child in children %}
-                  <a class="chip-link" href="{% url 'atlas-topic-detail' slug=child.slug %}">{{ child.name }}</a>
-                {% endfor %}
+            <div id="topic-graph" style="min-height: 520px;"></div>
+            <div class="graph-caption">
+              Usa scroll / pinch para hacer zoom. Toca un nodo o relación para ver detalles en el panel lateral.
+            </div>
+          </div>
+        </section>
+
+        <aside id="side-panel">
+          <div>
+            <div id="panel-header">Red temática</div>
+            <div id="panel-title">{{ topic.name }}</div>
+            <div id="panel-content">
+              <p><strong>Tipo:</strong> {{ topic.get_topic_kind_display }}</p>
+              <p><strong>Estado:</strong> {{ topic.get_status_display }}</p>
+              {% if topic.description %}
+                <p>{{ topic.description }}</p>
+              {% endif %}
+            </div>
+          </div>
+
+          <div class="panel-section">
+            <div class="panel-section-title">Filtros de vista</div>
+            <div class="toggle-list">
+              <label class="toggle-item">
+                <input type="checkbox" id="toggle-hierarchy" checked />
+                <span>Mostrar tema padre e hijos</span>
+              </label>
+            </div>
+          </div>
+
+          <div class="panel-section">
+            <div class="panel-section-title">Leyenda</div>
+            <div id="legend">
+              <div class="legend-item">
+                <span class="legend-color central"></span>
+                <span>Tema central</span>
+              </div>
+              <div class="legend-item">
+                <span class="legend-color topic"></span>
+                <span>Temas relacionados</span>
+              </div>
+              <div class="legend-item">
+                <span class="legend-color inst-padre"></span>
+                <span>Instituciones</span>
+              </div>
+              <div class="legend-item">
+                <span class="legend-color persona"></span>
+                <span>Personas</span>
+              </div>
+              <div class="legend-item">
+                <span class="legend-color line"></span>
+                <span>Relaciones</span>
               </div>
             </div>
-          {% endif %}
-          <div class="hero-actions" style="margin-top: 12px;">
-            <a class="btn btn-primary" href="{% url 'atlas-topic-edit' slug=topic.slug %}">Editar tema</a>
           </div>
-        </section>
 
-        {% if messages %}
-          <section class="panel">
-            {% for message in messages %}
-              <div class="card-desc">{{ message }}</div>
-            {% endfor %}
-          </section>
-        {% endif %}
-
-        <section class="panel">
-          <div class="panel-title">Grafo del tema</div>
-          <div class="panel-desc">Visualiza instituciones, personas y jerarquía del tema.</div>
-          <div class="toggle-list">
-            <label class="toggle-item">
-              <input type="checkbox" id="toggle-hierarchy" checked />
-              <span>Mostrar tema padre e hijos</span>
-            </label>
+          <div class="panel-section" id="related-people-section" style="display:none;">
+            <div class="panel-section-title">Personas relacionadas</div>
+            <div id="related-people"></div>
           </div>
-          <div class="graph-frame" style="margin-top: 12px;">
-            <div class="graph-grid"></div>
-            <div id="topic-graph" style="min-height: 420px;"></div>
+
+          <div class="panel-section" id="related-institutions-section" style="display:none;">
+            <div class="panel-section-title">Instituciones vinculadas</div>
+            <div id="related-institutions"></div>
           </div>
-        </section>
 
-        <section class="panel">
-          <div class="panel-title">Instituciones vinculadas</div>
-          <div class="panel-desc">Relaciones directas con el tema.</div>
-          <table class="table" style="width:100%; margin-top: 8px;">
-            <thead>
-              <tr>
-                <th>Institución</th>
-                <th>Rol</th>
-                <th>Nota</th>
-                <th>Vigencia</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for link in institution_links %}
-                <tr>
-                  <td>{{ link.institution.nombre }}</td>
-                  <td>{{ link.role }}</td>
-                  <td>{{ link.note|default:"—" }}</td>
-                  <td>
-                    {% if link.valid_from or link.valid_to %}
-                      {{ link.valid_from|default:"¿?" }} – {{ link.valid_to|default:"actual" }}
-                    {% else %}
-                      —
-                    {% endif %}
-                  </td>
-                  <td>
-                    <form method="post" action="{% url 'atlas-topic-unlink-institution' slug=topic.slug link_id=link.id %}">
-                      {% csrf_token %}
-                      <button class="btn" type="submit">Eliminar</button>
-                    </form>
-                  </td>
-                </tr>
-              {% empty %}
-                <tr>
-                  <td colspan="5">Sin instituciones vinculadas.</td>
-                </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-
-          <form method="post" action="{% url 'atlas-topic-link-institution' slug=topic.slug %}" class="form-grid" style="margin-top: 16px;">
-            {% csrf_token %}
-            <div class="form-row">
-              <label>Institución</label>
-              {{ institution_form.institution }}
-            </div>
-            <div class="form-row">
-              <label>Rol</label>
-              {{ institution_form.role }}
-            </div>
-            <div class="form-row">
-              <label>Nota</label>
-              {{ institution_form.note }}
-            </div>
-            <div class="form-row">
-              <label>Vigencia inicio</label>
-              {{ institution_form.valid_from }}
-            </div>
-            <div class="form-row">
-              <label>Vigencia fin</label>
-              {{ institution_form.valid_to }}
-            </div>
-            <div class="form-actions">
-              <button class="btn btn-primary" type="submit">Vincular institución</button>
-            </div>
-          </form>
-        </section>
-
-        <section class="panel">
-          <div class="panel-title">Personas vinculadas (manual)</div>
-          <table class="table" style="width:100%; margin-top: 8px;">
-            <thead>
-              <tr>
-                <th>Persona</th>
-                <th>Rol</th>
-                <th>Nota</th>
-                <th>Fuente</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for link in person_links %}
-                <tr>
-                  <td>{{ link.person.nombre_completo }}</td>
-                  <td>{{ link.role }}</td>
-                  <td>{{ link.note|default:"—" }}</td>
-                  <td>
-                    {% if link.source_url %}
-                      <a href="{{ link.source_url }}" target="_blank" rel="noopener">Fuente</a>
-                    {% else %}
-                      —
-                    {% endif %}
-                  </td>
-                  <td>
-                    <form method="post" action="{% url 'atlas-topic-unlink-person' slug=topic.slug link_id=link.id %}">
-                      {% csrf_token %}
-                      <button class="btn" type="submit">Eliminar</button>
-                    </form>
-                  </td>
-                </tr>
-              {% empty %}
-                <tr>
-                  <td colspan="5">Sin personas vinculadas manualmente.</td>
-                </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-
-          <form method="post" action="{% url 'atlas-topic-link-person' slug=topic.slug %}" class="form-grid" style="margin-top: 16px;">
-            {% csrf_token %}
-            <div class="form-row">
-              <label>Persona</label>
-              {{ person_form.person }}
-            </div>
-            <div class="form-row">
-              <label>Rol</label>
-              {{ person_form.role }}
-            </div>
-            <div class="form-row">
-              <label>Nota</label>
-              {{ person_form.note }}
-            </div>
-            <div class="form-row">
-              <label>Fuente</label>
-              {{ person_form.source_url }}
-            </div>
-            <div class="form-actions">
-              <button class="btn btn-primary" type="submit">Vincular persona</button>
-            </div>
-          </form>
-        </section>
-
-        <section class="panel">
-          <div class="panel-title">Personas heredadas por cargos</div>
-          <div class="panel-desc">Personas que ocupan cargos en instituciones vinculadas al tema.</div>
-          <table class="table" style="width:100%; margin-top: 8px;">
-            <thead>
-              <tr>
-                <th>Persona</th>
-                <th>Institución</th>
-                <th>Cargo</th>
-                <th>Periodo</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for cargo in inherited_cargos %}
-                <tr>
-                  <td>{{ cargo.persona.nombre_completo }}</td>
-                  <td>{{ cargo.institucion.nombre }}</td>
-                  <td>{{ cargo.nombre_cargo }}</td>
-                  <td>
-                    {% if cargo.fecha_inicio or cargo.fecha_fin %}
-                      {{ cargo.fecha_inicio|default:"¿?" }} – {{ cargo.fecha_fin|default:"actual" }}
-                    {% else %}
-                      —
-                    {% endif %}
-                  </td>
-                </tr>
-              {% empty %}
-                <tr>
-                  <td colspan="4">Sin cargos heredados para este tema.</td>
-                </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </section>
+          <div class="panel-section" id="related-topics-section" style="display:none;">
+            <div class="panel-section-title">Temas relacionados</div>
+            <div id="related-topics"></div>
+          </div>
+        </aside>
       </div>
     </main>
 
@@ -265,7 +123,20 @@
   <script>
     const graphContainer = document.getElementById("topic-graph");
     const hierarchyToggle = document.getElementById("toggle-hierarchy");
+    const panelTitle = document.getElementById("panel-title");
+    const panelContent = document.getElementById("panel-content");
+    const relatedPeopleSection = document.getElementById("related-people-section");
+    const relatedPeopleContainer = document.getElementById("related-people");
+    const relatedInstitutionsSection = document.getElementById("related-institutions-section");
+    const relatedInstitutionsContainer = document.getElementById("related-institutions");
+    const relatedTopicsSection = document.getElementById("related-topics-section");
+    const relatedTopicsContainer = document.getElementById("related-topics");
     const slug = "{{ topic.slug }}";
+
+    let topicsMap = {};
+    let institutionsMap = {};
+    let peopleMap = {};
+    let cy = null;
 
     function buildGraphUrl() {
       const params = new URLSearchParams();
@@ -276,12 +147,97 @@
       return `/apps/atlas/temas/${slug}/grafo.json${query ? `?${query}` : ""}`;
     }
 
+    function setPanelForTopic(topic) {
+      panelTitle.textContent = topic.label || topic.nombre || "Tema";
+      let html = "";
+
+      if (topic.topic_kind_label || topic.topic_kind) {
+        html += `<p><strong>Tipo:</strong> ${topic.topic_kind_label || topic.topic_kind}</p>`;
+      }
+      if (topic.status_label || topic.status) {
+        html += `<p><strong>Estado:</strong> ${topic.status_label || topic.status}</p>`;
+      }
+      if (topic.description) {
+        html += `<p>${topic.description}</p>`;
+      }
+
+      panelContent.innerHTML = html || "<p>Sin detalles adicionales.</p>";
+    }
+
+    function setPanelForInstitution(inst) {
+      panelTitle.textContent = inst.label || inst.nombre || "Institución";
+      let html = "";
+
+      if (inst.tipo) {
+        html += `<p><strong>Tipo:</strong> ${inst.tipo}</p>`;
+      }
+      if (inst.ambito) {
+        html += `<p><strong>Ámbito:</strong> ${inst.ambito}</p>`;
+      }
+
+      const partes = [];
+      if (inst.ciudad) partes.push(inst.ciudad);
+      if (inst.estado) partes.push(inst.estado);
+      if (inst.pais) partes.push(inst.pais);
+      if (partes.length) {
+        html += `<p><strong>Ubicación:</strong> ${partes.join(", ")}</p>`;
+      }
+
+      panelContent.innerHTML = html || "<p>Sin detalles adicionales.</p>";
+    }
+
+    function setPanelForPerson(person) {
+      panelTitle.textContent = person.label || person.nombre_completo || "Persona";
+      let html = "";
+
+      if (person.bio_corta) {
+        html += `<p>${person.bio_corta}</p>`;
+      }
+
+      panelContent.innerHTML = html || "<p>Sin detalles adicionales.</p>";
+    }
+
+    function setPanelForEdge(edge) {
+      panelTitle.textContent = "Relación";
+      panelContent.innerHTML = edge.label
+        ? `<p><strong>Detalle:</strong> ${edge.label}</p>`
+        : "<p>Relación entre nodos.</p>";
+    }
+
+    function renderChips(items, section, container, buildChip) {
+      container.innerHTML = "";
+      if (items.length) {
+        section.style.display = "block";
+        items.forEach(item => {
+          const chip = buildChip(item);
+          if (chip) {
+            container.appendChild(chip);
+          }
+        });
+      } else {
+        section.style.display = "none";
+      }
+    }
+
     function renderGraph(data) {
       if (!graphContainer) return;
       const elements = [];
 
+      topicsMap = {};
+      institutionsMap = {};
+      peopleMap = {};
+
       (data.nodes || []).forEach(node => {
-        elements.push({ data: { id: node.id, label: node.label, tipo: node.type } });
+        const tipo = node.type;
+        elements.push({ data: { ...node, id: node.id, label: node.label, tipo } });
+
+        if (tipo === "institution") {
+          institutionsMap[node.id] = node;
+        } else if (tipo === "person") {
+          peopleMap[node.id] = node;
+        } else if (tipo && tipo.startsWith("topic")) {
+          topicsMap[node.id] = node;
+        }
       });
 
       (data.edges || []).forEach((edge, idx) => {
@@ -291,12 +247,16 @@
             source: edge.source,
             target: edge.target,
             label: edge.label || "",
-            tipo: edge.type
+            tipo: edge.type,
           }
         });
       });
 
-      cytoscape({
+      if (cy) {
+        cy.destroy();
+      }
+
+      cy = cytoscape({
         container: graphContainer,
         elements,
         layout: {
@@ -385,6 +345,56 @@
             }
           }
         ]
+      });
+
+      cy.on("tap", "node", event => {
+        const node = event.target;
+        const tipo = node.data("tipo");
+        const dataNode = node.data();
+
+        if (tipo === "institution") {
+          setPanelForInstitution(dataNode);
+        } else if (tipo === "person") {
+          setPanelForPerson(dataNode);
+        } else if (tipo && tipo.startsWith("topic")) {
+          setPanelForTopic(dataNode);
+        }
+      });
+
+      cy.on("tap", "edge", event => {
+        setPanelForEdge(event.target.data());
+      });
+
+      const centralId = data.meta && data.meta.topic_id ? `topic:${data.meta.topic_id}` : null;
+      const topicsList = Object.values(topicsMap).filter(topic => topic.id !== centralId);
+      const peopleList = Object.values(peopleMap);
+      const institutionsList = Object.values(institutionsMap);
+
+      renderChips(peopleList, relatedPeopleSection, relatedPeopleContainer, person => {
+        if (!person.slug) return null;
+        const chip = document.createElement("a");
+        chip.className = "chip-link";
+        chip.href = `/api/personas/${person.slug}/grafo-page/`;
+        chip.textContent = person.label || person.nombre_completo;
+        return chip;
+      });
+
+      renderChips(institutionsList, relatedInstitutionsSection, relatedInstitutionsContainer, inst => {
+        if (!inst.slug) return null;
+        const chip = document.createElement("a");
+        chip.className = "chip-link";
+        chip.href = `/api/instituciones/${inst.slug}/grafo-page/`;
+        chip.textContent = inst.label || inst.nombre;
+        return chip;
+      });
+
+      renderChips(topicsList, relatedTopicsSection, relatedTopicsContainer, topic => {
+        if (!topic.slug) return null;
+        const chip = document.createElement("a");
+        chip.className = "chip-link";
+        chip.href = `/apps/atlas/temas/${topic.slug}/`;
+        chip.textContent = topic.label || topic.nombre;
+        return chip;
       });
     }
 
