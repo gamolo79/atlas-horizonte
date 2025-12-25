@@ -1,6 +1,7 @@
 from collections import deque
 
 from django.contrib import messages
+from django.contrib.admin.views.decorators import staff_member_required
 from django.db import IntegrityError
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -454,6 +455,7 @@ def atlas_topics_list(request):
     return render(request, "redpolitica/atlas_topics_list.html", context)
 
 
+@staff_member_required
 def atlas_topic_create(request):
     if request.method == "POST":
         form = TopicForm(request.POST)
@@ -470,6 +472,7 @@ def atlas_topic_create(request):
     )
 
 
+@staff_member_required
 def atlas_topic_edit(request, slug):
     topic = get_object_or_404(Topic, slug=slug)
     if request.method == "POST":
@@ -492,17 +495,6 @@ def atlas_topic_detail(request, slug):
         Topic.objects.select_related("parent").prefetch_related("children"),
         slug=slug,
     )
-    institution_links = InstitutionTopic.objects.filter(topic=topic).select_related(
-        "institution"
-    )
-    person_links = PersonTopicManual.objects.filter(topic=topic).select_related("person")
-
-    instituciones = Institucion.objects.filter(temas_relacionados__topic=topic).distinct()
-    inherited_cargos = (
-        Cargo.objects.filter(institucion__in=instituciones)
-        .select_related("persona", "institucion", "periodo")
-        .order_by("persona__nombre_completo")
-    )
 
     breadcrumb = []
     current = topic.parent
@@ -515,15 +507,11 @@ def atlas_topic_detail(request, slug):
         "topic": topic,
         "breadcrumb": breadcrumb,
         "children": topic.children.all(),
-        "institution_links": institution_links,
-        "person_links": person_links,
-        "inherited_cargos": inherited_cargos,
-        "institution_form": InstitutionTopicForm(),
-        "person_form": PersonTopicManualForm(),
     }
     return render(request, "redpolitica/atlas_topic_detail.html", context)
 
 
+@staff_member_required
 def atlas_topic_link_institution(request, slug):
     topic = get_object_or_404(Topic, slug=slug)
     if request.method != "POST":
@@ -542,6 +530,7 @@ def atlas_topic_link_institution(request, slug):
     return redirect("atlas-topic-detail", slug=topic.slug)
 
 
+@staff_member_required
 def atlas_topic_link_person(request, slug):
     topic = get_object_or_404(Topic, slug=slug)
     if request.method != "POST":
@@ -560,6 +549,7 @@ def atlas_topic_link_person(request, slug):
     return redirect("atlas-topic-detail", slug=topic.slug)
 
 
+@staff_member_required
 def atlas_topic_unlink_institution(request, slug, link_id):
     topic = get_object_or_404(Topic, slug=slug)
     link = get_object_or_404(InstitutionTopic, id=link_id, topic=topic)
@@ -569,6 +559,7 @@ def atlas_topic_unlink_institution(request, slug, link_id):
     return redirect("atlas-topic-detail", slug=topic.slug)
 
 
+@staff_member_required
 def atlas_topic_unlink_person(request, slug, link_id):
     topic = get_object_or_404(Topic, slug=slug)
     link = get_object_or_404(PersonTopicManual, id=link_id, topic=topic)
@@ -587,6 +578,12 @@ def atlas_topic_graph_json(request, slug):
             "id": f"topic:{topic.id}",
             "label": topic.name,
             "type": "topic",
+            "slug": topic.slug,
+            "topic_kind": topic.topic_kind,
+            "topic_kind_label": topic.get_topic_kind_display(),
+            "status": topic.status,
+            "status_label": topic.get_status_display(),
+            "description": topic.description,
         }
     ]
     edges = []
@@ -604,6 +601,12 @@ def atlas_topic_graph_json(request, slug):
                     "id": node_id,
                     "label": inst.nombre,
                     "type": "institution",
+                    "slug": inst.slug,
+                    "tipo": inst.tipo,
+                    "ambito": inst.ambito,
+                    "ciudad": inst.ciudad,
+                    "estado": inst.estado,
+                    "pais": inst.pais,
                 }
             )
             node_ids.add(node_id)
@@ -628,6 +631,8 @@ def atlas_topic_graph_json(request, slug):
                     "id": node_id,
                     "label": person.nombre_completo,
                     "type": "person",
+                    "slug": person.slug,
+                    "bio_corta": person.bio_corta,
                 }
             )
             node_ids.add(node_id)
@@ -657,6 +662,8 @@ def atlas_topic_graph_json(request, slug):
                     "id": node_id,
                     "label": person.nombre_completo,
                     "type": "person",
+                    "slug": person.slug,
+                    "bio_corta": person.bio_corta,
                 }
             )
             node_ids.add(node_id)
@@ -687,6 +694,12 @@ def atlas_topic_graph_json(request, slug):
                         "id": node_id,
                         "label": parent.name,
                         "type": "topic_parent",
+                        "slug": parent.slug,
+                        "topic_kind": parent.topic_kind,
+                        "topic_kind_label": parent.get_topic_kind_display(),
+                        "status": parent.status,
+                        "status_label": parent.get_status_display(),
+                        "description": parent.description,
                     }
                 )
                 node_ids.add(node_id)
@@ -706,6 +719,12 @@ def atlas_topic_graph_json(request, slug):
                         "id": node_id,
                         "label": child.name,
                         "type": "topic_child",
+                        "slug": child.slug,
+                        "topic_kind": child.topic_kind,
+                        "topic_kind_label": child.get_topic_kind_display(),
+                        "status": child.status,
+                        "status_label": child.get_status_display(),
+                        "description": child.description,
                     }
                 )
                 node_ids.add(node_id)
