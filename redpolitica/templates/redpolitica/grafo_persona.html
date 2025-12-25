@@ -74,6 +74,10 @@
               <input type="checkbox" id="toggle-relaciones" checked>
               <span>Mostrar relaciones entre personas</span>
             </label>
+            <label class="filter-item">
+              <input type="checkbox" id="toggle-temas" checked>
+              <span>Mostrar temas vinculados</span>
+            </label>
           </div>
           <div class="panel-subtitle" style="margin-top: 8px;">Vista</div>
           <div class="toggle-list">
@@ -181,6 +185,7 @@
 
   const toggleCargosEl = document.getElementById("toggle-cargos");
   const toggleRelacionesEl = document.getElementById("toggle-relaciones");
+  const toggleTemasEl = document.getElementById("toggle-temas");
   const vistaRadios = document.querySelectorAll("input[name='vista']");
   const gradoRadios = document.querySelectorAll("input[name='grado']");
 
@@ -409,6 +414,7 @@
     const gradoMax = getGradoMaximo();
     const showCargos = toggleCargosEl.checked;
     const showRelaciones = toggleRelacionesEl.checked;
+    const showTemas = toggleTemasEl ? toggleTemasEl.checked : true;
 
     const tiposPorVista = {
       instituciones: ["cargo", "tema_manual", "tema_heredado"],
@@ -432,7 +438,9 @@
 
     cy.nodes().forEach(node => {
       const grado = node.data("grado");
-      const visible = grado == null ? true : grado <= gradoMax;
+      const isTema = node.data("tipo") === "tema";
+      const visible =
+        (grado == null ? true : grado <= gradoMax) && (!isTema || showTemas);
       node.style("display", visible ? "element" : "none");
     });
 
@@ -441,7 +449,12 @@
     allEdges.forEach(edge => {
       const tipo = edge.data("tipo");
       const matchesVista = allowedTipos.includes(tipo);
-      const matchesToggle = tipo === "cargo" ? showCargos : showRelaciones;
+      const matchesToggle =
+        tipo === "cargo"
+          ? showCargos
+          : tipo === "tema_manual" || tipo === "tema_heredado"
+            ? showTemas
+            : showRelaciones;
 
       const source = edge.source();
       const target = edge.target();
@@ -461,9 +474,11 @@
       const grado = node.data("grado");
       const withinGrado = grado == null ? true : grado <= gradoMax;
       const isCentral = node.data("tipo") === "persona_central";
+      const isTema = node.data("tipo") === "tema";
 
       const hasVisibleEdges = node.connectedEdges().some(e => e.style("display") !== "none");
-      const shouldShow = withinGrado && (isCentral || hasVisibleEdges);
+      const shouldShow =
+        withinGrado && (isCentral || hasVisibleEdges) && (!isTema || showTemas);
 
       node.style("display", shouldShow ? "element" : "none");
     });
@@ -472,9 +487,11 @@
       const grado = node.data("grado");
       const withinGrado = grado == null ? true : grado <= gradoMax;
       const isCentral = node.data("tipo") === "persona_central";
+      const isTema = node.data("tipo") === "tema";
 
       const hasVisibleEdges = node.connectedEdges().some(e => e.style("display") !== "none");
-      const shouldShow = withinGrado && (isCentral || hasVisibleEdges);
+      const shouldShow =
+        withinGrado && (isCentral || hasVisibleEdges) && (!isTema || showTemas);
 
       node.style("display", shouldShow ? "element" : "none");
     });
@@ -931,6 +948,9 @@
       // Listeners de filtros
       toggleCargosEl.addEventListener("change", applyFilters);
       toggleRelacionesEl.addEventListener("change", applyFilters);
+      if (toggleTemasEl) {
+        toggleTemasEl.addEventListener("change", applyFilters);
+      }
       vistaRadios.forEach(radio => radio.addEventListener("change", () => {
         aplicarVista(radio.value);
       }));

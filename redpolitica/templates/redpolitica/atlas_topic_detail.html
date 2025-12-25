@@ -62,13 +62,21 @@
           </div>
 
           <div class="panel-section">
-            <div class="panel-section-title">Filtros de vista</div>
-            <div class="toggle-list">
-              <label class="toggle-item">
-                <input type="checkbox" id="toggle-hierarchy" checked />
-                <span>Mostrar tema padre e hijos</span>
-              </label>
-            </div>
+          <div class="panel-section-title">Filtros de vista</div>
+          <div class="toggle-list">
+            <label class="toggle-item">
+              <input type="checkbox" id="toggle-people" checked />
+              <span>Mostrar personas vinculadas</span>
+            </label>
+            <label class="toggle-item">
+              <input type="checkbox" id="toggle-institutions" checked />
+              <span>Mostrar instituciones vinculadas</span>
+            </label>
+            <label class="toggle-item">
+              <input type="checkbox" id="toggle-hierarchy" checked />
+              <span>Mostrar tema padre e hijos</span>
+            </label>
+          </div>
           </div>
 
           <div class="panel-section">
@@ -123,6 +131,8 @@
   <script>
     const graphContainer = document.getElementById("topic-graph");
     const hierarchyToggle = document.getElementById("toggle-hierarchy");
+    const peopleToggle = document.getElementById("toggle-people");
+    const institutionsToggle = document.getElementById("toggle-institutions");
     const panelTitle = document.getElementById("panel-title");
     const panelContent = document.getElementById("panel-content");
     const relatedPeopleSection = document.getElementById("related-people-section");
@@ -396,6 +406,45 @@
         chip.textContent = topic.label || topic.nombre;
         return chip;
       });
+
+      applyVisibilityFilters();
+    }
+
+    function applyVisibilityFilters() {
+      if (!cy) return;
+      const showPeople = peopleToggle ? peopleToggle.checked : true;
+      const showInstitutions = institutionsToggle ? institutionsToggle.checked : true;
+
+      cy.batch(() => {
+        cy.nodes("[tipo = 'person']").style("display", showPeople ? "element" : "none");
+        cy.nodes("[tipo = 'institution']").style(
+          "display",
+          showInstitutions ? "element" : "none"
+        );
+
+        cy.edges("[tipo = 'person_topic_manual'], [tipo = 'person_topic_inherited']").style(
+          "display",
+          showPeople ? "element" : "none"
+        );
+        cy.edges("[tipo = 'institution_topic']").style(
+          "display",
+          showInstitutions ? "element" : "none"
+        );
+
+        cy.edges().forEach(edge => {
+          const sourceVisible = edge.source().style("display") !== "none";
+          const targetVisible = edge.target().style("display") !== "none";
+          if (!sourceVisible || !targetVisible) {
+            edge.style("display", "none");
+          }
+        });
+      });
+
+      cy.layout({
+        name: "concentric",
+        animate: false,
+        padding: 40
+      }).run();
     }
 
     function loadGraph() {
@@ -409,6 +458,12 @@
 
     if (hierarchyToggle) {
       hierarchyToggle.addEventListener("change", loadGraph);
+    }
+    if (peopleToggle) {
+      peopleToggle.addEventListener("change", applyVisibilityFilters);
+    }
+    if (institutionsToggle) {
+      institutionsToggle.addEventListener("change", applyVisibilityFilters);
     }
 
     loadGraph();
