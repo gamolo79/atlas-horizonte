@@ -86,6 +86,10 @@
               <input type="checkbox" id="toggle-personas" checked />
               <span>Mostrar personas con cargos</span>
             </label>
+            <label class="toggle-item">
+              <input type="checkbox" id="toggle-temas" checked />
+              <span>Mostrar temas vinculados</span>
+            </label>
             <div class="toggle-label">Niveles del organigrama</div>
             <label class="toggle-item">
               <input type="radio" name="nivel-organigrama" value="2" checked />
@@ -164,6 +168,7 @@
     const panelTitle = document.getElementById("panel-title");
     const panelContent = document.getElementById("panel-content");
     const togglePersonas = document.getElementById("toggle-personas");
+    const toggleTemas = document.getElementById("toggle-temas");
     const nivelToggles = document.querySelectorAll("input[name='nivel-organigrama']");
     const chipsContainer = document.getElementById("institutions-chips");
     const peopleChipsSection = document.getElementById("people-chips-section");
@@ -746,6 +751,23 @@
         if (togglePersonas) {
           togglePersonas.addEventListener("change", (e) => {
             applyPersonasVisibility(e.target.checked);
+          });
+        }
+
+        // --- Toggle de temas ---
+        function applyTemasVisibility(show) {
+          const displayVal = show ? "element" : "none";
+          cy.batch(() => {
+            cy.nodes("[tipo = 'tema']").style("display", displayVal);
+            cy.edges("[tipo = 'tema']").style("display", displayVal);
+          });
+        }
+
+        applyTemasVisibility(toggleTemas ? toggleTemas.checked : true);
+
+        if (toggleTemas) {
+          toggleTemas.addEventListener("change", (e) => {
+            applyTemasVisibility(e.target.checked);
           });
         }
 

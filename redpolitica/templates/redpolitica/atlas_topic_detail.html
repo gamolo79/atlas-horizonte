@@ -62,13 +62,21 @@
           </div>
 
           <div class="panel-section">
-            <div class="panel-section-title">Filtros de vista</div>
-            <div class="toggle-list">
-              <label class="toggle-item">
-                <input type="checkbox" id="toggle-hierarchy" checked />
-                <span>Mostrar tema padre e hijos</span>
-              </label>
-            </div>
+          <div class="panel-section-title">Filtros de vista</div>
+          <div class="toggle-list">
+            <label class="toggle-item">
+              <input type="checkbox" id="toggle-people" checked />
+              <span>Mostrar personas vinculadas</span>
+            </label>
+            <label class="toggle-item">
+              <input type="checkbox" id="toggle-institutions" checked />
+              <span>Mostrar instituciones vinculadas</span>
+            </label>
+            <label class="toggle-item">
+              <input type="checkbox" id="toggle-hierarchy" checked />
+              <span>Mostrar tema padre e hijos</span>
+            </label>
+          </div>
           </div>
 
           <div class="panel-section">
@@ -123,6 +131,8 @@
   <script>
     const graphContainer = document.getElementById("topic-graph");
     const hierarchyToggle = document.getElementById("toggle-hierarchy");
+    const peopleToggle = document.getElementById("toggle-people");
+    const institutionsToggle = document.getElementById("toggle-institutions");
     const panelTitle = document.getElementById("panel-title");
     const panelContent = document.getElementById("panel-content");
     const relatedPeopleSection = document.getElementById("related-people-section");
@@ -262,7 +272,16 @@
         layout: {
           name: "concentric",
           animate: false,
-          padding: 40
+          padding: 40,
+          minNodeSpacing: 40,
+          concentric: (node) => {
+            const tipo = node.data("tipo");
+            if (tipo === "topic") return 3;
+            if (tipo && tipo.startsWith("topic")) return 2;
+            if (tipo === "person" || tipo === "institution") return 1;
+            return 0;
+          },
+          levelWidth: () => 1
         },
         style: [
           {
@@ -277,7 +296,7 @@
               "font-size": 11,
               "width": 48,
               "height": 48,
-              "text-background-color": "rgba(0,0,0,0.7)",
+              "text-background-color": "#0b1220",
               "text-background-opacity": 1,
               "text-background-padding": 3,
               "text-background-shape": "round-rectangle"
@@ -287,26 +306,47 @@
             selector: "node[tipo = 'topic']",
             style: {
               "background-color": "#f7931a",
-              "width": 70,
-              "height": 70,
+              "border-width": 1,
+              "border-color": "#f59e0b",
+              "width": 64,
+              "height": 64,
               "font-size": 13,
-              "font-weight": "bold"
+              "font-weight": "bold",
+              "text-background-color": "#0b1220"
             }
           },
           {
             selector: "node[tipo = 'topic_parent']",
             style: {
-              "background-color": "#ffb347",
-              "width": 56,
-              "height": 56
+              "shape": "round-rectangle",
+              "background-color": "#1f2937",
+              "border-width": 1,
+              "border-color": "#f59e0b",
+              "width": 150,
+              "height": 40,
+              "font-size": 11,
+              "font-weight": "600",
+              "text-wrap": "wrap",
+              "text-max-width": 130,
+              "text-background-color": "#0c1220",
+              "text-background-opacity": 0.9
             }
           },
           {
             selector: "node[tipo = 'topic_child']",
             style: {
-              "background-color": "#fcd34d",
-              "width": 52,
-              "height": 52
+              "shape": "round-rectangle",
+              "background-color": "#1f2937",
+              "border-width": 1,
+              "border-color": "#f59e0b",
+              "width": 150,
+              "height": 40,
+              "font-size": 11,
+              "font-weight": "600",
+              "text-wrap": "wrap",
+              "text-max-width": 130,
+              "text-background-color": "#0c1220",
+              "text-background-opacity": 0.9
             }
           },
           {
@@ -316,8 +356,8 @@
               "background-color": "#1a1025",
               "border-width": 1,
               "border-color": "#4b3f5f",
-              "width": 160,
-              "height": 44,
+              "width": 150,
+              "height": 40,
               "font-size": 11,
               "text-wrap": "wrap",
               "text-max-width": 140
@@ -327,8 +367,12 @@
             selector: "node[tipo = 'person']",
             style: {
               "background-color": "#e8a87c",
-              "width": 44,
-              "height": 44
+              "border-width": 1,
+              "border-color": "#f59e0b",
+              "width": 42,
+              "height": 42,
+              "font-size": 11,
+              "text-background-color": "#0b1220"
             }
           },
           {
@@ -396,6 +440,45 @@
         chip.textContent = topic.label || topic.nombre;
         return chip;
       });
+
+      applyVisibilityFilters();
+    }
+
+    function applyVisibilityFilters() {
+      if (!cy) return;
+      const showPeople = peopleToggle ? peopleToggle.checked : true;
+      const showInstitutions = institutionsToggle ? institutionsToggle.checked : true;
+
+      cy.batch(() => {
+        cy.nodes("[tipo = 'person']").style("display", showPeople ? "element" : "none");
+        cy.nodes("[tipo = 'institution']").style(
+          "display",
+          showInstitutions ? "element" : "none"
+        );
+
+        cy.edges("[tipo = 'person_topic_manual'], [tipo = 'person_topic_inherited']").style(
+          "display",
+          showPeople ? "element" : "none"
+        );
+        cy.edges("[tipo = 'institution_topic']").style(
+          "display",
+          showInstitutions ? "element" : "none"
+        );
+
+        cy.edges().forEach(edge => {
+          const sourceVisible = edge.source().style("display") !== "none";
+          const targetVisible = edge.target().style("display") !== "none";
+          if (!sourceVisible || !targetVisible) {
+            edge.style("display", "none");
+          }
+        });
+      });
+
+      cy.layout({
+        name: "concentric",
+        animate: false,
+        padding: 40
+      }).run();
     }
 
     function loadGraph() {
@@ -409,6 +492,12 @@
 
     if (hierarchyToggle) {
       hierarchyToggle.addEventListener("change", loadGraph);
+    }
+    if (peopleToggle) {
+      peopleToggle.addEventListener("change", applyVisibilityFilters);
+    }
+    if (institutionsToggle) {
+      institutionsToggle.addEventListener("change", applyVisibilityFilters);
     }
 
     loadGraph();
