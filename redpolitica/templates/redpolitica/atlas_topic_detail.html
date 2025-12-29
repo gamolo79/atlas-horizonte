@@ -477,13 +477,14 @@
         });
       });
 
-      name: "concentric",
+      cy.layout({
+        name: "concentric",
         animate: false,
-          padding: 40
-    }).run();
+        padding: 40
+      }).run();
 
-    cy.resize();
-    cy.fit();
+      cy.resize();
+      cy.fit();
     }
 
     function loadGraph() {
