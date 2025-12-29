@@ -1,6 +1,7 @@
 {% load static %}
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
   <meta charset="UTF-8" />
   <title>Atlas · Grafo de {{ topic.name }}</title>
@@ -9,6 +10,7 @@
   <link rel="stylesheet" href="{% static 'css/atlas-design-system.css' %}">
   <script src="https://unpkg.com/cytoscape@3.28.0/dist/cytoscape.min.js"></script>
 </head>
+
 <body>
   <div class="page">
     <header>
@@ -41,7 +43,7 @@
             <div class="graph-label">
               Grafo temático de {{ topic.name }}
             </div>
-            <div id="topic-graph" style="min-height: 520px;"></div>
+            <div id="cy" style="width: 100%; height: 600px; min-height: 500px;"></div>
             <div class="graph-caption">
               Usa scroll / pinch para hacer zoom. Toca un nodo o relación para ver detalles en el panel lateral.
             </div>
@@ -56,27 +58,27 @@
               <p><strong>Tipo:</strong> {{ topic.get_topic_kind_display }}</p>
               <p><strong>Estado:</strong> {{ topic.get_status_display }}</p>
               {% if topic.description %}
-                <p>{{ topic.description }}</p>
+              <p>{{ topic.description }}</p>
               {% endif %}
             </div>
           </div>
 
           <div class="panel-section">
-          <div class="panel-section-title">Filtros de vista</div>
-          <div class="toggle-list">
-            <label class="toggle-item">
-              <input type="checkbox" id="toggle-people" checked />
-              <span>Mostrar personas vinculadas</span>
-            </label>
-            <label class="toggle-item">
-              <input type="checkbox" id="toggle-institutions" checked />
-              <span>Mostrar instituciones vinculadas</span>
-            </label>
-            <label class="toggle-item">
-              <input type="checkbox" id="toggle-hierarchy" checked />
-              <span>Mostrar tema padre e hijos</span>
-            </label>
-          </div>
+            <div class="panel-section-title">Filtros de vista</div>
+            <div class="toggle-list">
+              <label class="toggle-item">
+                <input type="checkbox" id="toggle-people" checked />
+                <span>Mostrar personas vinculadas</span>
+              </label>
+              <label class="toggle-item">
+                <input type="checkbox" id="toggle-institutions" checked />
+                <span>Mostrar instituciones vinculadas</span>
+              </label>
+              <label class="toggle-item">
+                <input type="checkbox" id="toggle-hierarchy" checked />
+                <span>Mostrar tema padre e hijos</span>
+              </label>
+            </div>
           </div>
 
           <div class="panel-section">
@@ -124,12 +126,13 @@
     </main>
 
     <footer>
-      Horizonte Digital · Atlas · <a href="{% url 'privacy-notice' %}">Aviso de privacidad</a> · <a href="{% url 'terms-conditions' %}">Términos y condiciones</a>
+      Horizonte Digital · Atlas · <a href="{% url 'privacy-notice' %}">Aviso de privacidad</a> · <a
+        href="{% url 'terms-conditions' %}">Términos y condiciones</a>
     </footer>
   </div>
 
   <script>
-    const graphContainer = document.getElementById("topic-graph");
+    const graphContainer = document.getElementById("cy");
     const hierarchyToggle = document.getElementById("toggle-hierarchy");
     const peopleToggle = document.getElementById("toggle-people");
     const institutionsToggle = document.getElementById("toggle-institutions");
@@ -474,11 +477,13 @@
         });
       });
 
-      cy.layout({
-        name: "concentric",
+      name: "concentric",
         animate: false,
-        padding: 40
-      }).run();
+          padding: 40
+    }).run();
+
+    cy.resize();
+    cy.fit();
     }
 
     function loadGraph() {
@@ -503,4 +508,5 @@
     loadGraph();
   </script>
 </body>
+
 </html>
