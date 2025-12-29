@@ -1,282 +1,283 @@
 {% extends "monitor/dashboard/base.html" %}
 {% block title %}{{ institucion.nombre }} · Monitor{% endblock %}
 {% block content %}
-  <div class="page-header">
-    <div>
-      <h1 class="page-title">{{ institucion.nombre }}</h1>
-      <p class="page-subtitle">Resumen de cobertura institucional en los últimos {{ days }} días.</p>
-    </div>
-    <div class="actions">
-      <a class="secondary" href="/monitor/dashboard/instituciones/benchmark/?a={{ institucion.id }}">Comparar</a>
-      <a href="/monitor/dashboard/instituciones/">Volver</a>
+<div class="page-header">
+  <div>
+    <h1 class="page-title">{{ institucion.nombre }}</h1>
+    <p class="page-subtitle">Resumen de cobertura institucional en los últimos {{ days }} días.</p>
+  </div>
+  <div class="actions">
+    <a class="secondary" href="/monitor/dashboard/instituciones/benchmark/?a={{ institucion.id }}">Comparar</a>
+    <a href="/monitor/dashboard/instituciones/">Volver</a>
+  </div>
+</div>
+
+<section class="grid grid-4">
+  <div class="card">
+    <div class="kpi-label">Menciones totales</div>
+    <div class="kpi-value" style="color: var(--primary-soft);">{{ metrics.mentions_count }}</div>
+    <div class="kpi-subtitle">Veces que aparece la institución.</div>
+  </div>
+  <div class="card">
+    <div class="kpi-label">Artículos únicos</div>
+    <div class="kpi-value">{{ metrics.articles_count }}</div>
+    <div class="kpi-subtitle">Notas distintas en la ventana.</div>
+  </div>
+  <div class="card">
+    <div class="kpi-label">Medios distintos</div>
+    <div class="kpi-value">{{ metrics.outlets|length }}</div>
+    <div class="kpi-subtitle">Cobertura por outlet.</div>
+  </div>
+  <div class="card">
+    <div class="kpi-label">Tono editorial</div>
+    <div class="kpi-value">{{ metrics.sentiment_total }}</div>
+    <div class="kpi-subtitle">Distribución total del sentimiento.</div>
+    <div class="kpi-breakdown">
+      <span class="kpi-pill positive">Positivo · {{ metrics.sentiment_summary.positivo }}</span>
+      <span class="kpi-pill neutral">Neutro · {{ metrics.sentiment_summary.neutro }}</span>
+      <span class="kpi-pill negative">Negativo · {{ metrics.sentiment_summary.negativo }}</span>
     </div>
   </div>
+</section>
 
-  <section class="grid grid-4">
-    <div class="card">
-      <div class="kpi-label">Menciones totales</div>
-      <div class="kpi-value" style="color: var(--primary-soft);">{{ metrics.mentions_count }}</div>
-      <div class="kpi-subtitle">Veces que aparece la institución.</div>
+<section class="grid grid-2" style="margin-top: 20px;">
+  <div class="card chart-card">
+    <div class="chart-header">
+      <h3 class="chart-title">Sentimiento</h3>
+      <div class="chart-subtitle">Balance del tono editorial sobre la institución.</div>
     </div>
-    <div class="card">
-      <div class="kpi-label">Artículos únicos</div>
-      <div class="kpi-value">{{ metrics.articles_count }}</div>
-      <div class="kpi-subtitle">Notas distintas en la ventana.</div>
+    <div class="chart-container">
+      <canvas id="institucionSentimentChart" aria-label="Distribución de sentimiento" role="img"></canvas>
     </div>
-    <div class="card">
-      <div class="kpi-label">Medios distintos</div>
-      <div class="kpi-value">{{ metrics.outlets|length }}</div>
-      <div class="kpi-subtitle">Cobertura por outlet.</div>
+    <div class="data-note">Porcentaje total de menciones por tono.</div>
+  </div>
+  <div class="card chart-card">
+    <div class="chart-header">
+      <h3 class="chart-title">Top medios</h3>
+      <div class="chart-subtitle">Outlets con mayor volumen de notas.</div>
     </div>
-    <div class="card">
-      <div class="kpi-label">Tono editorial</div>
-      <div class="kpi-value">{{ metrics.sentiment_total }}</div>
-      <div class="kpi-subtitle">Distribución total del sentimiento.</div>
-      <div class="kpi-breakdown">
-        <span class="kpi-pill positive">Positivo · {{ metrics.sentiment_summary.positivo }}</span>
-        <span class="kpi-pill neutral">Neutro · {{ metrics.sentiment_summary.neutro }}</span>
-        <span class="kpi-pill negative">Negativo · {{ metrics.sentiment_summary.negativo }}</span>
-      </div>
+    <div class="chart-container">
+      <canvas id="institucionOutletsChart" aria-label="Top medios" role="img"></canvas>
     </div>
-  </section>
+    <div class="data-note">Barras ordenadas por menciones.</div>
+  </div>
+</section>
 
-  <section class="grid grid-2" style="margin-top: 20px;">
-    <div class="card chart-card">
-      <div class="chart-header">
-        <h3 class="chart-title">Sentimiento</h3>
-        <div class="chart-subtitle">Balance del tono editorial sobre la institución.</div>
-      </div>
-      <div class="chart-container">
-        <canvas id="institucionSentimentChart" aria-label="Distribución de sentimiento" role="img"></canvas>
-      </div>
-      <div class="data-note">Porcentaje total de menciones por tono.</div>
+<section class="grid grid-2" style="margin-top: 20px;">
+  <div class="card chart-card">
+    <div class="chart-header">
+      <h3 class="chart-title">Temas con mayor conversación</h3>
+      <div class="chart-subtitle">Bubble chart: volumen de artículos por tema.</div>
     </div>
-    <div class="card chart-card">
-      <div class="chart-header">
-        <h3 class="chart-title">Top medios</h3>
-        <div class="chart-subtitle">Outlets con mayor volumen de notas.</div>
-      </div>
-      <div class="chart-container">
-        <canvas id="institucionOutletsChart" aria-label="Top medios" role="img"></canvas>
-      </div>
-      <div class="data-note">Barras ordenadas por menciones.</div>
+    <div class="chart-container">
+      <canvas id="institucionTopicsBubbleChart" aria-label="Temas principales" role="img"></canvas>
     </div>
-  </section>
+    <div class="data-note">Las burbujas más grandes indican mayor cobertura.</div>
+  </div>
+  <div class="card chart-card">
+    <div class="chart-header">
+      <h3 class="chart-title">Clusters destacados</h3>
+      <div class="chart-subtitle">Actividad por cluster editorial.</div>
+    </div>
+    <div class="chart-container">
+      <canvas id="institucionClustersChart" aria-label="Clusters destacados" role="img"></canvas>
+    </div>
+    <div class="data-note">Volumen de menciones agrupadas por historia.</div>
+  </div>
+</section>
 
-  <section class="grid grid-2" style="margin-top: 20px;">
-    <div class="card chart-card">
-      <div class="chart-header">
-        <h3 class="chart-title">Temas con mayor conversación</h3>
-        <div class="chart-subtitle">Bubble chart: volumen de artículos por tema.</div>
-      </div>
-      <div class="chart-container">
-        <canvas id="institucionTopicsBubbleChart" aria-label="Temas principales" role="img"></canvas>
-      </div>
-      <div class="data-note">Las burbujas más grandes indican mayor cobertura.</div>
-    </div>
-    <div class="card chart-card">
-      <div class="chart-header">
-        <h3 class="chart-title">Clusters destacados</h3>
-        <div class="chart-subtitle">Actividad por cluster editorial.</div>
-      </div>
-      <div class="chart-container">
-        <canvas id="institucionClustersChart" aria-label="Clusters destacados" role="img"></canvas>
-      </div>
-      <div class="data-note">Volumen de menciones agrupadas por historia.</div>
-    </div>
-  </section>
-
-  <section class="grid grid-3" style="margin-top: 20px;">
-    <div class="card">
-      <h3 class="card-title">Top medios</h3>
-      <p class="card-desc">Detalle de outlets que cubren a la institución.</p>
-      <table>
-        <thead>
-          <tr>
-            <th>Medio</th>
-            <th>Menciones</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for outlet in metrics.outlets %}
-            <tr>
-              <td>{{ outlet.name }}</td>
-              <td>{{ outlet.total }}</td>
-            </tr>
-          {% empty %}
-            <tr>
-              <td colspan="2" class="table-empty">Sin datos de medios.</td>
-            </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-    <div class="card">
-      <h3 class="card-title">Clusters destacados</h3>
-      <p class="card-desc">Historias con más actividad y sentimiento.</p>
-      <table>
-        <thead>
-          <tr>
-            <th>Tema</th>
-            <th>Sentimiento</th>
-            <th>Actividad</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for cluster in metrics.clusters %}
-            <tr>
-              <td>{{ cluster.topic_label|default:cluster.headline|truncatechars:50 }}</td>
-              <td>
-                {{ cluster.sentiment_summary.positivo }} pos ·
-                {{ cluster.sentiment_summary.neutro }} neu ·
-                {{ cluster.sentiment_summary.negativo }} neg
-              </td>
-              <td>{{ cluster.total }}</td>
-            </tr>
-          {% empty %}
-            <tr>
-              <td colspan="3" class="table-empty">Sin clusters recientes.</td>
-            </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-    <div class="card">
-      <h3 class="card-title">Temas destacados</h3>
-      <p class="card-desc">Temas que más concentran cobertura institucional.</p>
-      <table>
-        <thead>
-          <tr>
-            <th>Tema</th>
-            <th>Artículos</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for topic in metrics.topic_summary %}
-            <tr>
-              <td>{{ topic.label }}</td>
-              <td>{{ topic.total }}</td>
-            </tr>
-          {% empty %}
-            <tr>
-              <td colspan="2" class="table-empty">Sin temas recientes.</td>
-            </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-  </section>
+<section class="grid grid-3" style="margin-top: 20px;">
+  <div class="card">
+    <h3 class="card-title">Top medios</h3>
+    <p class="card-desc">Detalle de outlets que cubren a la institución.</p>
+    <table>
+      <thead>
+        <tr>
+          <th>Medio</th>
+          <th>Menciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for outlet in metrics.outlets %}
+        <tr>
+          <td>{{ outlet.name }}</td>
+          <td>{{ outlet.total }}</td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="2" class="table-empty">Sin datos de medios.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="card">
+    <h3 class="card-title">Clusters destacados</h3>
+    <p class="card-desc">Historias con más actividad y sentimiento.</p>
+    <table>
+      <thead>
+        <tr>
+          <th>Tema</th>
+          <th>Sentimiento</th>
+          <th>Actividad</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for cluster in metrics.clusters %}
+        <tr>
+          <td>{{ cluster.topic_label|default:cluster.headline|truncatechars:50 }}</td>
+          <td>
+            {{ cluster.sentiment_summary.positivo }} pos ·
+            {{ cluster.sentiment_summary.neutro }} neu ·
+            {{ cluster.sentiment_summary.negativo }} neg
+          </td>
+          <td>{{ cluster.total }}</td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="3" class="table-empty">Sin clusters recientes.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="card">
+    <h3 class="card-title">Temas destacados</h3>
+    <p class="card-desc">Temas que más concentran cobertura institucional.</p>
+    <table>
+      <thead>
+        <tr>
+          <th>Tema</th>
+          <th>Artículos</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for topic in metrics.topic_summary %}
+        <tr>
+          <td>{{ topic.label }}</td>
+          <td>{{ topic.total }}</td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="2" class="table-empty">Sin temas recientes.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
 {% endblock %}
 
 {% block extra_scripts %}
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-  <script>
-    const sentimentLabels = ["Positivo", "Neutro", "Negativo"];
-    const sentimentValues = [
-      {{ metrics.sentiment_summary.positivo }},
-      {{ metrics.sentiment_summary.neutro }},
-      {{ metrics.sentiment_summary.negativo }},
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+  const sentimentLabels = ["Positivo", "Neutro", "Negativo"];
+  const sentimentValues = [
+    {{ metrics.sentiment_summary.positivo }},
+  { { metrics.sentiment_summary.neutro } },
+  { { metrics.sentiment_summary.negativo } },
     ];
-    const outletLabels = [{% for outlet in metrics.outlets %}"{{ outlet.name|escapejs }}",{% endfor %}];
-    const outletValues = [{% for outlet in metrics.outlets %}{{ outlet.total }},{% endfor %}];
-    const clusterLabels = [{% for cluster in metrics.clusters %}"{{ cluster.headline|truncatechars:28|escapejs }}",{% endfor %}];
-    const clusterValues = [{% for cluster in metrics.clusters %}{{ cluster.total }},{% endfor %}];
-    const topicLabels = [{% for topic in metrics.topic_summary %}"{{ topic.label|escapejs }}",{% endfor %}];
-    const topicTotals = [{% for topic in metrics.topic_summary %}{{ topic.total }},{% endfor %}];
+  const outletLabels = [{% for outlet in metrics.outlets %}"{{ outlet.name|escapejs }}", {% endfor %}];
+  const outletValues = [{% for outlet in metrics.outlets %}{ { outlet.total } }, {% endfor %}];
+  const clusterLabels = [{% for cluster in metrics.clusters %}"{{ cluster.headline|truncatechars:28|escapejs }}", {% endfor %}];
+  const clusterValues = [{% for cluster in metrics.clusters %}{ { cluster.total } }, {% endfor %}];
+  const topicLabels = [{% for topic in metrics.topic_summary %}"{{ topic.label|escapejs }}", {% endfor %}];
+  const topicTotals = [{% for topic in metrics.topic_summary %}{ { topic.total } }, {% endfor %}];
 
-    new Chart(document.getElementById("institucionSentimentChart"), {
-      type: "doughnut",
-      data: {
-        labels: sentimentLabels.length ? sentimentLabels : ["Sin datos"],
-        datasets: [{
-          data: sentimentValues.length ? sentimentValues : [1],
-          backgroundColor: ["#22c55e", "#f97316", "#ef4444", "#38bdf8", "#a855f7"],
-          borderColor: "#0f172a",
-        }],
+  new Chart(document.getElementById("institucionSentimentChart"), {
+    type: "doughnut",
+    data: {
+      labels: sentimentLabels.length ? sentimentLabels : ["Sin datos"],
+      datasets: [{
+        data: sentimentValues.length ? sentimentValues : [1],
+        backgroundColor: ["#22c55e", "#f97316", "#ef4444", "#38bdf8", "#a855f7"],
+        borderColor: "#0f172a",
+      }],
+    },
+    options: {
+      plugins: {
+        legend: { labels: { color: "#e2e8f0" } },
       },
-      options: {
-        plugins: {
-          legend: { labels: { color: "#e2e8f0" } },
-        },
-      },
-    });
+    },
+  });
 
-    new Chart(document.getElementById("institucionOutletsChart"), {
-      type: "bar",
-      data: {
-        labels: outletLabels,
-        datasets: [{
-          label: "Menciones",
-          data: outletValues,
-          backgroundColor: "rgba(34, 197, 94, 0.7)",
-        }],
+  new Chart(document.getElementById("institucionOutletsChart"), {
+    type: "bar",
+    data: {
+      labels: outletLabels,
+      datasets: [{
+        label: "Menciones",
+        data: outletValues,
+        backgroundColor: "rgba(34, 197, 94, 0.7)",
+      }],
+    },
+    options: {
+      scales: {
+        x: { ticks: { color: "#cbd5f5" } },
+        y: { ticks: { color: "#cbd5f5" } },
       },
-      options: {
-        scales: {
-          x: { ticks: { color: "#cbd5f5" } },
-          y: { ticks: { color: "#cbd5f5" } },
-        },
-        plugins: {
-          legend: { labels: { color: "#e2e8f0" } },
-        },
+      plugins: {
+        legend: { labels: { color: "#e2e8f0" } },
       },
-    });
+    },
+  });
 
-    const bubbleDataset = topicTotals.map((value, index) => ({
-      x: index + 1,
-      y: value,
-      r: Math.max(6, value * 2),
-      label: topicLabels[index] || "Tema",
-    }));
+  const bubbleDataset = topicTotals.map((value, index) => ({
+    x: index + 1,
+    y: value,
+    r: Math.max(6, value * 2),
+    label: topicLabels[index] || "Tema",
+  }));
 
-    new Chart(document.getElementById("institucionTopicsBubbleChart"), {
-      type: "bubble",
-      data: {
-        datasets: [{
-          label: "Temas",
-          data: bubbleDataset.length ? bubbleDataset : [{ x: 1, y: 1, r: 6, label: "Sin datos" }],
-          backgroundColor: "rgba(34, 197, 94, 0.45)",
-          borderColor: "rgba(34, 197, 94, 0.9)",
-        }],
+  new Chart(document.getElementById("institucionTopicsBubbleChart"), {
+    type: "bubble",
+    data: {
+      datasets: [{
+        label: "Temas",
+        data: bubbleDataset.length ? bubbleDataset : [{ x: 1, y: 1, r: 6, label: "Sin datos" }],
+        backgroundColor: "rgba(34, 197, 94, 0.45)",
+        borderColor: "rgba(34, 197, 94, 0.9)",
+      }],
+    },
+    options: {
+      maintainAspectRatio: false,
+      scales: {
+        x: { ticks: { color: "#cbd5f5" }, grid: { color: "rgba(148, 163, 184, 0.15)" } },
+        y: { ticks: { color: "#cbd5f5" }, grid: { color: "rgba(148, 163, 184, 0.15)" } },
       },
-      options: {
-        scales: {
-          x: { ticks: { color: "#cbd5f5" }, grid: { color: "rgba(148, 163, 184, 0.15)" } },
-          y: { ticks: { color: "#cbd5f5" }, grid: { color: "rgba(148, 163, 184, 0.15)" } },
-        },
-        plugins: {
-          legend: { labels: { color: "#e2e8f0" } },
-          tooltip: {
-            callbacks: {
-              label: (context) => {
-                const label = context.raw.label || "Tema";
-                return `${label}: ${context.raw.y} artículos`;
-              },
+      plugins: {
+        legend: { labels: { color: "#e2e8f0" } },
+        tooltip: {
+          callbacks: {
+            label: (context) => {
+              const label = context.raw.label || "Tema";
+              return `${label}: ${context.raw.y} artículos`;
             },
           },
         },
       },
-    });
+    },
+  });
 
-    new Chart(document.getElementById("institucionClustersChart"), {
-      type: "bar",
-      data: {
-        labels: clusterLabels,
-        datasets: [{
-          label: "Actividad",
-          data: clusterValues,
-          backgroundColor: "rgba(56, 189, 248, 0.7)",
-        }],
+  new Chart(document.getElementById("institucionClustersChart"), {
+    type: "bar",
+    data: {
+      labels: clusterLabels,
+      datasets: [{
+        label: "Actividad",
+        data: clusterValues,
+        backgroundColor: "rgba(56, 189, 248, 0.7)",
+      }],
+    },
+    options: {
+      scales: {
+        x: { ticks: { color: "#cbd5f5" } },
+        y: { ticks: { color: "#cbd5f5" } },
       },
-      options: {
-        scales: {
-          x: { ticks: { color: "#cbd5f5" } },
-          y: { ticks: { color: "#cbd5f5" } },
-        },
-        plugins: {
-          legend: { labels: { color: "#e2e8f0" } },
-        },
+      plugins: {
+        legend: { labels: { color: "#e2e8f0" } },
       },
-    });
-  </script>
+    },
+  });
+</script>
 {% endblock %}
