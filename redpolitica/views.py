@@ -40,7 +40,7 @@ def atlas_home(request):
 
 
 def monitor_placeholder(request):
-    return redirect("/monitor/dashboard/")
+    return redirect("/")
 
 
 def social_placeholder(request):
