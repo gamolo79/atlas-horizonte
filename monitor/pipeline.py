@@ -67,6 +67,15 @@ class MonitorPipeline:
             # 2. Fetch Bodies
             success, output = self.run_command_captured("fetch_article_bodies", limit=self.limit)
             self.log_step("Step 2: Fetch Bodies", "SUCCESS" if success else "FAILED", output)
+
+            # 2.1 Embeddings
+            embed_hours = max(24, min(self.hours, 72))
+            success, output = self.run_command_captured(
+                "embed_articles",
+                limit=self.limit,
+                hours=embed_hours,
+            )
+            self.log_step("Step 2.1: Embeddings", "SUCCESS" if success else "FAILED", output)
             
             # 3. Intelligence Layer (Classification - Topics)
             success, output = self.run_command_captured("classify_article_topics", limit=self.limit, model=self.ai_model)
