@@ -1,120 +1,61 @@
 from django.contrib import admin
-from django.db import transaction
 
-from .models import (
-    Article,
-    ArticleInstitucionMention,
-    ArticlePersonaMention,
-    ArticleSentiment,
-    ContentClassification,
-    Digest,
-    DigestClient,
-    DigestClientConfig,
-    IngestRun,
-    MediaOutlet,
-    MediaSource,
-    MonitorTopicMapping,
-    StoryCluster,
-    StoryMention,
-)
+from monitor import models
 
 
-def _purge_articles(queryset):
-    article_ids = list(queryset.values_list("id", flat=True))
-    if not article_ids:
-        return
-    StoryCluster.objects.filter(base_article_id__in=article_ids).update(base_article=None)
-    StoryMention.objects.filter(article_id__in=article_ids).delete()
-    ArticlePersonaMention.objects.filter(article_id__in=article_ids).delete()
-    ArticleInstitucionMention.objects.filter(article_id__in=article_ids).delete()
-    ArticleSentiment.objects.filter(article_id__in=article_ids).delete()
-    ContentClassification.objects.filter(article_id__in=article_ids).delete()
-    queryset.filter(id__in=article_ids).delete()
-
-@admin.register(MediaOutlet)
-class MediaOutletAdmin(admin.ModelAdmin):
-    list_display = ("name", "type", "is_active", "weight")
-    search_fields = ("name", "slug")
-    list_filter = ("type", "is_active")
-
-@admin.register(MediaSource)
-class MediaSourceAdmin(admin.ModelAdmin):
-    list_display = ("media_outlet", "source_type", "is_active", "scan_interval_minutes", "last_fetched_at")
-    search_fields = ("url",)
+@admin.register(models.Source)
+class SourceAdmin(admin.ModelAdmin):
+    list_display = ("name", "outlet", "source_type", "is_active", "last_fetched_at")
+    search_fields = ("name", "url", "outlet")
     list_filter = ("source_type", "is_active")
 
-@admin.register(IngestRun)
-class IngestRunAdmin(admin.ModelAdmin):
-    list_display = ("id", "trigger", "status", "time_window_start", "time_window_end", "started_at", "finished_at")
-    list_filter = ("trigger", "status")
 
-@admin.register(Article)
+@admin.register(models.Article)
 class ArticleAdmin(admin.ModelAdmin):
-    list_display = ("media_outlet", "published_at", "title")
+    list_display = ("title", "outlet", "published_at", "pipeline_status")
     search_fields = ("title", "url")
-    list_filter = ("media_outlet",)
-
-    def delete_model(self, request, obj):
-        with transaction.atomic():
-            _purge_articles(Article.objects.filter(id=obj.id))
-
-    def delete_queryset(self, request, queryset):
-        with transaction.atomic():
-            _purge_articles(queryset)
-
-class StoryMentionInline(admin.TabularInline):
-    model = StoryMention
-    extra = 0
-    autocomplete_fields = ("article", "media_outlet")
-
-@admin.register(StoryCluster)
-class StoryClusterAdmin(admin.ModelAdmin):
-    list_display = ("id", "created_at", "confidence", "cohesion_score", "topic_label", "headline")
-    search_fields = ("headline",)
-    inlines = [StoryMentionInline]
-
-@admin.register(StoryMention)
-class StoryMentionAdmin(admin.ModelAdmin):
-    list_display = ("cluster", "media_outlet", "article", "match_score")
-    list_filter = ("media_outlet",)
-
-@admin.register(Digest)
-class DigestAdmin(admin.ModelAdmin):
-    list_display = ("date", "title", "created_at")
-    search_fields = ("title",)
-    date_hierarchy = "date"
-    readonly_fields = ("json_content",)
-
-@admin.register(ContentClassification)
-class ContentClassificationAdmin(admin.ModelAdmin):
-    list_display = ("article", "content_type", "confidence", "created_at")
-    search_fields = ("article__title",)
-    list_filter = ("content_type", "confidence")
+    list_filter = ("pipeline_status", "outlet")
 
 
-@admin.register(ArticleSentiment)
-class ArticleSentimentAdmin(admin.ModelAdmin):
-    list_display = ("article", "sentiment", "confidence", "created_at")
-    search_fields = ("article__title",)
-    list_filter = ("sentiment", "confidence")
+@admin.register(models.ClassificationRun)
+class ClassificationRunAdmin(admin.ModelAdmin):
+    list_display = ("article", "model_name", "status", "started_at", "finished_at")
+    list_filter = ("status", "model_name")
 
-@admin.register(DigestClient)
-class DigestClientAdmin(admin.ModelAdmin):
-    list_display = ("name", "slug", "owner", "is_active", "created_at")
-    list_filter = ("is_active",)
+
+@admin.register(models.Story)
+class StoryAdmin(admin.ModelAdmin):
+    list_display = ("title_base", "status", "time_window_start", "time_window_end")
+    list_filter = ("status",)
+
+
+@admin.register(models.Client)
+class ClientAdmin(admin.ModelAdmin):
+    list_display = ("name", "slug", "is_active")
     search_fields = ("name", "slug")
-    prepopulated_fields = {"slug": ("name",)}
 
 
-@admin.register(DigestClientConfig)
-class DigestClientConfigAdmin(admin.ModelAdmin):
-    list_display = ("client", "title", "top_n", "hours", "updated_at")
-    search_fields = ("client__name", "title")
-    filter_horizontal = ("personas", "instituciones")
+@admin.register(models.MetricAggregate)
+class MetricAggregateAdmin(admin.ModelAdmin):
+    list_display = ("entity_type", "atlas_id", "period", "date_start", "volume")
+    list_filter = ("entity_type", "period")
 
 
-@admin.register(MonitorTopicMapping)
-class MonitorTopicMappingAdmin(admin.ModelAdmin):
-    list_display = ("monitor_label", "atlas_topic", "method")
-    search_fields = ("monitor_label", "atlas_topic__name")
-    list_filter = ("atlas_topic",)
+@admin.register(models.Correction)
+class CorrectionAdmin(admin.ModelAdmin):
+    list_display = ("scope", "target_id", "field_name", "created_at")
+    list_filter = ("scope",)
+
+
+admin.site.register(models.AuditLog)
+admin.site.register(models.DailyExecution)
+admin.site.register(models.DailyDigestItem)
+admin.site.register(models.EditorialTag)
+admin.site.register(models.TagLink)
+admin.site.register(models.TopicLink)
+admin.site.register(models.ActorLink)
+admin.site.register(models.ArticleVersion)
+admin.site.register(models.DecisionTrace)
+admin.site.register(models.Extraction)
+admin.site.register(models.TrainingExample)
+admin.site.register(models.JobLog)

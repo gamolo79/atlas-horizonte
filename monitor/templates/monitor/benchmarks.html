@@ -1,0 +1,40 @@
+{% extends "monitor/dashboard/base.html" %}
+{% block title %}Benchmarks · Monitor{% endblock %}
+{% block content %}
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Benchmarks</h1>
+      <p class="muted">Comparativo de entidades por volumen, tono y persistencia.</p>
+    </div>
+    <div class="actions">
+      <a class="secondary" href="{% url 'monitor_benchmarks_export' %}">Exportar PDF</a>
+    </div>
+  </div>
+
+  <section class="card">
+    <table>
+      <thead>
+        <tr>
+          <th>Entidad</th>
+          <th>Volumen</th>
+          <th>% Negativo</th>
+          <th>Persistencia</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for agg in aggregates %}
+        <tr>
+          <td>{{ agg.entity_type }} {{ agg.atlas_id }}</td>
+          <td>{{ agg.volume }}</td>
+          <td>{{ agg.neg_percent }}%</td>
+          <td>{{ agg.persistence_score }}</td>
+        </tr>
+      {% empty %}
+        <tr>
+          <td colspan="4" class="table-empty">Sin datos</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </section>
+{% endblock %}

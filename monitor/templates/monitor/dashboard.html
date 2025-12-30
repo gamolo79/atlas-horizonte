@@ -1,0 +1,44 @@
+{% extends "monitor/dashboard/base.html" %}
+{% block title %}Dashboard · Monitor{% endblock %}
+{% block content %}
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Dashboards</h1>
+      <p class="muted">Seguimiento por actor/tema con métricas agregadas.</p>
+    </div>
+    <div class="actions">
+      <a class="secondary" href="{% url 'monitor_benchmarks' %}">Benchmarks</a>
+    </div>
+  </div>
+
+  <section class="card">
+    <table>
+      <thead>
+        <tr>
+          <th>Entidad</th>
+          <th>Periodo</th>
+          <th>Volumen</th>
+          <th>Positivo</th>
+          <th>Neutro</th>
+          <th>Negativo</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for agg in aggregates %}
+        <tr>
+          <td>{{ agg.entity_type }} {{ agg.atlas_id }}</td>
+          <td>{{ agg.date_start }} - {{ agg.date_end }}</td>
+          <td>{{ agg.volume }}</td>
+          <td>{{ agg.sentiment_pos }}</td>
+          <td>{{ agg.sentiment_neu }}</td>
+          <td>{{ agg.sentiment_neg }}</td>
+        </tr>
+      {% empty %}
+        <tr>
+          <td colspan="6" class="table-empty">Sin datos</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </section>
+{% endblock %}

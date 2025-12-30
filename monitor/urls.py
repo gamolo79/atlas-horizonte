@@ -1,53 +1,31 @@
 from django.urls import path
-from .views import monitor_health
-from . import views_digest
-from . import views_dashboard
+
+from monitor import views
 
 urlpatterns = [
-    path("health/", monitor_health, name="monitor_health"),
-
-    path("digest/", views_digest.digest_latest, name="monitor_digest_latest"),
-    path("digest/<int:y>-<int:m>-<int:d>/", views_digest.digest_by_date, name="monitor_digest_by_date"),
-
-    # Dashboard
-    path("dashboard/", views_dashboard.dashboard_home, name="monitor_dashboard_home"),
-    path("dashboard/personas/", views_dashboard.personas_list, name="monitor_dashboard_personas"),
-    path("dashboard/personas/<int:persona_id>/", views_dashboard.persona_dashboard, name="monitor_dashboard_persona"),
-    path("dashboard/benchmark/", views_dashboard.benchmark_dashboard, name="monitor_dashboard_benchmark"),
-    path(
-        "dashboard/instituciones/",
-        views_dashboard.instituciones_list,
-        name="monitor_dashboard_instituciones",
-    ),
-    path(
-        "dashboard/instituciones/<int:institucion_id>/",
-        views_dashboard.institucion_dashboard,
-        name="monitor_dashboard_institucion",
-    ),
+    path("health/", views.monitor_health, name="monitor_health"),
+    path("ingest/", views.ingest_list, name="monitor_ingest"),
+    path("articles/<int:article_id>/", views.article_correction, name="monitor_article_correction"),
+    path("stories/<int:story_id>/", views.story_correction, name="monitor_story_correction"),
+    path("dashboard/", views.dashboard_view, name="monitor_dashboard"),
+    path("dashboard/<str:entity_type>/<str:atlas_id>/", views.dashboard_entity_view, name="monitor_dashboard_entity"),
+    path("benchmarks/", views.benchmarks_view, name="monitor_benchmarks"),
+    path("benchmarks/export/pdf/", views.export_pdf_placeholder, name="monitor_benchmarks_export"),
+    path("api/jobs/ingest/", views.api_job_ingest, name="monitor_api_ingest"),
+    path("api/jobs/analyze/", views.api_job_analyze, name="monitor_api_analyze"),
+    path("api/jobs/cluster/", views.api_job_cluster, name="monitor_api_cluster"),
+    path("api/jobs/digest/", views.api_job_digest, name="monitor_api_digest"),
+    path("dashboard/home/", views.dashboard_home, name="monitor_dashboard_home"),
+    path("dashboard/personas/", views.personas_placeholder, name="monitor_dashboard_personas"),
+    path("dashboard/instituciones/", views.instituciones_placeholder, name="monitor_dashboard_instituciones"),
+    path("dashboard/benchmark/", views.benchmarks_view, name="monitor_dashboard_benchmark"),
     path(
         "dashboard/instituciones/benchmark/",
-        views_dashboard.institucion_benchmark_dashboard,
+        views.benchmarks_view,
         name="monitor_dashboard_instituciones_benchmark",
     ),
-    path("dashboard/ingest/", views_dashboard.ingest_dashboard, name="monitor_dashboard_ingest"),
-
-    # Clientes
-    path("dashboard/clients/", views_dashboard.client_list, name="monitor_dashboard_client_list"),
-    path("dashboard/clients/new/", views_dashboard.client_create, name="monitor_dashboard_client_create"),
-    path("dashboard/clients/<int:client_id>/", views_dashboard.client_edit, name="monitor_dashboard_client_edit"),
-    path("dashboard/clients/<int:client_id>/delete/", views_dashboard.client_delete, name="monitor_dashboard_client_delete"),
-    path("dashboard/clients/<int:client_id>/digests/", views_dashboard.client_digest_history, name="monitor_dashboard_client_digests"),
-    path("dashboard/clients/<int:client_id>/generate/", views_dashboard.client_generate_digest, name="monitor_dashboard_client_generate"),
-
-    # Digests
-    path("dashboard/digests/<int:digest_id>/", views_dashboard.digest_view, name="monitor_dashboard_digest_view"),
-
-    # Ops
-    path("dashboard/ops/", views_dashboard.ops_run, name="monitor_dashboard_ops"),
-    path("dashboard/ops/correction/", views_dashboard.submit_gold_correction, name="monitor_dashboard_submit_correction"),
-    path("dashboard/ops/review-clusters/", views_dashboard.review_clusters, name="review_clusters"),
-    path("dashboard/ops/review-mentions/", views_dashboard.review_mentions, name="review_mentions"),
-    
-    # Training/Corrections
-    path("dashboard/training/", views_dashboard.training_corrections, name="monitor_dashboard_training"),
+    path("dashboard/ingest/", views.ingest_list, name="monitor_dashboard_ingest"),
+    path("dashboard/clients/", views.clients_placeholder, name="monitor_dashboard_client_list"),
+    path("dashboard/training/", views.training_placeholder, name="monitor_dashboard_training"),
+    path("dashboard/ops/", views.ops_placeholder, name="monitor_dashboard_ops"),
 ]
