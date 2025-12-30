@@ -6,6 +6,7 @@ from django.core.management.base import BaseCommand
 from django.utils import timezone
 from django.db import transaction
 
+from monitor.aggregations import refresh_cluster_atlas_topics
 from monitor.models import Article, StoryCluster, StoryMention
 
 
@@ -102,6 +103,7 @@ class Command(BaseCommand):
 
         created_clusters = 0
         created_mentions = 0
+        touched_clusters = set()
 
         with transaction.atomic():
             for g in clusters:
@@ -118,6 +120,7 @@ class Command(BaseCommand):
                 )
                 if created:
                     created_clusters += 1
+                    touched_clusters.add(cluster.id)
 
                 # menciones
                 for a in g["articles"]:
@@ -132,6 +135,11 @@ class Command(BaseCommand):
                     )
                     if m_created:
                         created_mentions += 1
+                        touched_clusters.add(cluster.id)
+
+        if touched_clusters:
+            for cluster in StoryCluster.objects.filter(id__in=touched_clusters):
+                refresh_cluster_atlas_topics(cluster, save=True)
 
         self.stdout.write(self.style.SUCCESS(f"Created clusters: {created_clusters}"))
         self.stdout.write(self.style.SUCCESS(f"Created mentions: {created_mentions}"))
