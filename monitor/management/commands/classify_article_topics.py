@@ -5,7 +5,7 @@ from django.core.management.base import BaseCommand
 
 from openai import OpenAI
 
-from monitor.models import Article
+from monitor.models import Article, MonitorTopicMapping
 
 
 PROMPT_TEMPLATE = """
@@ -84,7 +84,7 @@ class Command(BaseCommand):
                 self.stdout.write(self.style.WARNING(f"Topics vacíos article {article.id}"))
                 continue
 
-            article.topics = cleaned
+            article.topics = self._apply_topic_mapping(cleaned)
             article.topics_model = model
             article.topics_justification = result.get("justification", "")
             article.save(update_fields=["topics", "topics_model", "topics_justification"])
@@ -142,6 +142,32 @@ class Command(BaseCommand):
         except Exception as exc:
             self.stdout.write(self.style.WARNING(f"Error OpenAI: {exc}"))
             return None
+
+    def _apply_topic_mapping(self, topics):
+        mapped_topics = []
+        for topic in topics:
+            label = topic.get("label", "")
+            mapping = None
+            if label:
+                mapping = (
+                    MonitorTopicMapping.objects.select_related("atlas_topic")
+                    .filter(monitor_label__iexact=label)
+                    .first()
+                )
+            if mapping:
+                mapped = {
+                    **topic,
+                    "monitor_label": label,
+                    "label": mapping.atlas_topic.name,
+                    "atlas_topic_id": mapping.atlas_topic_id,
+                    "atlas_topic_slug": mapping.atlas_topic.slug,
+                }
+                if mapping.method:
+                    mapped["mapping_method"] = mapping.method
+                mapped_topics.append(mapped)
+            else:
+                mapped_topics.append(topic)
+        return mapped_topics
 
         content = response.choices[0].message.content
         try:

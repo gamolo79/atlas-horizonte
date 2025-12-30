@@ -13,6 +13,7 @@ from .models import (
     IngestRun,
     MediaOutlet,
     MediaSource,
+    MonitorTopicMapping,
     StoryCluster,
     StoryMention,
 )
@@ -110,3 +111,10 @@ class DigestClientConfigAdmin(admin.ModelAdmin):
     list_display = ("client", "title", "top_n", "hours", "updated_at")
     search_fields = ("client__name", "title")
     filter_horizontal = ("personas", "instituciones")
+
+
+@admin.register(MonitorTopicMapping)
+class MonitorTopicMappingAdmin(admin.ModelAdmin):
+    list_display = ("monitor_label", "atlas_topic", "method")
+    search_fields = ("monitor_label", "atlas_topic__name")
+    list_filter = ("atlas_topic",)

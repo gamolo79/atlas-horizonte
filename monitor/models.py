@@ -277,7 +277,7 @@ class ArticleSentiment(models.Model):
 # --- Atlas ↔ Monitor bridge (aliases + mentions) ---
 
 from django.db import models
-from redpolitica.models import Persona, Institucion
+from redpolitica.models import Persona, Institucion, Topic
 
 
 class PersonaAlias(models.Model):
@@ -316,6 +316,18 @@ class InstitucionAlias(models.Model):
 
     def __str__(self):
         return f"{self.alias} → {self.institucion}"
+
+
+class MonitorTopicMapping(models.Model):
+    monitor_label = models.CharField(max_length=200, unique=True)
+    atlas_topic = models.ForeignKey(Topic, on_delete=models.CASCADE, related_name="monitor_mappings")
+    method = models.CharField(max_length=60, blank=True)
+
+    class Meta:
+        ordering = ["monitor_label"]
+
+    def __str__(self):
+        return f"{self.monitor_label} → {self.atlas_topic.name}"
 
 
 class Mention(models.Model):
