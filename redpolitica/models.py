@@ -216,7 +216,6 @@ def _create_relaciones_laborales(cargo):
         ).select_related("persona", "institucion")
         child_cargos = [cargo]
         _build_relaciones_laborales(parent_cargos, child_cargos, cargo.periodo)
-        return
 
     child_cargos = Cargo.objects.filter(
         institucion__padre=cargo.institucion,
