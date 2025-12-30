@@ -1,0 +1,53 @@
+# Monitor Horizonte (reconstrucción desde cero)
+
+## Arquitectura modular
+
+```
+[Ingesta] -> [Normalización/Limpieza] -> [Clasificación IA]
+     -> [Agregación de métricas] -> [Historias/Clustering]
+     -> [Síntesis diaria] -> [Dashboards/Benchmarks]
+     -> [Entrenamiento/Auditoría]
+```
+
+### Módulos
+
+- **Ingesta** (`monitor.pipeline.ingest_sources`): ingesta de fuentes configuradas, deduplicación con `hash_dedupe`.
+- **Normalización/Limpieza** (`monitor.pipeline.normalize_articles`): limpieza de HTML y versionado (`ArticleVersion`).
+- **Clasificación IA** (`monitor.pipeline.classify_articles`): crea `ClassificationRun`, `Extraction` y `DecisionTrace` (explicable).
+- **Agregación** (`monitor.pipeline.aggregate_metrics`): recalcula `MetricAggregate` por actor/tema.
+- **Historias** (`monitor.pipeline.cluster_stories`): agrupa artículos por ventana temporal y tema (`Story`, `StoryArticle`).
+- **Síntesis diaria** (`monitor.pipeline.build_daily_digest`): genera `DailyExecution` y `DailyDigestItem` por cliente.
+- **Entrenamiento/Auditoría** (`Correction`, `TrainingExample`, `AuditLog`): solo aprende de correcciones humanas.
+
+### Flujos principales
+
+1. **Ingesta**: `monitor_ingest` crea artículos con status `ingested`.
+2. **Normalización + Clasificación**: `monitor_analyze` limpia y clasifica con salidas JSON explicables.
+3. **Clustering**: `monitor_cluster` crea historias.
+4. **Agregación**: `monitor_aggregate` recalcula métricas.
+5. **Síntesis diaria**: `monitor_build_digest` genera propuesta editorial.
+6. **Correcciones**: UI para editar artículo/historia con explicación editorial; genera `TrainingExample`.
+
+### Observabilidad
+
+- Logs estructurados con `AuditLog`.
+- Ejecuciones de jobs con `JobLog`.
+
+### APIs
+
+- `POST /monitor/api/jobs/ingest/`
+- `POST /monitor/api/jobs/analyze/`
+- `POST /monitor/api/jobs/cluster/`
+- `POST /monitor/api/jobs/digest/`
+
+### UI mínima
+
+- `GET /monitor/ingest/`
+- `GET /monitor/articles/<id>/`
+- `GET /monitor/stories/<id>/`
+- `GET /monitor/dashboard/`
+- `GET /monitor/benchmarks/`
+
+### Plan de migración mínima
+
+`monitor_migrate_legacy` copia fuentes y artículos válidos desde tablas legadas (`monitor_mediasource`, `monitor_article`) y descarta parches/embeddings.

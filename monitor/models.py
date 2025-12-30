@@ -1,544 +1,504 @@
-from django.db import models
+from __future__ import annotations
+
+import hashlib
+from typing import Optional
+
 from django.conf import settings
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
-from django.db.models import Q
+from django.db import models
 from django.utils import timezone
 
-from atlas_core.text_utils import normalize_name
 
-
-class MediaOutlet(models.Model):
-    class MediaType(models.TextChoices):
-        DIGITAL_NATIVE = "digital_native", "Digital nativo"
-        BROADCAST_WITH_WEB = "broadcast_with_web", "Radio/TV con web"
-        PRINT_WITH_WEB = "print_with_web", "Impreso con web"
+class Source(models.Model):
+    class SourceType(models.TextChoices):
+        RSS = "rss", "RSS"
+        SITEMAP = "sitemap", "Sitemap"
+        HTML = "html", "HTML"
+        API = "api", "API"
 
     name = models.CharField(max_length=200)
-    slug = models.SlugField(max_length=220, unique=True)
-    type = models.CharField(max_length=30, choices=MediaType.choices)
-    home_url = models.URLField(blank=True)
-    weight = models.FloatField(default=1.0)
+    outlet = models.CharField(max_length=200)
+    source_type = models.CharField(max_length=20, choices=SourceType.choices)
+    url = models.URLField(max_length=1000)
+    config = models.JSONField(default=dict, blank=True)
     is_active = models.BooleanField(default=True)
+    last_fetched_at = models.DateTimeField(null=True, blank=True)
+    last_error = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["source_type", "is_active"]),
+            models.Index(fields=["outlet"]),
+        ]
+        ordering = ["outlet", "name"]
+
+    def __str__(self) -> str:
+        return f"{self.outlet} · {self.name}"
+
+
+class Article(models.Model):
+    class PipelineStatus(models.TextChoices):
+        INGESTED = "ingested", "Ingestada"
+        NORMALIZED = "normalized", "Normalizada"
+        CLASSIFIED = "classified", "Clasificada"
+        CLUSTERED = "clustered", "Clusterizada"
+        AGGREGATED = "aggregated", "Agregada"
+        DIGESTED = "digested", "En síntesis"
+        ERROR = "error", "Error"
+
+    source = models.ForeignKey(Source, null=True, blank=True, on_delete=models.SET_NULL)
+    url = models.URLField(max_length=1000, unique=True)
+    canonical_url = models.URLField(max_length=1000, blank=True)
+    title = models.TextField()
+    lead = models.TextField(blank=True)
+    body = models.TextField(blank=True)
+    published_at = models.DateTimeField(null=True, blank=True)
+    fetched_at = models.DateTimeField(null=True, blank=True)
+    outlet = models.CharField(max_length=200, blank=True)
+    language = models.CharField(max_length=10, default="es")
+    hash_dedupe = models.CharField(max_length=64, db_index=True)
+    raw_html = models.TextField(blank=True)
+    pipeline_status = models.CharField(
+        max_length=20,
+        choices=PipelineStatus.choices,
+        default=PipelineStatus.INGESTED,
+    )
+    pipeline_error = models.TextField(blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["pipeline_status", "published_at"]),
+            models.Index(fields=["hash_dedupe"]),
+            models.Index(fields=["outlet", "published_at"]),
+        ]
+        ordering = ["-published_at", "-id"]
+
+    def __str__(self) -> str:
+        return self.title[:80]
+
+    @staticmethod
+    def compute_hash(url: str, canonical_url: Optional[str], body: str) -> str:
+        seed = (canonical_url or url or "").strip().lower() + "|" + (body or "").strip()
+        return hashlib.sha256(seed.encode("utf-8")).hexdigest()
+
+
+class ArticleVersion(models.Model):
+    article = models.ForeignKey(Article, on_delete=models.CASCADE, related_name="versions")
+    version = models.PositiveIntegerField(default=1)
+    title = models.TextField()
+    lead = models.TextField(blank=True)
+    body = models.TextField(blank=True)
+    cleaned_at = models.DateTimeField(auto_now_add=True)
     notes = models.TextField(blank=True)
 
     class Meta:
         indexes = [
-            models.Index(fields=["type", "is_active"]),
+            models.Index(fields=["article", "version"]),
         ]
-        ordering = ["name"]
-
-    def __str__(self):
-        return self.name
+        ordering = ["-version", "-id"]
 
 
-class MediaSource(models.Model):
-    class SourceType(models.TextChoices):
-        RSS = "rss", "RSS"
-        SITEMAP = "sitemap", "Sitemap"
-        SECTION_URL = "section_url", "Sección/URL"
-        API = "api", "API"
-        MANUAL_URL = "manual_url", "Manual"
-
-    media_outlet = models.ForeignKey(MediaOutlet, on_delete=models.CASCADE, related_name="sources")
-    source_type = models.CharField(max_length=20, choices=SourceType.choices)
-    url = models.URLField()
-    scan_interval_minutes = models.PositiveIntegerField(default=60)
-    is_active = models.BooleanField(default=True)
-
-    last_fetched_at = models.DateTimeField(null=True, blank=True)
-    fail_count = models.PositiveIntegerField(default=0)
-    last_error = models.TextField(blank=True)
-
-    class Meta:
-        indexes = [
-            models.Index(fields=["media_outlet", "is_active"]),
-            models.Index(fields=["last_fetched_at"]),
-        ]
-
-    def __str__(self):
-        return f"{self.media_outlet.name} · {self.source_type}"
-
-
-class IngestRun(models.Model):
-    class Trigger(models.TextChoices):
-        SCHEDULED = "scheduled", "Programada"
-        MANUAL = "manual", "Manual"
-        RETRY = "retry", "Reintento"
-
+class ClassificationRun(models.Model):
     class Status(models.TextChoices):
         QUEUED = "queued", "En cola"
         RUNNING = "running", "Corriendo"
         SUCCESS = "success", "Exitosa"
         FAILED = "failed", "Fallida"
-        PARTIAL = "partial", "Parcial"
 
-    trigger = models.CharField(max_length=20, choices=Trigger.choices, default=Trigger.MANUAL)
-    time_window_start = models.DateTimeField()
-    time_window_end = models.DateTimeField()
-    status = models.CharField(max_length=20, choices=Status.choices, default=Status.QUEUED)
-
-    stats_total_fetched = models.PositiveIntegerField(default=0)
-    stats_total_parsed = models.PositiveIntegerField(default=0)
-
-    started_at = models.DateTimeField(null=True, blank=True)
+    article = models.ForeignKey(Article, on_delete=models.CASCADE, related_name="classification_runs")
+    model_name = models.CharField(max_length=120)
+    model_version = models.CharField(max_length=80, blank=True)
+    prompt_version = models.CharField(max_length=80, blank=True)
+    started_at = models.DateTimeField(default=timezone.now)
     finished_at = models.DateTimeField(null=True, blank=True)
-
-    log = models.JSONField(default=dict, blank=True)
-    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL)
+    cost = models.DecimalField(max_digits=10, decimal_places=4, default=0)
+    tokens = models.PositiveIntegerField(default=0)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.QUEUED)
+    error = models.TextField(blank=True)
 
     class Meta:
         indexes = [
             models.Index(fields=["status", "started_at"]),
-            models.Index(fields=["time_window_start", "time_window_end"]),
         ]
 
 
-class Article(models.Model):
-    media_outlet = models.ForeignKey(MediaOutlet, on_delete=models.CASCADE)
-    source = models.ForeignKey(MediaSource, null=True, blank=True, on_delete=models.SET_NULL)
-
-    url = models.URLField(max_length=1000, unique=True)
-    guid = models.CharField(max_length=500, blank=True, db_index=True)
-
-    title = models.TextField()
-    lead = models.TextField(blank=True)
-    embedding = models.JSONField(default=list, blank=True)
-    embedding_model = models.CharField(max_length=60, blank=True, default="")
-    body_text = models.TextField(blank=True, default="")
-    fetched_at = models.DateTimeField(null=True, blank=True)
-    authors = models.CharField(max_length=400, blank=True)
-    section = models.CharField(max_length=200, blank=True)
-
-    published_at = models.DateTimeField(null=True, blank=True)
-    language = models.CharField(max_length=10, default="es")
-
-    entities_extracted = models.JSONField(default=dict, blank=True)
-    quality_score = models.FloatField(default=0.0)
-    topics = models.JSONField(default=list, blank=True)
-    topics_model = models.CharField(max_length=60, blank=True, default="")
-    topics_justification = models.TextField(blank=True)
-    atlas_topics = models.ManyToManyField("redpolitica.Topic", blank=True)
-
-    created_at = models.DateTimeField(auto_now_add=True)
-    training_reviewed = models.BooleanField(default=False)
-
-    class Meta:
-        indexes = [
-            models.Index(fields=["media_outlet", "published_at"]),
-        ]
-        ordering = ["-published_at", "-id"]
-
-    def __str__(self):
-        return self.title[:80]
-
-
-class StoryCluster(models.Model):
-    run = models.ForeignKey(IngestRun, null=True, blank=True, on_delete=models.SET_NULL, related_name="clusters")
-    cluster_key = models.CharField(max_length=200, blank=True)
-
-    headline = models.TextField()
-    lead = models.TextField(blank=True)
-    topic_label = models.CharField(max_length=200, blank=True, default="")
-    cohesion_score = models.FloatField(default=0.0)
-    cluster_summary = models.TextField(blank=True, default="")
-    sentiment_summary = models.JSONField(default=dict, blank=True)
-    topic_summary = models.JSONField(default=list, blank=True)
-    entity_summary = models.JSONField(default=list, blank=True)
-    atlas_topics = models.ManyToManyField("redpolitica.Topic", blank=True)
-
-    base_article = models.ForeignKey(Article, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
-    confidence = models.FloatField(default=0.0)
-
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        indexes = [
-            models.Index(fields=["created_at"]),
-            models.Index(fields=["run", "confidence"]),
-        ]
-        ordering = ["-created_at", "-id"]
-
-    def __str__(self):
-        return self.headline[:80]
-
-
-class StoryMention(models.Model):
-    cluster = models.ForeignKey(StoryCluster, on_delete=models.CASCADE, related_name="mentions")
-    article = models.ForeignKey(Article, on_delete=models.CASCADE)
-    media_outlet = models.ForeignKey(MediaOutlet, on_delete=models.CASCADE)
-
-    match_score = models.FloatField(default=0.0)
-    is_base_candidate = models.BooleanField(default=False)
-
-    class Meta:
-        constraints = [
-            models.UniqueConstraint(fields=["cluster", "article"], name="uniq_cluster_article"),
-        ]
-        indexes = [
-            models.Index(fields=["cluster", "media_outlet"]),
-        ]
-        ordering = ["cluster_id", "media_outlet_id", "id"]
-
-class Digest(models.Model):
-    """
-    Síntesis editorial diaria (HTML).
-    """
-    date = models.DateField()
-    title = models.CharField(max_length=200)
-    html_content = models.TextField()
-    json_content = models.JSONField(default=dict, blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        unique_together = ("date", "title")
-        ordering = ["-date", "-id"]
-
-    def __str__(self):
-        return f"{self.date} · {self.title}"
-
-class DigestSection(models.Model):
-    class SectionType(models.TextChoices):
-        PRIORITY = "priority", "Prioritaria"
-        BY_PARENT = "by_parent", "Por institución padre"
-        BY_TOPIC = "by_topic", "Por tema de interés"
-        GENERAL = "general", "General"
-
-    digest = models.ForeignKey(Digest, on_delete=models.CASCADE, related_name="sections")
-    section_type = models.CharField(max_length=20, choices=SectionType.choices, default=SectionType.GENERAL)
-    label = models.CharField(max_length=200)  # ej: "IEEQ", "Poder Ejecutivo"
-    order = models.PositiveIntegerField(default=0)
-
-    class Meta:
-        ordering = ["order", "id"]
-
-    def __str__(self):
-        return f"{self.digest.date} · {self.label}"
-
-
-class DigestItem(models.Model):
-    section = models.ForeignKey(DigestSection, on_delete=models.CASCADE, related_name="items")
-    cluster = models.ForeignKey(StoryCluster, on_delete=models.CASCADE)
-
-    order = models.PositiveIntegerField(default=0)
-
-    # por si quieres sobreescribir el titular/lead para la síntesis
-    custom_headline = models.TextField(blank=True)
-    custom_lead = models.TextField(blank=True)
-
-    class Meta:
-        ordering = ["order", "id"]
-        constraints = [
-            models.UniqueConstraint(fields=["section", "cluster"], name="uniq_section_cluster"),
-        ]
-
-class ContentClassification(models.Model):
+class Extraction(models.Model):
     class ContentType(models.TextChoices):
-        INFORMATIVE = "informative", "Informativo"
+        INFORMATIVO = "informativo", "Informativo"
         OPINION = "opinion", "Opinión"
+        BOLETIN = "boletin", "Boletín"
+        ANALISIS = "analisis", "Análisis"
 
-    article = models.OneToOneField(Article, on_delete=models.CASCADE, related_name="content_classification")
+    class Scope(models.TextChoices):
+        FEDERAL = "federal", "Federal"
+        ESTATAL = "estatal", "Estatal"
+        MUNICIPAL = "municipal", "Municipal"
+
+    classification_run = models.OneToOneField(
+        ClassificationRun,
+        on_delete=models.CASCADE,
+        related_name="extraction",
+    )
     content_type = models.CharField(max_length=20, choices=ContentType.choices)
-    confidence = models.CharField(max_length=10, default="media")  # alta/media/baja
-    justification = models.TextField(blank=True)
-    model_meta = models.JSONField(default=dict, blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        ordering = ["-id"]
-
-    def __str__(self):
-        return f"{self.article_id} · {self.content_type}"
-
-
-class ArticleSentiment(models.Model):
-    class Sentiment(models.TextChoices):
-        POSITIVE = "positivo", "Positivo"
-        NEUTRAL = "neutro", "Neutro"
-        NEGATIVE = "negativo", "Negativo"
-
-    class Confidence(models.TextChoices):
-        HIGH = "alta", "Alta"
-        MEDIUM = "media", "Media"
-        LOW = "baja", "Baja"
-
-    article = models.OneToOneField(Article, on_delete=models.CASCADE, related_name="sentiment")
-    sentiment = models.CharField(max_length=10, choices=Sentiment.choices)
-    confidence = models.CharField(max_length=10, choices=Confidence.choices, default=Confidence.MEDIUM)
-    justification = models.TextField(blank=True)
-    model_meta = models.JSONField(default=dict, blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        ordering = ["-id"]
-
-    def __str__(self):
-        return f"{self.article_id} · {self.sentiment}"
-
-
-# --- Atlas ↔ Monitor bridge (aliases + mentions) ---
-
-from django.db import models
-from redpolitica.models import Persona, Institucion, Topic
-
-
-class PersonaAlias(models.Model):
-    persona = models.ForeignKey(Persona, on_delete=models.CASCADE, related_name="aliases")
-    alias = models.CharField(max_length=255, db_index=True)
-    alias_normalizado = models.CharField(max_length=255, blank=True, db_index=True)
-
-    created_at = models.DateTimeField(default=timezone.now)
-
-    class Meta:
-        unique_together = ("persona", "alias")
-        ordering = ["alias"]
-
-    def save(self, *args, **kwargs):
-        self.alias_normalizado = normalize_name(self.alias)
-        super().save(*args, **kwargs)
-
-    def __str__(self):
-        return f"{self.alias} → {self.persona}"
-
-
-class InstitucionAlias(models.Model):
-    institucion = models.ForeignKey(Institucion, on_delete=models.CASCADE, related_name="aliases")
-    alias = models.CharField(max_length=255, db_index=True)
-    alias_normalizado = models.CharField(max_length=255, blank=True, db_index=True)
-
-    created_at = models.DateTimeField(default=timezone.now)
-
-    class Meta:
-        unique_together = ("institucion", "alias")
-        ordering = ["alias"]
-
-    def save(self, *args, **kwargs):
-        self.alias_normalizado = normalize_name(self.alias)
-        super().save(*args, **kwargs)
-
-    def __str__(self):
-        return f"{self.alias} → {self.institucion}"
-
-
-class MonitorTopicMapping(models.Model):
-    monitor_label = models.CharField(max_length=200, unique=True)
-    atlas_topic = models.ForeignKey(Topic, on_delete=models.CASCADE, related_name="monitor_mappings")
-    method = models.CharField(max_length=60, blank=True)
-
-    class Meta:
-        ordering = ["monitor_label"]
-
-    def __str__(self):
-        return f"{self.monitor_label} → {self.atlas_topic.name}"
-
-
-class Mention(models.Model):
-    class EntityKind(models.TextChoices):
-        PERSON = "PERSON", "Persona"
-        ORG = "ORG", "Organización"
-        ROLE = "ROLE", "Rol"
-        OTHER = "OTHER", "Otro"
-
-    article = models.ForeignKey("monitor.Article", on_delete=models.CASCADE, related_name="mentions")
-    surface = models.TextField()
-    normalized_surface = models.TextField(db_index=True)
-    entity_kind = models.CharField(max_length=10, choices=EntityKind.choices)
-    context_window = models.TextField(blank=True)
-    span_start = models.IntegerField(null=True, blank=True)
-    span_end = models.IntegerField(null=True, blank=True)
-    method = models.CharField(max_length=60, blank=True)
-    created_at = models.DateTimeField(default=timezone.now)
+    scope = models.CharField(max_length=20, choices=Scope.choices)
+    institutional_type = models.CharField(max_length=120, blank=True)
+    notes = models.TextField(blank=True)
+    raw_payload = models.JSONField(default=dict, blank=True)
 
     class Meta:
         indexes = [
-            models.Index(fields=["article", "entity_kind"]),
-            models.Index(fields=["normalized_surface"]),
-        ]
-        constraints = [
-            models.UniqueConstraint(
-                fields=["article", "entity_kind", "span_start", "span_end", "normalized_surface"],
-                name="uniq_mention_span",
-            ),
+            models.Index(fields=["content_type", "scope"]),
         ]
 
-    def save(self, *args, **kwargs):
-        self.normalized_surface = normalize_name(self.surface)
-        super().save(*args, **kwargs)
 
-
-class EntityLink(models.Model):
-    class EntityType(models.TextChoices):
-        PERSON = "PERSON", "Persona"
-        INSTITUTION = "INSTITUTION", "Institución"
-
-    class Status(models.TextChoices):
-        LINKED = "linked", "Linked"
-        PROPOSED = "proposed", "Proposed"
-        REJECTED = "rejected", "Rejected"
-
-    mention = models.ForeignKey(Mention, on_delete=models.CASCADE, related_name="entity_links")
-    entity_type = models.CharField(max_length=20, choices=EntityType.choices)
-    entity_id = models.IntegerField()
-    status = models.CharField(max_length=20, choices=Status.choices, default=Status.PROPOSED)
+class DecisionTrace(models.Model):
+    classification_run = models.ForeignKey(
+        ClassificationRun,
+        on_delete=models.CASCADE,
+        related_name="decision_traces",
+    )
+    field_name = models.CharField(max_length=120)
+    value = models.CharField(max_length=250)
     confidence = models.FloatField(default=0.0)
-    reasons = models.JSONField(default=list, blank=True)
-    resolver_version = models.CharField(max_length=60, blank=True, default="linker_v1")
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    rationale = models.TextField(blank=True)
 
     class Meta:
         indexes = [
-            models.Index(fields=["entity_type", "entity_id"]),
-            models.Index(fields=["status"]),
+            models.Index(fields=["field_name"]),
+        ]
+
+
+class ActorLink(models.Model):
+    class AtlasEntityType(models.TextChoices):
+        PERSONA = "persona", "Persona"
+        INSTITUCION = "institucion", "Institución"
+
+    class Sentiment(models.TextChoices):
+        POSITIVO = "positivo", "Positivo"
+        NEUTRO = "neutro", "Neutro"
+        NEGATIVO = "negativo", "Negativo"
+
+    article = models.ForeignKey(Article, on_delete=models.CASCADE, related_name="actor_links")
+    atlas_entity_id = models.CharField(max_length=120)
+    atlas_entity_type = models.CharField(max_length=20, choices=AtlasEntityType.choices)
+    role_in_article = models.CharField(max_length=120, blank=True)
+    sentiment = models.CharField(max_length=20, choices=Sentiment.choices)
+    sentiment_confidence = models.FloatField(default=0.0)
+    rationale = models.TextField(blank=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["atlas_entity_type", "atlas_entity_id"]),
+            models.Index(fields=["sentiment"]),
         ]
         constraints = [
             models.UniqueConstraint(
-                fields=["mention"],
-                condition=Q(status="linked"),
-                name="uniq_linked_mention",
-            ),
-            models.UniqueConstraint(
-                fields=["mention", "entity_type", "entity_id", "status"],
-                name="uniq_link_per_entity_status",
+                fields=["article", "atlas_entity_id", "atlas_entity_type"],
+                name="unique_actor_per_article",
             ),
         ]
 
 
-class ArticleEntity(models.Model):
-    article = models.ForeignKey("monitor.Article", on_delete=models.CASCADE, related_name="linked_entities")
-    entity_type = models.CharField(max_length=20, choices=EntityLink.EntityType.choices)
-    entity_id = models.IntegerField()
-    max_confidence = models.FloatField(default=0.0)
+class TopicLink(models.Model):
+    article = models.ForeignKey(Article, on_delete=models.CASCADE, related_name="topic_links")
+    atlas_topic_id = models.CharField(max_length=120)
+    confidence = models.FloatField(default=0.0)
+    rationale = models.TextField(blank=True)
 
     class Meta:
+        indexes = [
+            models.Index(fields=["atlas_topic_id"]),
+        ]
         constraints = [
-            models.UniqueConstraint(
-                fields=["article", "entity_type", "entity_id"],
-                name="uniq_article_entity",
-            ),
+            models.UniqueConstraint(fields=["article", "atlas_topic_id"], name="unique_topic_per_article"),
         ]
 
 
-class ArticlePersonaMention(models.Model):
-    article = models.ForeignKey("monitor.Article", on_delete=models.CASCADE, related_name="person_mentions")
-    persona = models.ForeignKey(Persona, on_delete=models.CASCADE, related_name="article_mentions")
-    matched_alias = models.CharField(max_length=255, blank=True, default="")
-    sentiment = models.CharField(
-        max_length=10,
-        choices=ArticleSentiment.Sentiment.choices,
-        null=True,
-        blank=True,
-    )
-    sentiment_confidence = models.CharField(
-        max_length=10,
-        choices=ArticleSentiment.Confidence.choices,
-        null=True,
-        blank=True,
-    )
-    sentiment_justification = models.TextField(blank=True)
-    sentiment_model = models.CharField(max_length=60, blank=True, default="")
-
-    created_at = models.DateTimeField(default=timezone.now)
+class EditorialTag(models.Model):
+    name = models.CharField(max_length=120)
+    slug = models.SlugField(max_length=140)
+    is_global = models.BooleanField(default=True)
 
     class Meta:
-        unique_together = ("article", "persona")
-        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["slug"]),
+        ]
+        ordering = ["name"]
 
-
-class ArticleInstitucionMention(models.Model):
-    article = models.ForeignKey("monitor.Article", on_delete=models.CASCADE, related_name="institution_mentions")
-    institucion = models.ForeignKey(Institucion, on_delete=models.CASCADE, related_name="article_mentions")
-    matched_alias = models.CharField(max_length=255, blank=True, default="")
-    sentiment = models.CharField(
-        max_length=10,
-        choices=ArticleSentiment.Sentiment.choices,
-        null=True,
-        blank=True,
-    )
-    sentiment_confidence = models.CharField(
-        max_length=10,
-        choices=ArticleSentiment.Confidence.choices,
-        null=True,
-        blank=True,
-    )
-    sentiment_justification = models.TextField(blank=True)
-    sentiment_model = models.CharField(max_length=60, blank=True, default="")
-
-    created_at = models.DateTimeField(default=timezone.now)
-
-    class Meta:
-        unique_together = ("article", "institucion")
-        ordering = ["-created_at"]
-
-class DigestClient(models.Model):
-    """
-    Un 'cliente' (AMEQ, Felifer, etc.) con watchlist de personas/instituciones.
-    """
-    name = models.CharField(max_length=200, unique=True)
-    slug = models.SlugField(max_length=220, unique=True)
-    owner = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="digest_clients"
-    )
-    is_active = models.BooleanField(default=True)
-
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    def __str__(self):
+    def __str__(self) -> str:
         return self.name
 
 
-class DigestClientConfig(models.Model):
-    """
-    Configuración para generar el digest (top, hours, watchlist).
-    """
-    client = models.OneToOneField(DigestClient, on_delete=models.CASCADE, related_name="config")
-
-    title = models.CharField(max_length=255, default="Síntesis diaria (cliente)")
-    top_n = models.PositiveIntegerField(default=7)
-    hours = models.PositiveIntegerField(default=48)
-
-    personas = models.ManyToManyField("redpolitica.Persona", blank=True, related_name="digest_client_configs")
-    instituciones = models.ManyToManyField("redpolitica.Institucion", blank=True, related_name="digest_client_configs")
-    topics = models.JSONField(default=list, blank=True, help_text="Lista de temas de interés (strings).")
-
-    updated_at = models.DateTimeField(auto_now=True)
-
-    def __str__(self):
-        return f"Config: {self.client.name}"
-
-
-class MonitorGoldLabel(models.Model):
-    class LabelType(models.TextChoices):
-        TOPIC = "topic", "Tema"
-        SENTIMENT = "sentiment", "Sentimiento"
-        MENTION = "mention", "Mención"
-        LINKING = "linking", "Vinculación"
-        CLUSTER = "cluster", "Cluster"
-
-    label_type = models.CharField(max_length=20, choices=LabelType.choices)
-
-    # Context capture
-    reference_text = models.TextField(help_text="Texto de entrada (título + lead, o contexto de mención)")
-    
-    # Flexible relation to source object (Article, Mention, etc.) if needed
-    # We use simple ID refs or just text for now to keep it decoupled from deletion, 
-    # but having a generic relation is good for tracking.
-    content_type = models.ForeignKey(ContentType, on_delete=models.SET_NULL, null=True, blank=True)
-    object_id = models.PositiveIntegerField(null=True, blank=True)
+class TagLink(models.Model):
+    tag = models.ForeignKey(EditorialTag, on_delete=models.CASCADE, related_name="links")
+    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
+    object_id = models.PositiveIntegerField()
     content_object = GenericForeignKey("content_type", "object_id")
 
-    # The gold output
-    output_json = models.JSONField(help_text="Salida corregida (JSON válido para few-shot)")
+    class Meta:
+        indexes = [
+            models.Index(fields=["content_type", "object_id"]),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["tag", "content_type", "object_id"],
+                name="unique_tag_link",
+            )
+        ]
 
-    # Meta
-    verified_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL)
+
+class Story(models.Model):
+    class Status(models.TextChoices):
+        PROPUESTA = "propuesta", "Propuesta"
+        CONFIRMADA = "confirmada", "Confirmada"
+        CORREGIDA = "corregida", "Corregida"
+
+    title_base = models.TextField()
+    lead_base = models.TextField(blank=True)
+    main_topic_id = models.CharField(max_length=120, blank=True)
+    time_window_start = models.DateTimeField()
+    time_window_end = models.DateTimeField()
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.PROPUESTA)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["time_window_start", "time_window_end"]),
+            models.Index(fields=["status"]),
+        ]
+        ordering = ["-time_window_start", "-id"]
+
+    def __str__(self) -> str:
+        return self.title_base[:80]
+
+
+class StoryActor(models.Model):
+    story = models.ForeignKey(Story, on_delete=models.CASCADE, related_name="main_actors")
+    atlas_entity_id = models.CharField(max_length=120)
+    atlas_entity_type = models.CharField(max_length=20, choices=ActorLink.AtlasEntityType.choices)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["story", "atlas_entity_id", "atlas_entity_type"],
+                name="unique_story_actor",
+            )
+        ]
+
+
+class StoryArticle(models.Model):
+    class AddedBy(models.TextChoices):
+        AI = "ai", "IA"
+        HUMAN = "human", "Humano"
+
+    story = models.ForeignKey(Story, on_delete=models.CASCADE, related_name="story_articles")
+    article = models.ForeignKey(Article, on_delete=models.CASCADE, related_name="story_articles")
+    is_representative = models.BooleanField(default=False)
+    added_by = models.CharField(max_length=10, choices=AddedBy.choices, default=AddedBy.AI)
+    confidence = models.FloatField(default=0.0)
+    added_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["story", "article"], name="unique_story_article"),
+        ]
+        indexes = [
+            models.Index(fields=["story", "is_representative"]),
+        ]
+
+
+class Client(models.Model):
+    name = models.CharField(max_length=200)
+    slug = models.SlugField(max_length=200, unique=True)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["name"]
+
+    def __str__(self) -> str:
+        return self.name
+
+
+class ClientFocus(models.Model):
+    class EntityType(models.TextChoices):
+        PERSONA = "persona", "Persona"
+        INSTITUCION = "institucion", "Institución"
+        TEMA = "tema", "Tema"
+
+    client = models.ForeignKey(Client, on_delete=models.CASCADE, related_name="focus_items")
+    entity_type = models.CharField(max_length=20, choices=EntityType.choices)
+    atlas_id = models.CharField(max_length=120)
+    priority = models.PositiveIntegerField(default=1)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["client", "entity_type"]),
+            models.Index(fields=["atlas_id"]),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["client", "entity_type", "atlas_id"],
+                name="unique_client_focus",
+            )
+        ]
+
+
+class DailyExecution(models.Model):
+    class Status(models.TextChoices):
+        QUEUED = "queued", "En cola"
+        RUNNING = "running", "Corriendo"
+        SUCCESS = "success", "Exitosa"
+        FAILED = "failed", "Fallida"
+
+    client = models.ForeignKey(Client, on_delete=models.CASCADE, related_name="daily_executions")
+    date = models.DateField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.QUEUED)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["client", "date"], name="unique_daily_execution"),
+        ]
+        ordering = ["-date", "-id"]
+
+
+class DailyDigestItem(models.Model):
+    daily_execution = models.ForeignKey(DailyExecution, on_delete=models.CASCADE, related_name="items")
+    story = models.ForeignKey(Story, on_delete=models.CASCADE, related_name="digest_items")
+    section = models.CharField(max_length=120)
+    rank_score = models.FloatField(default=0.0)
+    display_title = models.TextField()
+    display_lead = models.TextField(blank=True)
+    outlets_chips = models.JSONField(default=list, blank=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["daily_execution", "section"]),
+        ]
+        ordering = ["rank_score", "id"]
+
+
+class Correction(models.Model):
+    class Scope(models.TextChoices):
+        ARTICLE = "article", "Artículo"
+        STORY = "story", "Historia"
+
+    scope = models.CharField(max_length=10, choices=Scope.choices)
+    target_id = models.PositiveIntegerField()
+    field_name = models.CharField(max_length=120)
+    old_value = models.TextField(blank=True)
+    new_value = models.TextField(blank=True)
+    explanation = models.TextField()
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL)
+    created_at = models.DateTimeField(auto_now_add=True)
+    apply_to = models.CharField(max_length=40, default="client")
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["scope", "target_id"]),
+        ]
+
+    def save(self, *args, **kwargs):
+        creating = self.pk is None
+        super().save(*args, **kwargs)
+        if creating:
+            TrainingExample.objects.create(
+                correction=self,
+                scope=self.scope,
+                input_features={"field": self.field_name, "old": self.old_value},
+                label={"new": self.new_value},
+                explanation=self.explanation,
+                provenance=f"Correction:{self.pk}",
+            )
+
+
+class TrainingExample(models.Model):
+    correction = models.ForeignKey(Correction, on_delete=models.CASCADE, related_name="training_examples")
+    scope = models.CharField(max_length=10)
+    input_features = models.JSONField(default=dict, blank=True)
+    label = models.JSONField(default=dict, blank=True)
+    explanation = models.TextField()
+    provenance = models.CharField(max_length=200)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        ordering = ["-created_at"]
         indexes = [
-            models.Index(fields=["label_type", "created_at"]),
+            models.Index(fields=["scope", "created_at"]),
         ]
 
-    def __str__(self):
-        return f"{self.label_type} ({self.created_at.date()})"
+
+class MetricAggregate(models.Model):
+    class EntityType(models.TextChoices):
+        PERSONA = "persona", "Persona"
+        INSTITUCION = "institucion", "Institución"
+        TEMA = "tema", "Tema"
+
+    class Period(models.TextChoices):
+        DAY = "day", "Día"
+        WEEK = "week", "Semana"
+        MONTH = "month", "Mes"
+
+    entity_type = models.CharField(max_length=20, choices=EntityType.choices)
+    atlas_id = models.CharField(max_length=120)
+    period = models.CharField(max_length=10, choices=Period.choices)
+    date_start = models.DateField()
+    date_end = models.DateField()
+    volume = models.PositiveIntegerField(default=0)
+    sentiment_pos = models.PositiveIntegerField(default=0)
+    sentiment_neu = models.PositiveIntegerField(default=0)
+    sentiment_neg = models.PositiveIntegerField(default=0)
+    share_opinion = models.FloatField(default=0.0)
+    share_informative = models.FloatField(default=0.0)
+    persistence_score = models.FloatField(default=0.0)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["entity_type", "atlas_id"]),
+            models.Index(fields=["period", "date_start"]),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["entity_type", "atlas_id", "period", "date_start", "date_end"],
+                name="unique_metric_period",
+            )
+        ]
+
+
+class BenchmarkSnapshot(models.Model):
+    created_at = models.DateTimeField(auto_now_add=True)
+    label = models.CharField(max_length=200)
+    payload = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+
+
+class AuditLog(models.Model):
+    event_type = models.CharField(max_length=120)
+    entity_type = models.CharField(max_length=120, blank=True)
+    entity_id = models.CharField(max_length=120, blank=True)
+    status = models.CharField(max_length=40, blank=True)
+    payload = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["event_type", "created_at"]),
+            models.Index(fields=["entity_type", "entity_id"]),
+        ]
+        ordering = ["-created_at", "-id"]
+
+
+class JobLog(models.Model):
+    job_name = models.CharField(max_length=120)
+    status = models.CharField(max_length=40)
+    started_at = models.DateTimeField(default=timezone.now)
+    finished_at = models.DateTimeField(null=True, blank=True)
+    payload = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        ordering = ["-started_at", "-id"]
+

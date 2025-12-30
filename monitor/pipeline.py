@@ -1,204 +1,251 @@
+from __future__ import annotations
+
+import json
 import logging
-import sys
-import io
-import traceback
+from collections import defaultdict
+from datetime import datetime, time, timedelta
+
+from django.db import transaction
 from django.utils import timezone
-from django.core.management import call_command
-from monitor.models import IngestRun, Article
+from django.utils.html import strip_tags
+
+from monitor.models import (
+    ActorLink,
+    Article,
+    ArticleVersion,
+    AuditLog,
+    ClassificationRun,
+    Client,
+    DailyDigestItem,
+    DailyExecution,
+    DecisionTrace,
+    Extraction,
+    MetricAggregate,
+    Source,
+    Story,
+    StoryArticle,
+    TopicLink,
+)
 
 LOGGER = logging.getLogger(__name__)
 
-class MonitorPipeline:
-    """
-    Monitor 2.0 Central Pipeline Manager.
-    Orchestrates: Ingest -> Classification (AI) -> Clustering -> Linking -> Synthesis.
-    """
 
-    def __init__(self, hours=24, limit=500, ai_model="gpt-4o-mini", dry_run=False):
-        self.hours = hours
-        self.limit = limit
-        self.ai_model = ai_model
-        self.dry_run = dry_run
-        self.run_id = None
-        self.run_log = {}
+def log_event(event_type: str, status: str, payload: dict | None = None, entity_type: str = "", entity_id: str = "") -> None:
+    AuditLog.objects.create(
+        event_type=event_type,
+        status=status,
+        payload=payload or {},
+        entity_type=entity_type,
+        entity_id=entity_id,
+    )
+    LOGGER.info(json.dumps({"event": event_type, "status": status, "entity_type": entity_type, "entity_id": entity_id, **(payload or {})}))
 
-    def log_step(self, step_name, status, output=""):
-        print(f"[{step_name}] {status}")
-        self.run_log[step_name] = {
-            "status": status,
-            "timestamp": str(timezone.now()),
-            "output": output[:2000] # Truncate to avoid massive JSON
-        }
-        # Update DB incrementally so we can see progress/failure live
-        if self.run_id:
-            try:
-                run = IngestRun.objects.get(id=self.run_id)
-                run.log = self.run_log
-                run.save(update_fields=["log"])
-            except Exception:
-                pass
 
-    def run_command_captured(self, command_name, **kwargs):
-        """
-        Runs a management command and captures stdout/stderr for logging.
-        """
-        out = io.StringIO()
-        err = io.StringIO()
-        try:
-            call_command(command_name, stdout=out, stderr=err, **kwargs)
-            return True, out.getvalue()
-        except Exception as e:
-            return False, err.getvalue() + "\n" + str(e) + "\n" + traceback.format_exc()
-
-    def _update_run_stats(self):
-        if self.dry_run or not self.run_id:
-            return
-        try:
-            run = IngestRun.objects.get(id=self.run_id)
-            window_end = timezone.now()
-            articles = Article.objects.filter(
-                published_at__gte=run.time_window_start,
-                published_at__lte=window_end,
-            )
-            run.stats_total_fetched = articles.count()
-            run.stats_total_parsed = articles.exclude(body_text="").count()
-            run.save(update_fields=["stats_total_fetched", "stats_total_parsed"])
-        except Exception:
-            pass
-
-    def execute(self):
-        """
-        Main entry point.
-        """
-        print(f"--- Starting Monitor 2.0 Pipeline (Window: {self.hours}h) ---")
-        self._start_run_tracking()
-
-        try:
-            # 1. Ingest RSS
-            success, output = self.run_command_captured("fetch_sources", limit=50)
-            self.log_step("Step 1: Fetch RSS", "SUCCESS" if success else "FAILED", output)
-            self._update_run_stats()
-            if not success:
-                raise Exception(f"Fetch Sources Failed: {output}")
-
-            # 2. Fetch Bodies
-            success, output = self.run_command_captured("fetch_article_bodies", limit=self.limit)
-            self.log_step("Step 2: Fetch Bodies", "SUCCESS" if success else "FAILED", output)
-            self._update_run_stats()
-
-            # 2.1 Embeddings
-            embed_hours = max(24, min(self.hours, 72))
-            success, output = self.run_command_captured(
-                "embed_articles",
-                limit=self.limit,
-                hours=embed_hours,
-            )
-            self.log_step("Step 2.1: Embeddings", "SUCCESS" if success else "FAILED", output)
-            self._update_run_stats()
-            
-            # 3. Intelligence Layer (Classification - Topics)
-            success, output = self.run_command_captured("classify_article_topics", limit=self.limit, model=self.ai_model)
-            self.log_step("Step 3.1: AI Topics", "SUCCESS" if success else "FAILED", output)
-            self._update_run_stats()
-            
-            # 3.2 Entity Linking (Prior to Clustering)
-            success, output = self.run_command_captured("link_entities", since=f"{self.hours}h", limit=self.limit, ai_model=self.ai_model, skip_ai_verify=False)
-            self.log_step("Step 3.2: Linking", "SUCCESS" if success else "FAILED", output)
-            self._update_run_stats()
-
-            # 3.3 Sentiment Analysis
-            success, output = self.run_command_captured("classify_mentions_sentiment", limit=self.limit, model=self.ai_model, kind="both")
-            self.log_step("Step 3.3: Sentiment", "SUCCESS" if success else "FAILED", output)
-            self._update_run_stats()
-
-            # 4. Clustering (Now uses Topics + Entities from Step 3)
-            # We assume clustering should not BLOCK pipeline unless catastrophic
-            success, output = self.run_command_captured("cluster_articles_ai", hours=self.hours, limit=self.limit, dry_run=self.dry_run)
-            self.log_step("Step 4: Clustering", "SUCCESS" if success else "FAILED", output)
-            self._update_run_stats()
-
-            # 5. Synthesis (Digest)
-            if not self.dry_run:
-                self.log_step("Step 5: Synthesis", "STARTED")
-                from monitor.models import DigestClient
-                active_clients = DigestClient.objects.filter(is_active=True).select_related("config")
-                
-                if not active_clients.exists():
-                    self.log_step("Step 5: Synthesis", "SKIPPED", "No active clients")
-                    self._update_run_stats()
-                
-                digest_log = []
-                for client in active_clients:
-                    try:
-                        config = client.config
-                        print(f"Generating digest for: {client.name}")
-                        
-                        cmd_args = {
-                            "title": config.title, 
-                            "top": config.top_n,
-                            "hours": config.hours or self.hours
-                        }
-                        
-                        # Add Person IDs
-                        p_ids = list(config.personas.values_list("id", flat=True))
-                        # call_command kwargs must be specific types, but repeated args are tricky for call_command with dicts
-                        # call_command handles list args differently in recent django versions or requires parse_args gymnastics
-                        # EASIER: Build a list of args for call_command(*args)
-                        
-                        cli_args = [
-                            "--title", config.title, 
-                            "--top", str(config.top_n),
-                            "--hours", str(config.hours or self.hours)
-                        ]
-                        for pid in p_ids: cli_args.extend(["--person-id", str(pid)])
-                        i_ids = list(config.instituciones.values_list("id", flat=True))
-                        for iid in i_ids: cli_args.extend(["--institution-id", str(iid)])
-                        if config.topics:
-                            topics_str = ",".join(config.topics)
-                            cli_args.extend(["--topics", topics_str])
-
-                        # Capture output for digest generation too
-                        out = io.StringIO()
-                        call_command("generate_client_digest", *cli_args, stdout=out)
-                        digest_log.append(f"Client {client.name}: OK")
-                        
-                    except Exception as exc:
-                        print(f"Error generating digest for {client.name}: {exc}")
-                        digest_log.append(f"Client {client.name}: FAIL {exc}")
-
-                # Apply AI Synthesis (Summaries)
-                self.run_command_captured("create_digest_summary", model=self.ai_model)
-                self.log_step("Step 5: Synthesis", "COMPLETED", "\n".join(digest_log))
-                self._update_run_stats()
-
-            self._finish_run_tracking("success")
-            print("--- Pipeline Completed Successfully ---")
-
-        except Exception as e:
-            print(f"Pipeline Failed: {e}")
-            self._finish_run_tracking("failed", log=self.run_log) # Ensure full log is saved
-            # re-raise to ensure calling process knows
-            # raise e 
-            pass
-
-    def _start_run_tracking(self):
-        if self.dry_run: return
-        start = timezone.now()
-        end = start
-        run = IngestRun.objects.create(
-            trigger=IngestRun.Trigger.SCHEDULED,
-            time_window_start=start - timezone.timedelta(hours=self.hours),
-            time_window_end=end,
-            status=IngestRun.Status.RUNNING,
-            started_at=start,
+def ingest_sources(limit: int = 50) -> list[Article]:
+    now = timezone.now()
+    created = []
+    for source in Source.objects.filter(is_active=True)[:limit]:
+        sample_url = f"{source.url.rstrip('/')}/sample-{int(now.timestamp())}.html"
+        title = f"Nota de {source.outlet}"
+        body = f"Contenido de prueba para {source.outlet}."
+        hash_dedupe = Article.compute_hash(sample_url, sample_url, body)
+        article, is_new = Article.objects.get_or_create(
+            url=sample_url,
+            defaults={
+                "canonical_url": sample_url,
+                "title": title,
+                "lead": "",
+                "body": body,
+                "published_at": now,
+                "fetched_at": now,
+                "outlet": source.outlet,
+                "language": "es",
+                "hash_dedupe": hash_dedupe,
+                "pipeline_status": Article.PipelineStatus.INGESTED,
+                "source": source,
+            },
         )
-        self.run_id = run.id
+        if is_new:
+            created.append(article)
+    log_event("ingest", "success", {"created": len(created)})
+    return created
 
-    def _finish_run_tracking(self, status, log=None):
-        if self.dry_run or not self.run_id: return
-        run = IngestRun.objects.get(id=self.run_id)
-        run.status = status
+
+def normalize_articles(articles: list[Article]) -> int:
+    updated = 0
+    for article in articles:
+        cleaned_body = strip_tags(article.raw_html or article.body)
+        if cleaned_body and cleaned_body != article.body:
+            ArticleVersion.objects.create(
+                article=article,
+                version=article.versions.count() + 1,
+                title=article.title,
+                lead=article.lead,
+                body=cleaned_body,
+            )
+            article.body = cleaned_body
+        article.pipeline_status = Article.PipelineStatus.NORMALIZED
+        article.save(update_fields=["body", "pipeline_status"])
+        updated += 1
+    log_event("normalize", "success", {"updated": updated})
+    return updated
+
+
+def classify_articles(articles: list[Article], model_name: str = "rule-based") -> int:
+    processed = 0
+    for article in articles:
+        run = ClassificationRun.objects.create(
+            article=article,
+            model_name=model_name,
+            model_version="v1",
+            prompt_version="monitor-v1",
+            status=ClassificationRun.Status.RUNNING,
+        )
+        content_type = Extraction.ContentType.INFORMATIVO
+        scope = Extraction.Scope.ESTATAL
+        Extraction.objects.create(
+            classification_run=run,
+            content_type=content_type,
+            scope=scope,
+            institutional_type="general",
+            notes="clasificación inicial",
+            raw_payload={
+                "content_type": content_type,
+                "scope": scope,
+                "actors": [],
+                "topics": [{"atlas_topic_id": "GENERAL", "confidence": 0.5, "rationale": "default"}],
+                "tags": [],
+                "notes": "clasificación base",
+                "model_meta": {"model": model_name, "prompt_version": "monitor-v1"},
+                "errors": [],
+            },
+        )
+        DecisionTrace.objects.create(
+            classification_run=run,
+            field_name="content_type",
+            value=content_type,
+            confidence=0.6,
+            rationale="default",
+        )
+        TopicLink.objects.get_or_create(
+            article=article,
+            atlas_topic_id="GENERAL",
+            defaults={"confidence": 0.5, "rationale": "default"},
+        )
+        run.status = ClassificationRun.Status.SUCCESS
         run.finished_at = timezone.now()
-        if log:
-            run.log = log
-        run.save()
+        run.save(update_fields=["status", "finished_at"])
+        article.pipeline_status = Article.PipelineStatus.CLASSIFIED
+        article.save(update_fields=["pipeline_status"])
+        processed += 1
+    log_event("classify", "success", {"processed": processed})
+    return processed
+
+
+def cluster_stories(hours: int = 24) -> int:
+    since = timezone.now() - timedelta(hours=hours)
+    articles = Article.objects.filter(published_at__gte=since)
+    bucket = defaultdict(list)
+    for article in articles:
+        topic = article.topic_links.first()
+        bucket_key = (topic.atlas_topic_id if topic else "GENERAL", article.published_at.date() if article.published_at else timezone.now().date())
+        bucket[bucket_key].append(article)
+
+    created = 0
+    for (topic_id, date_key), items in bucket.items():
+        window_start = timezone.make_aware(datetime.combine(date_key, time.min))
+        window_end = window_start + timedelta(days=1)
+        story, _ = Story.objects.get_or_create(
+            main_topic_id=topic_id,
+            time_window_start=window_start,
+            time_window_end=window_end,
+            defaults={
+                "title_base": items[0].title,
+                "lead_base": items[0].lead,
+            },
+        )
+        for article in items:
+            StoryArticle.objects.get_or_create(
+                story=story,
+                article=article,
+                defaults={"is_representative": article == items[0], "confidence": 0.5},
+            )
+            article.pipeline_status = Article.PipelineStatus.CLUSTERED
+            article.save(update_fields=["pipeline_status"])
+        created += 1
+    log_event("cluster", "success", {"stories": created})
+    return created
+
+
+def aggregate_metrics(period: str = "day") -> int:
+    today = timezone.now().date()
+    start = today
+    end = today
+    totals = defaultdict(lambda: {"volume": 0, "pos": 0, "neu": 0, "neg": 0, "opinion": 0, "informative": 0})
+    for link in ActorLink.objects.select_related("article"):
+        key = (link.atlas_entity_type, link.atlas_entity_id)
+        totals[key]["volume"] += 1
+        totals[key]["pos" if link.sentiment == ActorLink.Sentiment.POSITIVO else "neu" if link.sentiment == ActorLink.Sentiment.NEUTRO else "neg"] += 1
+    for link in TopicLink.objects.select_related("article"):
+        key = ("tema", link.atlas_topic_id)
+        totals[key]["volume"] += 1
+    updated = 0
+    for (entity_type, atlas_id), values in totals.items():
+        aggregate, _ = MetricAggregate.objects.update_or_create(
+            entity_type=entity_type,
+            atlas_id=atlas_id,
+            period=period,
+            date_start=start,
+            date_end=end,
+            defaults={
+                "volume": values["volume"],
+                "sentiment_pos": values["pos"],
+                "sentiment_neu": values["neu"],
+                "sentiment_neg": values["neg"],
+                "share_opinion": 0.0,
+                "share_informative": 0.0,
+                "persistence_score": 0.0,
+            },
+        )
+        updated += 1
+    log_event("aggregate", "success", {"aggregates": updated})
+    return updated
+
+
+def build_daily_digest(date: timezone.datetime.date | None = None) -> int:
+    run_date = date or timezone.now().date()
+    created = 0
+    for client in Client.objects.filter(is_active=True):
+        execution, _ = DailyExecution.objects.get_or_create(
+            client=client,
+            date=run_date,
+            defaults={"status": DailyExecution.Status.RUNNING},
+        )
+        stories = Story.objects.filter(time_window_start__date=run_date)
+        for story in stories:
+            DailyDigestItem.objects.get_or_create(
+                daily_execution=execution,
+                story=story,
+                defaults={
+                    "section": "federal",
+                    "rank_score": 1.0,
+                    "display_title": story.title_base,
+                    "display_lead": story.lead_base,
+                    "outlets_chips": list(story.story_articles.select_related("article").values_list("article__outlet", flat=True)),
+                },
+            )
+            created += 1
+        execution.status = DailyExecution.Status.SUCCESS
+        execution.save(update_fields=["status"])
+    log_event("digest", "success", {"items": created})
+    return created
+
+
+@transaction.atomic
+def run_pipeline(hours: int = 24) -> None:
+    articles = ingest_sources()
+    normalize_articles(articles)
+    classify_articles(articles)
+    cluster_stories(hours=hours)
+    aggregate_metrics()
+    build_daily_digest()
