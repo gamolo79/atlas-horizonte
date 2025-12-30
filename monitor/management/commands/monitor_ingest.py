@@ -1,4 +1,5 @@
 from django.core.management.base import BaseCommand
+from django.utils import timezone
 
 from monitor.models import JobLog
 from monitor.pipeline import ingest_sources
@@ -12,8 +13,17 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         job = JobLog.objects.create(job_name="monitor_ingest", status="running")
-        articles = ingest_sources(limit=options["limit"])
-        job.status = "success"
-        job.payload = {"created": len(articles)}
-        job.save(update_fields=["status", "payload"])
-        self.stdout.write(self.style.SUCCESS(f"Ingestadas {len(articles)} notas"))
+        try:
+            result = ingest_sources(limit=options["limit"])
+            status = "success" if result.stats.get("errors", 0) == 0 else "partial"
+            job.status = status
+            job.payload = result.stats
+            job.finished_at = timezone.now()
+            job.save(update_fields=["status", "payload", "finished_at"])
+            self.stdout.write(self.style.SUCCESS(f"Ingestadas {len(result.articles)} notas"))
+        except Exception as exc:
+            job.status = "error"
+            job.payload = {"error": str(exc)}
+            job.finished_at = timezone.now()
+            job.save(update_fields=["status", "payload", "finished_at"])
+            self.stdout.write(self.style.ERROR(f"Fallo ingesta: {exc}"))

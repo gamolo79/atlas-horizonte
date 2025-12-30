@@ -32,9 +32,9 @@ class MonitorPipelineTests(TestCase):
         )
 
     def test_ingest_dedupe_hash(self):
-        articles = ingest_sources(limit=1)
-        self.assertEqual(len(articles), 1)
-        article = articles[0]
+        result = ingest_sources(limit=1)
+        self.assertEqual(len(result.articles), 1)
+        article = result.articles[0]
         duplicate_hash = Article.compute_hash(article.url, article.canonical_url, article.body)
         self.assertEqual(article.hash_dedupe, duplicate_hash)
 
