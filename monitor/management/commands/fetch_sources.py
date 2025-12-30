@@ -112,8 +112,8 @@ class Command(BaseCommand):
         total_new = 0
         total_seen = 0
 
-        for src in qs.select_related("media_outlet"):
-            self.stdout.write(self.style.MIGRATE_HEADING(f"Fetching: {src.media_outlet.name} · {src.url}"))
+        for src in qs:
+            self.stdout.write(self.style.MIGRATE_HEADING(f"Fetching: {src.outlet} · {src.url}"))
 
             feed = feedparser.parse(src.url)
 
@@ -132,7 +132,6 @@ class Command(BaseCommand):
                 title = (e.get("title") or "").strip()
                 # Muchos RSS traen summary; si no, deja vacío
                 lead = _clean_lead(e.get("summary") or "")
-                guid = (e.get("id") or e.get("guid") or "").strip()
 
                 published = None
                 # feedparser suele traer published/parsing
@@ -142,35 +141,16 @@ class Command(BaseCommand):
                     published = _safe_dt(e.get("updated"))
 
                 defaults = {
-                    "media_outlet": src.media_outlet,
                     "source": src,
                     "title": title or url,
                     "lead": lead[:2000],  # recorta para evitar basura enorme
                     "published_at": published,
                     "language": "es",
                     "url": url,
-                    "guid": guid,
                 }
 
-                if guid:
-                    obj = Article.objects.filter(guid=guid, source=src).first()
-                    if not obj:
-                        obj = Article.objects.filter(url=url).first()
-                        if obj:
-                            obj.guid = guid
-                            if not obj.source:
-                                obj.source = src
-                            obj.save(update_fields=["guid", "source"])
-                            created = False
-                        else:
-                            obj, created = _get_or_create_article(url, defaults)
-                    else:
-                        created = False
-                        if obj.url != url:
-                            obj.url = url
-                            obj.save(update_fields=["url"])
-                else:
-                    obj, created = _get_or_create_article(url, defaults)
+                obj, created = _get_or_create_article(url, defaults)
+
                 if created:
                     total_new += 1
 
