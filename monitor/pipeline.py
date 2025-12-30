@@ -4,7 +4,7 @@ import io
 import traceback
 from django.utils import timezone
 from django.core.management import call_command
-from monitor.models import IngestRun
+from monitor.models import IngestRun, Article
 
 LOGGER = logging.getLogger(__name__)
 
@@ -50,6 +50,22 @@ class MonitorPipeline:
         except Exception as e:
             return False, err.getvalue() + "\n" + str(e) + "\n" + traceback.format_exc()
 
+    def _update_run_stats(self):
+        if self.dry_run or not self.run_id:
+            return
+        try:
+            run = IngestRun.objects.get(id=self.run_id)
+            window_end = timezone.now()
+            articles = Article.objects.filter(
+                published_at__gte=run.time_window_start,
+                published_at__lte=window_end,
+            )
+            run.stats_total_fetched = articles.count()
+            run.stats_total_parsed = articles.exclude(body_text="").count()
+            run.save(update_fields=["stats_total_fetched", "stats_total_parsed"])
+        except Exception:
+            pass
+
     def execute(self):
         """
         Main entry point.
@@ -61,12 +77,14 @@ class MonitorPipeline:
             # 1. Ingest RSS
             success, output = self.run_command_captured("fetch_sources", limit=50)
             self.log_step("Step 1: Fetch RSS", "SUCCESS" if success else "FAILED", output)
+            self._update_run_stats()
             if not success:
                 raise Exception(f"Fetch Sources Failed: {output}")
 
             # 2. Fetch Bodies
             success, output = self.run_command_captured("fetch_article_bodies", limit=self.limit)
             self.log_step("Step 2: Fetch Bodies", "SUCCESS" if success else "FAILED", output)
+            self._update_run_stats()
 
             # 2.1 Embeddings
             embed_hours = max(24, min(self.hours, 72))
@@ -76,23 +94,28 @@ class MonitorPipeline:
                 hours=embed_hours,
             )
             self.log_step("Step 2.1: Embeddings", "SUCCESS" if success else "FAILED", output)
+            self._update_run_stats()
             
             # 3. Intelligence Layer (Classification - Topics)
             success, output = self.run_command_captured("classify_article_topics", limit=self.limit, model=self.ai_model)
             self.log_step("Step 3.1: AI Topics", "SUCCESS" if success else "FAILED", output)
+            self._update_run_stats()
             
             # 3.2 Entity Linking (Prior to Clustering)
             success, output = self.run_command_captured("link_entities", since=f"{self.hours}h", limit=self.limit, ai_model=self.ai_model, skip_ai_verify=False)
             self.log_step("Step 3.2: Linking", "SUCCESS" if success else "FAILED", output)
+            self._update_run_stats()
 
             # 3.3 Sentiment Analysis
             success, output = self.run_command_captured("classify_mentions_sentiment", limit=self.limit, model=self.ai_model, kind="both")
             self.log_step("Step 3.3: Sentiment", "SUCCESS" if success else "FAILED", output)
+            self._update_run_stats()
 
             # 4. Clustering (Now uses Topics + Entities from Step 3)
             # We assume clustering should not BLOCK pipeline unless catastrophic
             success, output = self.run_command_captured("cluster_articles_ai", hours=self.hours, limit=self.limit, dry_run=self.dry_run)
             self.log_step("Step 4: Clustering", "SUCCESS" if success else "FAILED", output)
+            self._update_run_stats()
 
             # 5. Synthesis (Digest)
             if not self.dry_run:
@@ -102,6 +125,7 @@ class MonitorPipeline:
                 
                 if not active_clients.exists():
                     self.log_step("Step 5: Synthesis", "SKIPPED", "No active clients")
+                    self._update_run_stats()
                 
                 digest_log = []
                 for client in active_clients:
@@ -145,6 +169,7 @@ class MonitorPipeline:
                 # Apply AI Synthesis (Summaries)
                 self.run_command_captured("create_digest_summary", model=self.ai_model)
                 self.log_step("Step 5: Synthesis", "COMPLETED", "\n".join(digest_log))
+                self._update_run_stats()
 
             self._finish_run_tracking("success")
             print("--- Pipeline Completed Successfully ---")
