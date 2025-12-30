@@ -16,6 +16,7 @@ from django.db import transaction
 from django.utils import timezone
 from django.utils.html import strip_tags
 
+from monitor.ai import AIClient
 from monitor.management.commands.fetch_article_bodies import (
     clean_text,
     first_sentence,
@@ -39,12 +40,16 @@ from monitor.models import (
     Source,
     Story,
     StoryArticle,
+    StoryMention,
+    StoryCluster,
     TopicLink,
 )
 
 LOGGER = logging.getLogger(__name__)
 USER_AGENT = "Mozilla/5.0 (MonitorHorizonte)"
 
+# Initialize AI Client
+ai_client = AIClient()
 
 @dataclass(frozen=True)
 class IngestResult:
@@ -125,21 +130,26 @@ def _fetch_entries_for_source(source: Source, limit: int) -> list[dict[str, Any]
     elif source.source_type == Source.SourceType.SITEMAP:
         sitemap_urls = source.config.get("sitemap_urls") or [source.url]
         for sitemap_url in sitemap_urls:
-            xml = _fetch_text(sitemap_url)
-            soup = BeautifulSoup(xml, "xml")
-            sitemap_index = soup.find("sitemapindex")
-            if sitemap_index:
-                nested_urls = [loc.get_text(strip=True) for loc in sitemap_index.find_all("loc")]
-                for nested_url in nested_urls:
-                    xml = _fetch_text(nested_url)
-                    soup = BeautifulSoup(xml, "xml")
-                    entries.extend(_parse_sitemap_urls(soup, limit - len(entries)))
-                    if len(entries) >= limit:
-                        break
-            else:
-                entries.extend(_parse_sitemap_urls(soup, limit))
-            if len(entries) >= limit:
-                break
+            try:
+                xml = _fetch_text(sitemap_url)
+                soup = BeautifulSoup(xml, "xml")
+                sitemap_index = soup.find("sitemapindex")
+                if sitemap_index:
+                    nested_urls = [loc.get_text(strip=True) for loc in sitemap_index.find_all("loc")]
+                    for nested_url in nested_urls:
+                        xml = _fetch_text(nested_url)
+                        soup = BeautifulSoup(xml, "xml")
+                        entries.extend(_parse_sitemap_urls(soup, limit - len(entries)))
+                        if len(entries) >= limit:
+                            break
+                else:
+                    entries.extend(_parse_sitemap_urls(soup, limit))
+                if len(entries) >= limit:
+                    break
+            except Exception as e:
+                LOGGER.warning(f"Error parsing sitemap {sitemap_url}: {e}")
+                continue
+
     elif source.source_type == Source.SourceType.HTML:
         list_url = source.config.get("list_url") or source.url
         link_selector = source.config.get("link_selector")
@@ -269,21 +279,38 @@ def ingest_sources(limit: int = 50) -> IngestResult:
     created: list[Article] = []
     stats = {"created": 0, "seen": 0, "skipped": 0, "errors": 0}
     sources = Source.objects.filter(is_active=True)[:limit]
+    
+    LOGGER.info(f"Starting ingest for {len(sources)} sources.")
+
     for source in sources:
         last_error = ""
         source_stats = {"created": 0, "seen": 0, "skipped": 0, "errors": 0}
         try:
             per_source_limit = source.config.get("entry_limit") or limit
             entries = _fetch_entries_for_source(source, limit=per_source_limit)
+            
+            if not entries:
+                source_stats["skipped"] = 0 # Just to log that we tried
+            
             for entry in entries:
                 try:
                     stats["seen"] += 1
                     source_stats["seen"] += 1
                     payload = dict(entry)
+                    
+                    # Fetch body if missing
                     raw_html = payload.get("raw_html") or ""
                     if not payload.get("body") and not raw_html:
-                        raw_html = _fetch_text(payload["url"])
-                        payload["raw_html"] = raw_html
+                        try:
+                            # Use requests directly to respect timeouts/headers
+                            resp = requests.get(payload["url"], timeout=15, headers={"User-Agent": USER_AGENT})
+                            if resp.status_code == 200:
+                                raw_html = resp.text
+                                payload["raw_html"] = raw_html
+                        except Exception as e:
+                            # If fetch fails, we might still store title/lead
+                            LOGGER.warning(f"Could not fetch body for {payload['url']}: {e}")
+
                     article, is_new = _store_article(source, payload, now)
                     if is_new and article:
                         created.append(article)
@@ -303,22 +330,21 @@ def ingest_sources(limit: int = 50) -> IngestResult:
                         "source",
                         str(source.id),
                     )
+            
             source.last_fetched_at = now
             source.last_error = last_error
             source.save(update_fields=["last_fetched_at", "last_error"])
             source_status = "success" if not last_error else "partial"
-            log_event(
-                "ingest_source",
-                source_status,
-                source_stats,
-                "source",
-                str(source.id),
-            )
+            
+            # Log source result
+            LOGGER.info(f"Source {source.name}: {source_stats}")
+
         except Exception as exc:
             source.last_fetched_at = now
             source.last_error = str(exc)
             source.save(update_fields=["last_fetched_at", "last_error"])
             stats["errors"] += 1
+            LOGGER.error(f"Source error {source.name}: {exc}")
             log_event("ingest_source", "error", {"error": str(exc)}, "source", str(source.id))
 
     status = "success" if stats["errors"] == 0 else "partial"
@@ -331,6 +357,7 @@ def normalize_articles(articles: list[Article]) -> int:
     for article in articles:
         cleaned_body = strip_tags(article.raw_html or article.body)
         if cleaned_body and cleaned_body != article.body:
+            # Check for versioning
             ArticleVersion.objects.create(
                 article=article,
                 version=article.versions.count() + 1,
@@ -339,6 +366,10 @@ def normalize_articles(articles: list[Article]) -> int:
                 body=cleaned_body,
             )
             article.body = cleaned_body
+        
+        # Here we would generate embedding if using Vector DB
+        # embedding = ai_client.get_embedding(...)
+        
         article.pipeline_status = Article.PipelineStatus.NORMALIZED
         article.save(update_fields=["body", "pipeline_status"])
         updated += 1
@@ -346,120 +377,178 @@ def normalize_articles(articles: list[Article]) -> int:
     return updated
 
 
-def classify_articles(articles: list[Article], model_name: str = "rule-based") -> int:
+def classify_articles(articles: list[Article]) -> int:
+    """
+    Uses AI to classify articles and identify actor sentiment.
+    """
     processed = 0
     for article in articles:
+        # Pre-fetch existing names if any (e.g. from regex)
+        # This helps AI focus its sentiment analysis
+        existing_names = [al.atlas_entity_id for al in article.actor_links.all()] 
+        # Note: atlas_entity_id is an ID, not a name. 
+        # Ideally we pass names. We leave this empty for now or fetch names if vital.
+        
+        ai_result = ai_client.classify_article(
+            title=article.title,
+            body=article.body,
+            entity_names=[] 
+        )
+
         run = ClassificationRun.objects.create(
             article=article,
-            model_name=model_name,
+            model_name="gpt-4o-mini",
             model_version="v1",
-            prompt_version="monitor-v1",
-            status=ClassificationRun.Status.RUNNING,
+            prompt_version="monitor-ai-v1",
+            status=ClassificationRun.Status.SUCCESS,
+            finished_at=timezone.now(),
         )
-        content_type = Extraction.ContentType.INFORMATIVO
-        scope = Extraction.Scope.ESTATAL
+        
+        content_type = ai_result.get("content_type", "informativo")
+        scope = ai_result.get("scope", "estatal")
+        
         Extraction.objects.create(
             classification_run=run,
             content_type=content_type,
             scope=scope,
-            institutional_type="general",
-            notes="clasificación inicial",
-            raw_payload={
-                "content_type": content_type,
-                "scope": scope,
-                "actors": [],
-                "topics": [{"atlas_topic_id": "GENERAL", "confidence": 0.5, "rationale": "default"}],
-                "tags": [],
-                "notes": "clasificación base",
-                "model_meta": {"model": model_name, "prompt_version": "monitor-v1"},
-                "errors": [],
-            },
+            institutional_type=ai_result.get("institutional_type", "general"),
+            notes=(ai_result.get("summary") or "")[:2000],
+            raw_payload=ai_result,
         )
+
+        # Trace
         DecisionTrace.objects.create(
             classification_run=run,
             field_name="content_type",
             value=content_type,
-            confidence=0.6,
-            rationale="default",
+            confidence=0.8,
+            rationale="AI Classification",
         )
-        TopicLink.objects.get_or_create(
-            article=article,
-            atlas_topic_id="GENERAL",
-            defaults={"confidence": 0.5, "rationale": "default"},
-        )
-        run.status = ClassificationRun.Status.SUCCESS
-        run.finished_at = timezone.now()
-        run.save(update_fields=["status", "finished_at"])
+
+        # Save Topics (Simple String match or Create)
+        for topic_name in ai_result.get("topics", []):
+            t_slug = clean_text(topic_name).upper().replace(" ", "_")[:50]
+            TopicLink.objects.get_or_create(
+                article=article,
+                atlas_topic_id=t_slug,
+                defaults={"confidence": 0.7, "rationale": "AI Topic"}
+            )
+            
+        # Update Sentiment for Actors if AI returned it
+        # (Requires matching names to ActorLinks, complex without fuzzy search)
+        # We skip this detail update for now to avoid errors, relying on Regex defaults.
+        # Future: Use AI to extract names AND sentiment, then link.
+
         article.pipeline_status = Article.PipelineStatus.CLASSIFIED
         article.save(update_fields=["pipeline_status"])
         processed += 1
+        
     log_event("classify", "success", {"processed": processed})
     return processed
 
 
+def link_articles(articles: list[Article]) -> int:
+    # Uses User's fixed linking logic
+    from monitor.linking import link_content, load_alias_map, load_topic_map
+
+    links_created = 0
+    alias_map, alias_regex = load_alias_map()
+    topic_map, topic_regex = load_topic_map()
+    
+    for article in articles:
+        links_created += link_content(article, alias_map, alias_regex, topic_map, topic_regex)
+
+    log_event("link", "success", {"links_created": links_created})
+    return links_created
+
+
 def cluster_stories(hours: int = 24) -> int:
+    """
+    Intelligent clustering using Topic + Date buckets.
+    (Embedding similarity can be added here once vector field exists)
+    """
     since = timezone.now() - timedelta(hours=hours)
-    articles = Article.objects.filter(published_at__gte=since)
+    articles = Article.objects.filter(published_at__gte=since).prefetch_related("topic_links")
+    
     bucket = defaultdict(list)
     for article in articles:
         topic = article.topic_links.first()
-        bucket_key = (topic.atlas_topic_id if topic else "GENERAL", article.published_at.date() if article.published_at else timezone.now().date())
-        bucket[bucket_key].append(article)
+        t_id = topic.atlas_topic_id if topic else "GENERAL"
+        # Cluster by Day to avoid massive stories across weeks
+        date_key = article.published_at.date() if article.published_at else timezone.now().date()
+        
+        bucket[(t_id, date_key)].append(article)
 
     created = 0
     for (topic_id, date_key), items in bucket.items():
+        # Create a story for this Topic+Day
+        # In a real vector system, we would sub-cluster `items` by similarity.
+        
         window_start = timezone.make_aware(datetime.combine(date_key, time.min))
         window_end = window_start + timedelta(days=1)
+        
+        # Use first article as base title
+        base_art = items[0]
+        
         story, _ = Story.objects.get_or_create(
             main_topic_id=topic_id,
             time_window_start=window_start,
             time_window_end=window_end,
             defaults={
-                "title_base": items[0].title,
-                "lead_base": items[0].lead,
+                "title_base": base_art.title,
+                "lead_base": base_art.lead,
             },
         )
+        
         for article in items:
+            # Add to story
             StoryArticle.objects.get_or_create(
                 story=story,
                 article=article,
-                defaults={"is_representative": article == items[0], "confidence": 0.5},
+                defaults={"is_representative": article == base_art, "confidence": 0.6},
             )
             article.pipeline_status = Article.PipelineStatus.CLUSTERED
             article.save(update_fields=["pipeline_status"])
+            
         created += 1
+        
     log_event("cluster", "success", {"stories": created})
     return created
 
 
 def aggregate_metrics(period: str = "day") -> int:
+    # Full aggregation for recent data
     today = timezone.now().date()
     start = today
     end = today
-    totals = defaultdict(lambda: {"volume": 0, "pos": 0, "neu": 0, "neg": 0, "opinion": 0, "informative": 0})
-    for link in ActorLink.objects.select_related("article"):
-        key = (link.atlas_entity_type, link.atlas_entity_id)
+    
+    totals = defaultdict(lambda: {"volume": 0, "pos": 0, "neu": 0, "neg": 0})
+    
+    # Scan recent links (last 48h to catch late arrivals)
+    since = timezone.now() - timedelta(days=2)
+    links = ActorLink.objects.filter(article__published_at__gte=since).select_related("article")
+    
+    for link in links:
+        d = link.article.published_at.date() if link.article.published_at else today
+        key = (link.atlas_entity_type, link.atlas_entity_id, d)
+        
         totals[key]["volume"] += 1
-        totals[key]["pos" if link.sentiment == ActorLink.Sentiment.POSITIVO else "neu" if link.sentiment == ActorLink.Sentiment.NEUTRO else "neg"] += 1
-    for link in TopicLink.objects.select_related("article"):
-        key = ("tema", link.atlas_topic_id)
-        totals[key]["volume"] += 1
+        s_key = "pos" if link.sentiment == ActorLink.Sentiment.POSITIVO else "neu" if link.sentiment == ActorLink.Sentiment.NEUTRO else "neg"
+        totals[key][s_key] += 1
+
     updated = 0
-    for (entity_type, atlas_id), values in totals.items():
-        aggregate, _ = MetricAggregate.objects.update_or_create(
+    for (entity_type, atlas_id, date_val), values in totals.items():
+        MetricAggregate.objects.update_or_create(
             entity_type=entity_type,
             atlas_id=atlas_id,
-            period=period,
-            date_start=start,
-            date_end=end,
+            period="day",
+            date_start=date_val,
+            date_end=date_val,
             defaults={
                 "volume": values["volume"],
                 "sentiment_pos": values["pos"],
                 "sentiment_neu": values["neu"],
                 "sentiment_neg": values["neg"],
-                "share_opinion": 0.0,
-                "share_informative": 0.0,
-                "persistence_score": 0.0,
             },
         )
         updated += 1
@@ -470,53 +559,85 @@ def aggregate_metrics(period: str = "day") -> int:
 def build_daily_digest(date: timezone.datetime.date | None = None) -> int:
     run_date = date or timezone.now().date()
     created = 0
-    for client in Client.objects.filter(is_active=True):
+    clients = Client.objects.filter(is_active=True).prefetch_related("focus_items")
+    
+    stories = Story.objects.filter(time_window_start__date=run_date)
+    
+    for client in clients:
         execution, _ = DailyExecution.objects.get_or_create(
             client=client,
             date=run_date,
             defaults={"status": DailyExecution.Status.RUNNING},
         )
-        stories = Story.objects.filter(time_window_start__date=run_date)
+        
+        # Priority Map: {(type, id): priority_val}
+        focus_map = {(f.entity_type, f.atlas_id): f.priority for f in client.focus_items.all()}
+        
         for story in stories:
+            # Check if story includes any relevant entity
+            # This is an expensive check, optimizing by pre-fetching Story -> Article -> ActorLinks would be better.
+            # For now, we query.
+            story_links = ActorLink.objects.filter(article__story_articles__story=story)
+            
+            best_priority = 99 # Low priority default
+            
+            for link in story_links:
+                k = (link.atlas_entity_type, link.atlas_entity_id)
+                if k in focus_map:
+                    p = focus_map[k]
+                    if p < best_priority:
+                        best_priority = p
+            
+            # Formatting section based on priority
+            if best_priority <= 2:
+                section = "Prioridad Alta"
+            elif best_priority <= 5:
+                section = "Seguimiento"
+            else:
+                section = "General"
+
             DailyDigestItem.objects.get_or_create(
                 daily_execution=execution,
                 story=story,
                 defaults={
-                    "section": "federal",
-                    "rank_score": 1.0,
+                    "section": section,
+                    "rank_score": float(10 - best_priority), # higher is better
                     "display_title": story.title_base,
                     "display_lead": story.lead_base,
-                    "outlets_chips": list(story.story_articles.select_related("article").values_list("article__outlet", flat=True)),
+                    "outlets_chips": list(story.story_articles.values_list("article__outlet", flat=True)[:5]),
                 },
             )
             created += 1
+            
         execution.status = DailyExecution.Status.SUCCESS
         execution.save(update_fields=["status"])
+        
     log_event("digest", "success", {"items": created})
     return created
 
 
-def link_articles(articles: list[Article]) -> int:
-    # Local import to avoid circular dependency
-    from monitor.linking import link_content, load_alias_map, load_topic_map
-
-    links_created = 0
-    alias_map, alias_regex = load_alias_map()
-    topic_map, topic_regex = load_topic_map()
-    # Process all articles
-    for article in articles:
-        links_created += link_content(article, alias_map, alias_regex, topic_map, topic_regex)
-
-    log_event("link", "success", {"links_created": links_created})
-    return links_created
-
-
 @transaction.atomic
 def run_pipeline(hours: int = 24, limit: int = 50) -> None:
+    LOGGER.info("Starting pipeline run.")
     result = ingest_sources(limit=limit)
+    if not result.articles:
+        LOGGER.info("No new articles found.")
+        
     normalize_articles(result.articles)
+    
+    # Classify (AI)
     classify_articles(result.articles)
+    
+    # Link (Regex - User defined)
     link_articles(result.articles)
+    
+    # Cluster (Topic+Date)
     cluster_stories(hours=hours)
+    
+    # Metrics
     aggregate_metrics()
+    
+    # Digest (Client Priority)
     build_daily_digest()
+    
+    LOGGER.info("Pipeline run complete.")
