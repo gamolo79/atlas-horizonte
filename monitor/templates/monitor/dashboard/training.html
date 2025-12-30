@@ -1,0 +1,72 @@
+{% extends "monitor/dashboard/base.html" %}
+
+{% block content %}
+<div class="d-sm-flex align-items-center justify-content-between mb-4">
+    <h1 class="h3 mb-0 text-gray-800">Entrenamiento / Correcciones</h1>
+</div>
+
+<div class="card shadow mb-4">
+    <div class="card-header py-3">
+        <h6 class="m-0 font-weight-bold text-primary">Menciones Recientes</h6>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-bordered" id="dataTable" width="100%" cellspacing="0">
+                <thead>
+                    <tr>
+                        <th>Artículo</th>
+                        <th>Entidad Detectada</th>
+                        <th>Rol</th>
+                        <th>Sentimiento (AI)</th>
+                        <th>Confianza</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for link in links %}
+                    <tr>
+                        <td>
+                            <a href="{{ link.article.url }}" target="_blank" title="{{ link.article.title }}">
+                                {{ link.article.outlet }}
+                            </a>
+                        </td>
+                        <td>{{ link.atlas_entity_id }} ({{ link.atlas_entity_type }})</td>
+                        <td>{{ link.role_in_article }}</td>
+                        <td>
+                            <span class="badge badge-{{ link.sentiment }}">{{ link.sentiment }}</span>
+                        </td>
+                        <td>{{ link.sentiment_confidence|floatformat:2 }}</td>
+                        <td>
+                            <button class="btn btn-sm btn-info"
+                                onclick="correctLink({{ link.id }}, '{{ link.sentiment }}')">
+                                Corregir
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    function correctLink(id, currentSentiment) {
+        const newVal = prompt("Nuevo sentimiento (positivo, neutro, negativo):", currentSentiment);
+        if (newVal) {
+            // Call API
+            fetch("{% url 'monitor_api_correct_link' %}", {
+                method: "POST",
+                headers: {
+                    "X-CSRFToken": "{{ csrf_token }}",
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ link_id: id, action: "sentiment", value: newVal })
+            }).then(res => res.json()).then(data => {
+                if (data.status === "ok") location.reload();
+                else alert("Error: " + data.message);
+            });
+        }
+    }
+</script>
+{% endblock %}
