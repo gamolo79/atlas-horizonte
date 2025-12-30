@@ -142,6 +142,7 @@ class Command(BaseCommand):
 
                 defaults = {
                     "source": src,
+                    "outlet": (src.outlet or ""),
                     "title": title or url,
                     "lead": lead[:2000],  # recorta para evitar basura enorme
                     "published_at": published,
@@ -150,6 +151,18 @@ class Command(BaseCommand):
                 }
 
                 obj, created = _get_or_create_article(url, defaults)
+
+                # Asegura que outlet/source queden alineados al Source actual.
+                # Importante porque Article.url es unique y puede existir ya con otro outlet vacío o incorrecto.
+                dirty_fields = []
+                if obj.source_id != src.id:
+                    obj.source = src
+                    dirty_fields.append("source")
+                if obj.outlet != (src.outlet or ""):
+                    obj.outlet = (src.outlet or "")
+                    dirty_fields.append("outlet")
+                if dirty_fields:
+                    obj.save(update_fields=dirty_fields)
 
                 if created:
                     total_new += 1
