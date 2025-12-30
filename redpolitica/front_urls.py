@@ -14,7 +14,6 @@ from .views import (
     atlas_topic_unlink_person,
     atlas_topics_list,
     index_apps,
-    monitor_placeholder,
     privacy_notice,
     social_placeholder,
     terms_conditions,
@@ -64,6 +63,5 @@ urlpatterns = [
         atlas_topic_unlink_person,
         name="atlas-topic-unlink-person",
     ),
-    path("apps/monitor/", monitor_placeholder, name="monitor-home"),
     path("apps/social/", social_placeholder, name="social-home"),
 ]

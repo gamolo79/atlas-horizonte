@@ -52,7 +52,6 @@ ALLOWED_HOSTS = [
     "www.horizonte.digital",
     "atlas.horizonte.digital",
     "red.horizonte.digital",
-    "monitor.horizonte.digital",
 ]
 
 
@@ -68,7 +67,6 @@ INSTALLED_APPS = [
 # apps de Django…
     "rest_framework",   # si no lo agregaste antes
     "redpolitica",      # <- nuestra app
-    "monitor",
 ]
 
 MIDDLEWARE = [

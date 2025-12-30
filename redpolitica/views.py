@@ -39,10 +39,6 @@ def atlas_home(request):
     return render(request, "redpolitica/atlas_home.html")
 
 
-def monitor_placeholder(request):
-    return redirect("/monitor/dashboard/")
-
-
 def social_placeholder(request):
     return render(request, "redpolitica/app_placeholder.html", {"app_name": "Social"})
 
