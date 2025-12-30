@@ -12,7 +12,6 @@ class PeriodoAdministrativoSerializer(serializers.ModelSerializer):
             "nombre",
             "fecha_inicio",
             "fecha_fin",
-            "institucion_raiz",
         ]
 
 

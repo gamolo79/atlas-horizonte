@@ -59,10 +59,9 @@ class InstitucionAdmin(admin.ModelAdmin):
 
 @admin.register(PeriodoAdministrativo)
 class PeriodoAdministrativoAdmin(admin.ModelAdmin):
-    list_display = ("nombre", "tipo", "nivel", "fecha_inicio", "fecha_fin", "institucion_raiz")
+    list_display = ("nombre", "tipo", "nivel", "fecha_inicio", "fecha_fin")
     list_filter = ("tipo", "nivel")
     search_fields = ("nombre",)
-    autocomplete_fields = ("institucion_raiz",)
 
 
 @admin.register(Legislatura)
