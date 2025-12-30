@@ -1,107 +1,102 @@
 {% extends "monitor/dashboard/base.html" %}
 
 {% block content %}
-<div class="row mb-4">
-  <div class="col-12">
-    <h1 class="h3 mb-3">Monitor Horizonte</h1>
-    <p class="text-muted">Sistema de monitoreo y análisis automatizado.</p>
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Monitor Horizonte</h1>
+    <p class="page-subtitle">Mesa editorial para medir cobertura, detectar riesgos y generar síntesis diarias.</p>
+  </div>
+  <div class="actions">
+    <a class="secondary" href="{% url 'monitor_dashboard_ingest' %}">Ingesta & Digest</a>
+    <a href="{% url 'monitor_dashboard_personas' %}">Ver personas</a>
   </div>
 </div>
 
-<!-- KPI Cards -->
-<div class="row mb-4">
-  <div class="col-md-4">
-    <div class="card border-left-primary shadow h-100 py-2">
-      <div class="card-body">
-        <div class="row no-gutters align-items-center">
-          <div class="col mr-2">
-            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Artículos (Hoy)</div>
-            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ kpis.articles_today }}</div>
-          </div>
-          <div class="col-auto">
-            <i class="fas fa-newspaper fa-2x text-gray-300"></i>
-          </div>
-        </div>
-      </div>
-    </div>
+<section class="hero">
+  <div class="card">
+    <div class="kpi-label">Artículos (hoy)</div>
+    <div class="kpi">{{ kpis.articles_today }}</div>
+    <div class="kpi-subtitle">Notas recibidas en la ventana diaria.</div>
   </div>
+  <div class="card">
+    <div class="kpi-label">Historias agrupadas</div>
+    <div class="kpi">{{ kpis.stories_today }}</div>
+    <div class="kpi-subtitle">Clusters editoriales activos hoy.</div>
+  </div>
+  <div class="card">
+    <div class="kpi-label">Última ingesta</div>
+    <div class="kpi">{{ kpis.last_ingest_status|upper }}</div>
+    <div class="kpi-subtitle">Estado del último job de ingesta.</div>
+  </div>
+  <div class="card">
+    <div class="kpi-label">Objetivo editorial</div>
+    <div class="kpi-value">Volumen · Tono · Narrativas</div>
+    <div class="kpi-subtitle">Medición sostenida, explicable y entrenable.</div>
+  </div>
+</section>
 
-  <div class="col-md-4">
-    <div class="card border-left-success shadow h-100 py-2">
-      <div class="card-body">
-        <div class="row no-gutters align-items-center">
-          <div class="col mr-2">
-            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Historias Agrupadas (Hoy)</div>
-            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ kpis.stories_today }}</div>
-          </div>
-          <div class="col-auto">
-            <i class="fas fa-layer-group fa-2x text-gray-300"></i>
-          </div>
-        </div>
-      </div>
+<section class="grid grid-3" style="margin-top: 24px;">
+  <div class="card">
+    <h3 class="card-title">Producto A · Monitoreo</h3>
+    <p class="card-desc">Ingesta horaria, detección de actores Atlas, clasificación editorial y sentimiento por actor.</p>
+    <div class="helper-grid" style="margin-top: 10px;">
+      <div class="helper-item">RSS + scraping con deduplicación.</div>
+      <div class="helper-item">Vinculación Persona/Institución/Tema.</div>
+      <div class="helper-item">Tono y tipo de contenido por actor.</div>
     </div>
   </div>
+  <div class="card">
+    <h3 class="card-title">Producto B · Dashboards</h3>
+    <p class="card-desc">Lectura cuantitativa y comparativos por actor, tema y etiqueta editorial.</p>
+    <div class="helper-grid" style="margin-top: 10px;">
+      <div class="helper-item">Volumen y tendencia por periodo.</div>
+      <div class="helper-item">Evolución de sentimiento.</div>
+      <div class="helper-item">Exportables para decisión.</div>
+    </div>
+  </div>
+  <div class="card">
+    <h3 class="card-title">Producto C · Síntesis</h3>
+    <p class="card-desc">Lectura editorial diaria, agrupada por historias y actores prioritarios.</p>
+    <div class="helper-grid" style="margin-top: 10px;">
+      <div class="helper-item">Agrupamiento por narrativa.</div>
+      <div class="helper-item">Lead representativo + chips de medios.</div>
+      <div class="helper-item">Priorización por cliente.</div>
+    </div>
+  </div>
+</section>
 
-  <div class="col-md-4">
-    <div class="card border-left-info shadow h-100 py-2">
-      <div class="card-body">
-        <div class="row no-gutters align-items-center">
-          <div class="col mr-2">
-            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Status de Ingesta</div>
-            <div class="row no-gutters align-items-center">
-              <div class="col-auto">
-                <div class="h5 mb-0 mr-3 font-weight-bold text-gray-800">{{ kpis.last_ingest_status|upper }}</div>
-              </div>
-            </div>
-          </div>
-          <div class="col-auto">
-            <i class="fas fa-satellite-dish fa-2x text-gray-300"></i>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- Recent Activity -->
-<div class="card shadow mb-4">
-  <div class="card-header py-3">
-    <h6 class="m-0 font-weight-bold text-primary">Actividad Reciente del Sistema</h6>
-  </div>
-  <div class="card-body">
-    <div class="table-responsive">
-      <table class="table table-bordered" width="100%" cellspacing="0">
-        <thead>
-          <tr>
-            <th>Fecha</th>
-            <th>Evento</th>
-            <th>Estado</th>
-            <th>Entidad</th>
-            <th>Detalles</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for log in recent_audit %}
-          <tr>
-            <td>{{ log.created_at|date:"Y-m-d H:i" }}</td>
-            <td>{{ log.event_type }}</td>
-            <td>
-              <span
-                class="badge badge-{% if log.status == 'success' %}success{% elif log.status == 'error' %}danger{% else %}secondary{% endif %}">
-                {{ log.status }}
-              </span>
-            </td>
-            <td>{{ log.entity_type }} {{ log.entity_id }}</td>
-            <td><small>{{ log.payload }}</small></td>
-          </tr>
-          {% empty %}
-          <tr>
-            <td colspan="5" class="text-center">No hay actividad reciente.</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-  </div>
-</div>
+<section class="card" style="margin-top: 24px;">
+  <h3 class="card-title">Actividad reciente del sistema</h3>
+  <p class="card-desc">Últimos eventos de ingesta, análisis y correcciones editoriales.</p>
+  <table class="table-compact">
+    <thead>
+      <tr>
+        <th>Fecha</th>
+        <th>Evento</th>
+        <th>Estado</th>
+        <th>Entidad</th>
+        <th>Detalles</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for log in recent_audit %}
+      <tr>
+        <td>{{ log.created_at|date:"Y-m-d H:i" }}</td>
+        <td>{{ log.event_type }}</td>
+        <td>
+          <span class="badge {% if log.status == 'success' %}success{% elif log.status == 'error' %}danger{% else %}neutral{% endif %}">
+            {{ log.status }}
+          </span>
+        </td>
+        <td>{{ log.entity_type }} {{ log.entity_id }}</td>
+        <td>{{ log.payload }}</td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="5" class="table-empty">No hay actividad reciente.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
 {% endblock %}

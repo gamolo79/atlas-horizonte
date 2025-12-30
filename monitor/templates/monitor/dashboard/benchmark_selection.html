@@ -8,88 +8,75 @@
     </div>
 </div>
 
-<div class="row justify-content-center">
-    <div class="col-lg-10">
-        <div class="card shadow">
-            <div class="card-body">
-                <form method="get" action="" class="row">
-                    <!-- Entity A -->
-                    <div class="col-md-5">
-                        <h5 class="text-primary mb-3">Entidad A</h5>
-                        <div class="form-group">
-                            <label>Tipo</label>
-                            <select class="form-control mb-3" id="type_a" name="type_a" onchange="toggleSelect('a')">
-                                <option value="persona">Persona</option>
-                                <option value="institucion">Institución</option>
-                            </select>
+<section class="card">
+    <form method="get" action="">
+        <div class="grid grid-3">
+            <div>
+                <h3 class="card-title">Entidad A</h3>
+                <p class="card-desc">Selecciona el primer actor para comparar.</p>
+                <label for="type_a">Tipo</label>
+                <select id="type_a" name="type_a" onchange="toggleSelect('a')">
+                    <option value="persona">Persona</option>
+                    <option value="institucion">Institución</option>
+                </select>
 
-                            <div id="container_persona_a">
-                                <label>Persona</label>
-                                <select name="id_a" class="form-control select-entity" id="select_persona_a">
-                                    {% for p in personas %}
-                                    <option value="{{ p.id }}">{{ p.nombre_completo }}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
+                <div id="container_persona_a" style="margin-top: 12px;">
+                    <label>Persona</label>
+                    <select name="id_a" id="select_persona_a">
+                        {% for p in personas %}
+                        <option value="{{ p.id }}">{{ p.nombre_completo }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
 
-                            <div id="container_institucion_a" style="display:none;">
-                                <label>Institución</label>
-                                <select name="id_a_inst" class="form-control select-entity" id="select_institucion_a"
-                                    disabled>
-                                    {% for i in instituciones %}
-                                    <option value="{{ i.id }}">{{ i.nombre }}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                        </div>
-                    </div>
+                <div id="container_institucion_a" style="display:none; margin-top: 12px;">
+                    <label>Institución</label>
+                    <select name="id_a_inst" id="select_institucion_a" disabled>
+                        {% for i in instituciones %}
+                        <option value="{{ i.id }}">{{ i.nombre }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
 
-                    <!-- VS Divider -->
-                    <div class="col-md-2 d-flex align-items-center justify-content-center">
-                        <div class="h2 text-muted font-weight-bold">VS</div>
-                    </div>
+            <div style="display: flex; align-items: center; justify-content: center;">
+                <div class="pill">VS</div>
+            </div>
 
-                    <!-- Entity B -->
-                    <div class="col-md-5">
-                        <h5 class="text-danger mb-3">Entidad B</h5>
-                        <div class="form-group">
-                            <label>Tipo</label>
-                            <select class="form-control mb-3" id="type_b" name="type_b" onchange="toggleSelect('b')">
-                                <option value="persona">Persona</option>
-                                <option value="institucion">Institución</option>
-                            </select>
+            <div>
+                <h3 class="card-title">Entidad B</h3>
+                <p class="card-desc">Selecciona el segundo actor para comparar.</p>
+                <label for="type_b">Tipo</label>
+                <select id="type_b" name="type_b" onchange="toggleSelect('b')">
+                    <option value="persona">Persona</option>
+                    <option value="institucion">Institución</option>
+                </select>
 
-                            <div id="container_persona_b">
-                                <label>Persona</label>
-                                <select name="id_b" class="form-control select-entity" id="select_persona_b">
-                                    {% for p in personas %}
-                                    <option value="{{ p.id }}">{{ p.nombre_completo }}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
+                <div id="container_persona_b" style="margin-top: 12px;">
+                    <label>Persona</label>
+                    <select name="id_b" id="select_persona_b">
+                        {% for p in personas %}
+                        <option value="{{ p.id }}">{{ p.nombre_completo }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
 
-                            <div id="container_institucion_b" style="display:none;">
-                                <label>Institución</label>
-                                <select name="id_b_inst" class="form-control select-entity" id="select_institucion_b"
-                                    disabled>
-                                    {% for i in instituciones %}
-                                    <option value="{{ i.id }}">{{ i.nombre }}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="col-12 text-center mt-4">
-                        <button type="submit" class="btn btn-primary btn-lg px-5">
-                            <i class="fas fa-chart-area mr-2"></i> Comparar
-                        </button>
-                    </div>
-                </form>
+                <div id="container_institucion_b" style="display:none; margin-top: 12px;">
+                    <label>Institución</label>
+                    <select name="id_b_inst" id="select_institucion_b" disabled>
+                        {% for i in instituciones %}
+                        <option value="{{ i.id }}">{{ i.nombre }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
             </div>
         </div>
-    </div>
-</div>
+
+        <div class="actions" style="justify-content: flex-end; margin-top: 18px;">
+            <button type="submit">Comparar</button>
+        </div>
+    </form>
+</section>
 
 <script>
     function toggleSelect(side) {

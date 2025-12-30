@@ -3,110 +3,99 @@
 {% block content %}
 <div class="page-header">
     <div>
-        <a href="{% url 'monitor_dashboard_client_list' %}" class="text-muted small">&larr; Volver a lista</a>
         <h1 class="page-title">{{ client.name }}</h1>
         <p class="page-subtitle">Configuración de entidades de interés.</p>
     </div>
-</div>
-
-<div class="row">
-    <!-- Focus List -->
-    <div class="col-lg-8">
-        <div class="card shadow mb-4">
-            <div class="card-header py-3">
-                <h6 class="m-0 font-weight-bold text-primary">Focos de Monitoreo</h6>
-            </div>
-            <div class="card-body">
-                <table class="table table-bordered">
-                    <thead>
-                        <tr>
-                            <th>Prioridad</th>
-                            <th>Tipo</th>
-                            <th>Nombre</th>
-                            <th>Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for item in focus_items %}
-                        <tr>
-                            <td>{{ item.priority }}</td>
-                            <td>{{ item.type|title }}</td>
-                            <td>{{ item.name }}</td>
-                            <td>
-                                <form method="post" class="d-inline">
-                                    {% csrf_token %}
-                                    <input type="hidden" name="action" value="remove_focus">
-                                    <input type="hidden" name="focus_id" value="{{ item.id }}">
-                                    <button type="submit" class="btn btn-danger btn-sm"
-                                        onclick="return confirm('¿Eliminar este foco?')">
-                                        Eliminar
-                                    </button>
-                                </form>
-                            </td>
-                        </tr>
-                        {% empty %}
-                        <tr>
-                            <td colspan="4" class="text-center text-muted">Sin focos configurados.</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-
-    <!-- Add Focus Form -->
-    <div class="col-lg-4">
-        <div class="card shadow mb-4">
-            <div class="card-header py-3">
-                <h6 class="m-0 font-weight-bold text-success">Añadir Nuevo Foco</h6>
-            </div>
-            <div class="card-body">
-                <form method="post">
-                    {% csrf_token %}
-                    <input type="hidden" name="action" value="add_focus">
-
-                    <div class="form-group mb-3">
-                        <label>Tipo</label>
-                        <select class="form-control" id="add_type" name="entity_type" onchange="toggleAddSelect()">
-                            <option value="persona">Persona</option>
-                            <option value="institucion">Institución</option>
-                        </select>
-                    </div>
-
-                    <div class="form-group mb-3" id="add_persona_div">
-                        <label>Persona</label>
-                        <select class="form-control" name="entity_id" id="add_persona_sel">
-                            {% for p in personas %}
-                            <option value="{{ p.id }}">{{ p.nombre_completo }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-
-                    <div class="form-group mb-3" id="add_inst_div" style="display:none;">
-                        <label>Institución</label>
-                        <select class="form-control" name="entity_id_inst" id="add_inst_sel" disabled>
-                            {% for i in instituciones %}
-                            <option value="{{ i.id }}">{{ i.nombre }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-
-                    <div class="form-group mb-3">
-                        <label>Prioridad</label>
-                        <select class="form-control" name="priority">
-                            <option value="1">1 - Alta</option>
-                            <option value="2">2 - Media</option>
-                            <option value="3">3 - Baja</option>
-                        </select>
-                    </div>
-
-                    <button type="submit" class="btn btn-success btn-block">Añadir</button>
-                </form>
-            </div>
-        </div>
+    <div class="actions">
+        <a class="secondary" href="{% url 'monitor_dashboard_client_list' %}">Volver</a>
     </div>
 </div>
+
+<section class="grid grid-2">
+    <div class="card">
+        <h3 class="card-title">Focos de monitoreo</h3>
+        <p class="card-desc">Entidades prioritarias para la síntesis diaria.</p>
+        <table class="table-compact">
+            <thead>
+                <tr>
+                    <th>Prioridad</th>
+                    <th>Tipo</th>
+                    <th>Nombre</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in focus_items %}
+                <tr>
+                    <td>{{ item.priority }}</td>
+                    <td>{{ item.type|title }}</td>
+                    <td>{{ item.name }}</td>
+                    <td>
+                        <form method="post" style="margin: 0;">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="remove_focus">
+                            <input type="hidden" name="focus_id" value="{{ item.id }}">
+                            <div class="actions">
+                                <button type="submit" class="danger" onclick="return confirm('¿Eliminar este foco?')">
+                                    Eliminar
+                                </button>
+                            </div>
+                        </form>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="4" class="table-empty">Sin focos configurados.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="card">
+        <h3 class="card-title">Añadir nuevo foco</h3>
+        <p class="card-desc">Define personas o instituciones a priorizar.</p>
+        <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="add_focus">
+
+            <label>Tipo</label>
+            <select id="add_type" name="entity_type" onchange="toggleAddSelect()">
+                <option value="persona">Persona</option>
+                <option value="institucion">Institución</option>
+            </select>
+
+            <div id="add_persona_div" style="margin-top: 12px;">
+                <label>Persona</label>
+                <select name="entity_id" id="add_persona_sel">
+                    {% for p in personas %}
+                    <option value="{{ p.id }}">{{ p.nombre_completo }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div id="add_inst_div" style="display:none; margin-top: 12px;">
+                <label>Institución</label>
+                <select name="entity_id_inst" id="add_inst_sel" disabled>
+                    {% for i in instituciones %}
+                    <option value="{{ i.id }}">{{ i.nombre }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <label style="margin-top: 12px;">Prioridad</label>
+            <select name="priority">
+                <option value="1">1 - Alta</option>
+                <option value="2">2 - Media</option>
+                <option value="3">3 - Baja</option>
+            </select>
+
+            <div class="actions" style="justify-content: flex-end; margin-top: 16px;">
+                <button type="submit">Añadir</button>
+            </div>
+        </form>
+    </div>
+</section>
 
 <script>
     function toggleAddSelect() {

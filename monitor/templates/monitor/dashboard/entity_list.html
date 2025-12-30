@@ -10,64 +10,50 @@
     </div>
 </div>
 
-<!-- Search -->
-<div class="row mb-4">
-    <div class="col-md-6">
-        <form method="get" class="form-inline">
-            <div class="input-group w-100">
-                <input type="text" name="q" class="form-control bg-light border-0 small" placeholder="Buscar..."
-                    aria-label="Search" value="{{ query }}">
-                <div class="input-group-append">
-                    <button class="btn btn-primary" type="submit">
-                        <i class="fas fa-search fa-sm"></i> Buscar
-                    </button>
-                </div>
+<section class="card" style="margin-bottom: 20px;">
+    <form method="get">
+        <div class="form-row">
+            <div style="flex: 1; min-width: 240px;">
+                <label for="search">Buscar por nombre</label>
+                <input id="search" type="text" name="q" placeholder="Buscar persona o institución..."
+                    value="{{ query }}">
             </div>
-        </form>
-    </div>
-</div>
+            <div class="actions" style="align-self: flex-end;">
+                <button type="submit">Buscar</button>
+            </div>
+        </div>
+    </form>
+</section>
 
 <!-- Grid -->
 <div class="grid grid-3">
     {% for obj in entities %}
-    <div class="card h-100">
-        <div class="card-body d-flex flex-column">
-            <div class="d-flex align-items-center mb-3">
-                <div class="icon-circle bg-primary text-white mr-3 d-flex align-items-center justify-content-center"
-                    style="width: 40px; height: 40px; border-radius: 50%;">
-                    {% if entity_type == 'persona' %}
-                    <i class="fas fa-user"></i>
-                    {% else %}
-                    <i class="fas fa-building"></i>
-                    {% endif %}
-                </div>
-                <div>
-                    <h5 class="card-title mb-0">
-                        {% if entity_type == 'persona' %}{{ obj.nombre_completo }}{% else %}{{ obj.nombre }}{% endif %}
-                    </h5>
-                    {% if entity_type == 'institucion' %}
-                    <small class="text-muted">{{ obj.get_tipo_display }}</small>
-                    {% endif %}
-                </div>
-            </div>
+    <div class="card">
+        <div class="card-title">
+            {% if entity_type == 'persona' %}{{ obj.nombre_completo }}{% else %}{{ obj.nombre }}{% endif %}
+        </div>
+        {% if entity_type == 'institucion' %}
+        <div class="card-meta">{{ obj.get_tipo_display|default:"Tipo institucional" }}</div>
+        {% endif %}
 
-            <p class="card-desc flex-grow-1">
-                {% if entity_type == 'persona' %}
-                {{ obj.bio_corta|default:"Sin biografía registrada."|truncatechars:100 }}
-                {% else %}
-                {{ obj.ambito|default:"Sin ámbito definido" }} - {{ obj.estado|default:"Nacional" }}
-                {% endif %}
-            </p>
+        <p class="card-desc">
+            {% if entity_type == 'persona' %}
+            {{ obj.bio_corta|default:"Sin biografía registrada."|truncatechars:100 }}
+            {% else %}
+            {{ obj.ambito|default:"Sin ámbito definido" }} · {{ obj.estado|default:"Nacional" }}
+            {% endif %}
+        </p>
 
-            <a href="{% if entity_type == 'persona' %}{% url 'monitor_dashboard_persona_detail' obj.id %}{% else %}{% url 'monitor_dashboard_institucion_detail' obj.id %}{% endif %}"
-                class="btn btn-sm btn-outline-primary mt-3 align-self-start">
-                Ver Dashboard <i class="fas fa-arrow-right ml-1"></i>
+        <div class="actions" style="margin-top: 10px;">
+            <a class="secondary"
+                href="{% if entity_type == 'persona' %}{% url 'monitor_dashboard_persona_detail' obj.id %}{% else %}{% url 'monitor_dashboard_institucion_detail' obj.id %}{% endif %}">
+                Ver dashboard
             </a>
         </div>
     </div>
     {% empty %}
-    <div class="col-12 text-center text-muted py-5">
-        <p>No se encontraron resultados {% if query %}para "{{ query }}"{% endif %}.</p>
+    <div class="card">
+        <p class="card-desc">No se encontraron resultados {% if query %}para "{{ query }}"{% endif %}.</p>
     </div>
     {% endfor %}
 </div>

@@ -145,18 +145,6 @@ def entity_dashboard(request, entity_type, entity_id):
         "recent_links": recent_links,
         "recent_stories": recent_stories,
     }
-    context = {
-        "entity": entity,
-        "entity_type": entity_type,
-        "days": days,
-        "chart_data": {
-            "dates": json.dumps(dates),
-            "volumes": json.dumps(volumes),
-            "sentiments": json.dumps(sentiments),
-        },
-        "recent_links": recent_links,
-        "recent_stories": recent_stories,
-    }
     return render(request, "monitor/dashboard/entity_dashboard.html", context)
 
 
@@ -179,13 +167,6 @@ def entity_list(request, entity_type):
     
     # Pagination could be added here, but let's stick to simple list for now
     
-    return render(request, "monitor/dashboard/entity_list.html", {
-        "entity_type": entity_type,
-        "entities": qs[:100], # Limit to avoid performance hit
-        "query": query
-    })
-
-
     return render(request, "monitor/dashboard/entity_list.html", {
         "entity_type": entity_type,
         "entities": qs[:100], # Limit to avoid performance hit
@@ -249,14 +230,6 @@ def benchmarks_view(request):
         }
         return render(request, "monitor/dashboard/benchmark_result.html", context)
 
-    # Selection Form
-    return render(request, "monitor/dashboard/benchmark_selection.html", {
-        "personas": Persona.objects.all().order_by("nombre_completo"),
-        "instituciones": Institucion.objects.all().order_by("nombre"),
-    })
-
-
-    # Selection Form
     return render(request, "monitor/dashboard/benchmark_selection.html", {
         "personas": Persona.objects.all().order_by("nombre_completo"),
         "instituciones": Institucion.objects.all().order_by("nombre"),
@@ -311,7 +284,6 @@ def training_dashboard(request):
     return render(request, "monitor/dashboard/training.html", {"links": links})
 
 
-@staff_member_required
 @staff_member_required
 @require_POST
 def api_correct_link(request):
