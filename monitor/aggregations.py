@@ -24,9 +24,33 @@ def _normalize_topic_label(topic):
     return ""
 
 
+def _accumulate_sentiment(summary, rows):
+    for row in rows:
+        sentiment = row["sentiment"]
+        if sentiment in summary:
+            summary[sentiment] += row["total"]
+
+
 def build_sentiment_summary(article_ids):
     summary = _sentiment_summary_base()
-    if article_ids:
+    if not article_ids:
+        summary["total"] = 0
+        return summary
+
+    persona_rows = (
+        ArticlePersonaMention.objects.filter(article_id__in=article_ids, sentiment__isnull=False)
+        .values("sentiment")
+        .annotate(total=Count("id"))
+    )
+    institucion_rows = (
+        ArticleInstitucionMention.objects.filter(article_id__in=article_ids, sentiment__isnull=False)
+        .values("sentiment")
+        .annotate(total=Count("id"))
+    )
+    _accumulate_sentiment(summary, persona_rows)
+    _accumulate_sentiment(summary, institucion_rows)
+
+    if not any(summary.values()):
         rows = (
             ArticleSentiment.objects.filter(article_id__in=article_ids)
             .values("sentiment")
@@ -36,6 +60,7 @@ def build_sentiment_summary(article_ids):
             sentiment = row["sentiment"]
             if sentiment in summary:
                 summary[sentiment] = row["total"]
+
     summary["total"] = sum(summary.values())
     return summary
 
