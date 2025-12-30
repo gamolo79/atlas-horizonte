@@ -10,6 +10,92 @@ from django.db import models
 from django.utils import timezone
 
 
+class MediaOutlet(models.Model):
+    class MediaType(models.TextChoices):
+        DIGITAL_NATIVE = "digital_native", "Digital nativo"
+        BROADCAST_WITH_WEB = "broadcast_with_web", "Radio/TV con web"
+        PRINT_WITH_WEB = "print_with_web", "Impreso con web"
+
+    name = models.CharField(max_length=200)
+    slug = models.SlugField(max_length=220, unique=True)
+    type = models.CharField(max_length=30, choices=MediaType.choices)
+    home_url = models.URLField(blank=True)
+    weight = models.FloatField(default=1.0)
+    is_active = models.BooleanField(default=True)
+    notes = models.TextField(blank=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["type", "is_active"]),
+        ]
+        ordering = ["name"]
+
+    def __str__(self):
+        return self.name
+
+
+class MediaSource(models.Model):
+    class SourceType(models.TextChoices):
+        RSS = "rss", "RSS"
+        SITEMAP = "sitemap", "Sitemap"
+        SECTION_URL = "section_url", "Sección/URL"
+        API = "api", "API"
+        MANUAL_URL = "manual_url", "Manual"
+
+    media_outlet = models.ForeignKey(MediaOutlet, on_delete=models.CASCADE, related_name="sources")
+    source_type = models.CharField(max_length=20, choices=SourceType.choices)
+    url = models.URLField()
+    scan_interval_minutes = models.PositiveIntegerField(default=60)
+    is_active = models.BooleanField(default=True)
+
+    last_fetched_at = models.DateTimeField(null=True, blank=True)
+    fail_count = models.PositiveIntegerField(default=0)
+    last_error = models.TextField(blank=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["media_outlet", "is_active"]),
+            models.Index(fields=["last_fetched_at"]),
+        ]
+
+    def __str__(self):
+        return f"{self.media_outlet.name} · {self.source_type}"
+
+
+class IngestRun(models.Model):
+    class Trigger(models.TextChoices):
+        SCHEDULED = "scheduled", "Programada"
+        MANUAL = "manual", "Manual"
+        RETRY = "retry", "Reintento"
+
+    class Status(models.TextChoices):
+        QUEUED = "queued", "En cola"
+        RUNNING = "running", "Corriendo"
+        SUCCESS = "success", "Exitosa"
+        FAILED = "failed", "Fallida"
+        PARTIAL = "partial", "Parcial"
+
+    trigger = models.CharField(max_length=20, choices=Trigger.choices, default=Trigger.MANUAL)
+    time_window_start = models.DateTimeField()
+    time_window_end = models.DateTimeField()
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.QUEUED)
+
+    stats_total_fetched = models.PositiveIntegerField(default=0)
+    stats_total_parsed = models.PositiveIntegerField(default=0)
+
+    started_at = models.DateTimeField(null=True, blank=True)
+    finished_at = models.DateTimeField(null=True, blank=True)
+
+    log = models.JSONField(default=dict, blank=True)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["status", "started_at"]),
+            models.Index(fields=["time_window_start", "time_window_end"]),
+        ]
+
+
 class Source(models.Model):
     class SourceType(models.TextChoices):
         RSS = "rss", "RSS"
@@ -84,6 +170,47 @@ class Article(models.Model):
     def compute_hash(url: str, canonical_url: Optional[str], body: str) -> str:
         seed = (canonical_url or url or "").strip().lower() + "|" + (body or "").strip()
         return hashlib.sha256(seed.encode("utf-8")).hexdigest()
+
+
+class StoryCluster(models.Model):
+    run = models.ForeignKey(IngestRun, null=True, blank=True, on_delete=models.SET_NULL, related_name="clusters")
+    cluster_key = models.CharField(max_length=200, blank=True)
+
+    headline = models.TextField()
+    lead = models.TextField(blank=True)
+
+    base_article = models.ForeignKey(Article, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    confidence = models.FloatField(default=0.0)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["created_at"]),
+            models.Index(fields=["run", "confidence"]),
+        ]
+        ordering = ["-created_at", "-id"]
+
+    def __str__(self):
+        return self.headline[:80]
+
+
+class StoryMention(models.Model):
+    cluster = models.ForeignKey(StoryCluster, on_delete=models.CASCADE, related_name="mentions")
+    article = models.ForeignKey(Article, on_delete=models.CASCADE)
+    media_outlet = models.ForeignKey(MediaOutlet, on_delete=models.CASCADE)
+
+    match_score = models.FloatField(default=0.0)
+    is_base_candidate = models.BooleanField(default=False)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["cluster", "article"], name="uniq_cluster_article"),
+        ]
+        indexes = [
+            models.Index(fields=["cluster", "media_outlet"]),
+        ]
+        ordering = ["cluster_id", "media_outlet_id", "id"]
 
 
 class ArticleVersion(models.Model):
@@ -501,4 +628,3 @@ class JobLog(models.Model):
 
     class Meta:
         ordering = ["-started_at", "-id"]
-
