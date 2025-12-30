@@ -3,8 +3,8 @@ import logging
 from django.db import transaction
 from django.db.models import Q
 from atlas_core.text_utils import normalize_name
-from monitor.models import Article, ActorLink
-from redpolitica.models import Persona, Institucion
+from monitor.models import Article, ActorLink, TopicLink
+from redpolitica.models import Persona, Institucion, Topic
 
 logger = logging.getLogger(__name__)
 
@@ -79,6 +79,35 @@ def load_alias_map():
     return alias_map, regex
 
 
+def load_topic_map():
+    """
+    Builds a map of normalized topic names to topic IDs.
+    Returns:
+      topic_map: { normalized_name: [ {id, name}, ... ] }
+      topic_regex: compiled regex of all topic names
+    """
+    topic_map = {}
+    all_surfaces = set()
+
+    for topic in Topic.objects.only("id", "name").iterator():
+        surface = (topic.name or "").strip()
+        if not _is_valid_surface(surface):
+            continue
+
+        norm = normalize_name(surface)
+        if not norm:
+            continue
+
+        topic_map.setdefault(norm, []).append({
+            "id": str(topic.id),
+            "name": surface,
+        })
+        all_surfaces.add(surface)
+
+    regex = _build_alias_regex(all_surfaces)
+    return topic_map, regex
+
+
 def _is_valid_surface(surface: str) -> bool:
     cleaned = (surface or "").strip()
     if not cleaned or len(cleaned) <= 2:
@@ -111,14 +140,20 @@ def _build_alias_regex(entries):
         return None
 
 
-def link_content(article: Article, alias_map=None, alias_regex=None) -> int:
+def link_content(
+    article: Article,
+    alias_map=None,
+    alias_regex=None,
+    topic_map=None,
+    topic_regex=None,
+) -> int:
     """
     Links entities in a single article.
     """
     if not alias_map or not alias_regex:
         alias_map, alias_regex = load_alias_map()
-        if not alias_regex:
-            return 0
+    if topic_map is None or topic_regex is None:
+        topic_map, topic_regex = load_topic_map()
 
     text = ((article.title or "") + "\n" + (article.body or "")).strip()
     if not text:
@@ -126,42 +161,73 @@ def link_content(article: Article, alias_map=None, alias_regex=None) -> int:
 
     found_links = 0
     # Keep track of what we've found to avoid duplicates per article
-    found_entities = set() # (type, id)
+    found_entities = set()  # (type, id)
+    found_topics = set()  # topic_id
 
-    for match in alias_regex.finditer(text):
-        surface = match.group()
-        norm = normalize_name(surface)
-        candidates = alias_map.get(norm, [])
-        
-        if not candidates:
-            continue
+    if alias_regex:
+        for match in alias_regex.finditer(text):
+            surface = match.group()
+            norm = normalize_name(surface)
+            candidates = alias_map.get(norm, [])
 
-        # Simple strategy: if multiple candidates, pick the first one (can be improved)
-        # OR if ambiguity is high, skip. 
-        # For now, let's take the first exact match candidate.
-        winner = candidates[0]
-        entity_key = (winner["type"], winner["id"])
+            if not candidates:
+                continue
 
-        if entity_key in found_entities:
-            continue
+            # Simple strategy: if multiple candidates, pick the first one (can be improved)
+            # OR if ambiguity is high, skip.
+            # For now, let's take the first exact match candidate.
+            winner = candidates[0]
+            entity_key = (winner["type"], winner["id"])
 
-        # Create ActorLink
-        try:
-            ActorLink.objects.get_or_create(
-                article=article,
-                atlas_entity_type=winner["type"],
-                atlas_entity_id=winner["id"],
-                defaults={
-                    "role_in_article": "mentioned",
-                    "sentiment": ActorLink.Sentiment.NEUTRO,
-                    "sentiment_confidence": 0.5,
-                    "rationale": f"Regex match on '{surface}'"
-                }
-            )
-            found_entities.add(entity_key)
-            found_links += 1
-        except Exception as e:
-            logger.error(f"Error linking {surface} to article {article.id}: {e}")
+            if entity_key in found_entities:
+                continue
+
+            # Create ActorLink
+            try:
+                ActorLink.objects.get_or_create(
+                    article=article,
+                    atlas_entity_type=winner["type"],
+                    atlas_entity_id=winner["id"],
+                    defaults={
+                        "role_in_article": "mentioned",
+                        "sentiment": ActorLink.Sentiment.NEUTRO,
+                        "sentiment_confidence": 0.5,
+                        "rationale": f"Regex match on '{surface}'",
+                    },
+                )
+                found_entities.add(entity_key)
+                found_links += 1
+            except Exception as e:
+                logger.error(f"Error linking {surface} to article {article.id}: {e}")
+
+    if topic_regex:
+        for match in topic_regex.finditer(text):
+            surface = match.group()
+            norm = normalize_name(surface)
+            candidates = topic_map.get(norm, [])
+
+            if not candidates:
+                continue
+
+            winner = candidates[0]
+            topic_id = winner["id"]
+
+            if topic_id in found_topics:
+                continue
+
+            try:
+                TopicLink.objects.get_or_create(
+                    article=article,
+                    atlas_topic_id=topic_id,
+                    defaults={
+                        "confidence": 0.5,
+                        "rationale": f"Regex match on '{surface}'",
+                    },
+                )
+                found_topics.add(topic_id)
+                found_links += 1
+            except Exception as e:
+                logger.error(f"Error linking topic {surface} to article {article.id}: {e}")
 
     return found_links
 
@@ -177,8 +243,9 @@ def run_linking(limit=1000):
     
     # Optimization: Loading the map is expensive, do it once.
     alias_map, alias_regex = load_alias_map()
-    if not alias_regex:
-        logger.warning("No aliases found")
+    topic_map, topic_regex = load_topic_map()
+    if not alias_regex and not topic_regex:
+        logger.warning("No aliases or topics found")
         return 0
 
     processed = 0
@@ -191,7 +258,7 @@ def run_linking(limit=1000):
         # Optional: Skip if already has links?
         # if article.actor_links.exists(): continue
         
-        count = link_content(article, alias_map, alias_regex)
+        count = link_content(article, alias_map, alias_regex, topic_map, topic_regex)
         processed += 1
         if count > 0:
             logger.info(f"Linked {count} entities in article {article.id}")

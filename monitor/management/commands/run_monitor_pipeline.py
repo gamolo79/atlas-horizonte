@@ -1,5 +1,6 @@
 from django.core.management.base import BaseCommand
-from monitor.pipeline import MonitorPipeline
+
+from monitor.pipeline import run_pipeline
 
 class Command(BaseCommand):
     help = "Runs the full Monitor 2.0 pipeline: Ingest -> AI Classify -> Link -> Cluster -> Synthesis."
@@ -11,10 +12,7 @@ class Command(BaseCommand):
         parser.add_argument("--dry-run", action="store_true")
 
     def handle(self, *args, **opts):
-        pipeline = MonitorPipeline(
-            hours=opts["hours"],
-            limit=opts["limit"],
-            ai_model=opts["model"],
-            dry_run=opts["dry_run"]
-        )
-        pipeline.execute()
+        if opts["dry_run"]:
+            self.stdout.write(self.style.WARNING("Dry run: no se ejecuta el pipeline."))
+            return
+        run_pipeline(hours=opts["hours"], limit=opts["limit"])

@@ -496,25 +496,24 @@ def build_daily_digest(date: timezone.datetime.date | None = None) -> int:
     return created
 
 
-    build_daily_digest()
-
-
 def link_articles(articles: list[Article]) -> int:
     # Local import to avoid circular dependency
-    from monitor.linking import link_content
-    
+    from monitor.linking import link_content, load_alias_map, load_topic_map
+
     links_created = 0
+    alias_map, alias_regex = load_alias_map()
+    topic_map, topic_regex = load_topic_map()
     # Process all articles
     for article in articles:
-        links_created += link_content(article)
-    
+        links_created += link_content(article, alias_map, alias_regex, topic_map, topic_regex)
+
     log_event("link", "success", {"links_created": links_created})
     return links_created
 
 
 @transaction.atomic
-def run_pipeline(hours: int = 24) -> None:
-    result = ingest_sources()
+def run_pipeline(hours: int = 24, limit: int = 50) -> None:
+    result = ingest_sources(limit=limit)
     normalize_articles(result.articles)
     classify_articles(result.articles)
     link_articles(result.articles)
