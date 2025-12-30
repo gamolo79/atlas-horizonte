@@ -2,6 +2,7 @@ import hashlib
 import os
 import sys
 import math
+from contextlib import nullcontext
 from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.utils import timezone
@@ -133,7 +134,7 @@ class Command(BaseCommand):
             processed_unclustered.append({"article": a, "entities": entities, "topics": topics})
 
         # 4. Loop Incremental
-        transaction_ctx = transaction.atomic() if not dry else transaction.non_atomic_requests()
+        transaction_ctx = transaction.atomic() if not dry else nullcontext()
         with transaction_ctx:
             for item in processed_unclustered:
                 article = item["article"]
