@@ -29,24 +29,6 @@ def _story_signature(headline: str, lead: str) -> str:
     return f"{h}||{l}"
 
 
-def _count_sentiments(mentions):
-    pos = neu = neg = 0
-    total = 0
-    for m in mentions:
-        s = getattr(m.article, "sentiment", None)
-        if not s:
-            continue
-        total += 1
-        label = (getattr(s, "sentiment", "") or "").lower()
-        if label == "positivo":
-            pos += 1
-        elif label == "negativo":
-            neg += 1
-        else:
-            neu += 1
-    return pos, neu, neg, total
-
-
 def _count_content_types(mentions):
     info = opinion = 0
     total = 0
