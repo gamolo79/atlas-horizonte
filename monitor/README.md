@@ -11,7 +11,7 @@
 
 ### Módulos
 
-- **Ingesta** (`monitor.pipeline.ingest_sources`): ingesta de fuentes configuradas, deduplicación con `hash_dedupe`.
+- **Ingesta** (`monitor.pipeline.ingest_sources`): ingesta de fuentes configuradas, deduplicación con `hash_dedupe` y `url`.
 - **Normalización/Limpieza** (`monitor.pipeline.normalize_articles`): limpieza de HTML y versionado (`ArticleVersion`).
 - **Clasificación IA** (`monitor.pipeline.classify_articles`): crea `ClassificationRun`, `Extraction` y `DecisionTrace` (explicable).
 - **Agregación** (`monitor.pipeline.aggregate_metrics`): recalcula `MetricAggregate` por actor/tema.
@@ -32,6 +32,25 @@
 
 - Logs estructurados con `AuditLog`.
 - Ejecuciones de jobs con `JobLog`.
+
+### Configuración de `Source.config`
+
+`Source.config` define cómo extraer URLs y contenido real según `Source.source_type`.
+
+- **RSS**
+  - `entry_limit` (int, opcional): máximo de items por fuente (por defecto usa `--limit`).
+- **Sitemap**
+  - `sitemap_urls` (list[str], opcional): lista de sitemaps (si no se especifica usa `Source.url`).
+- **HTML**
+  - `list_url` (str, opcional): URL con listado de notas (por defecto `Source.url`).
+  - `link_selector` (str, opcional): selector CSS para encontrar links.
+  - `link_attr` (str, opcional): atributo del link (por defecto `href`).
+  - Si no hay `link_selector`, se toma `list_url` como URL directa de artículo.
+- **API**
+  - `endpoint` (str, opcional): endpoint JSON (por defecto `Source.url`).
+  - `items_path` (str, opcional): ruta separada por puntos para llegar al array de items (ej. `data.items`).
+  - `url_field`, `title_field`, `lead_field`, `body_field`, `published_field` (str, opcional).
+  - `body_is_html` (bool, opcional): si el body viene en HTML, se guarda como `raw_html` y se normaliza.
 
 ### APIs
 

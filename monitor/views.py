@@ -143,8 +143,8 @@ def ops_placeholder(request: HttpRequest) -> HttpResponse:
 
 @require_http_methods(["POST"])
 def api_job_ingest(request: HttpRequest) -> JsonResponse:
-    articles = ingest_sources()
-    return JsonResponse({"created": len(articles)})
+    result = ingest_sources()
+    return JsonResponse({"created": len(result.articles), "stats": result.stats})
 
 
 @require_http_methods(["POST"])
