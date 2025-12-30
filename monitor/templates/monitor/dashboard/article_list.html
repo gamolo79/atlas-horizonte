@@ -1,96 +1,22 @@
 {% extends "monitor/dashboard/base.html" %}
-{% block title %}Artículos · Monitor{% endblock %}
+
 {% block content %}
-<div class="page-header">
-    <div>
-        <h1 class="page-title">Explorador de Artículos</h1>
-        <p class="page-subtitle">Visualiza y gestiona el flujo de notas ingestadas.</p>
-    </div>
-</div>
+<h1>Últimos artículos</h1>
 
-<section class="card" style="margin-bottom: 20px;">
-    <form method="get" class="form-row" style="align-items: flex-end;">
-        <div style="flex: 2; min-width: 240px;">
-            <label for="search">Búsqueda</label>
-            <input id="search" type="text" name="q" placeholder="Título o URL..." value="{{ query }}">
-        </div>
-        <div style="flex: 1; min-width: 150px;">
-            <label for="status">Estado Pipeline</label>
-            <select name="status" id="status">
-                <option value="">Todos</option>
-                {% for st_val, st_label in status_choices %}
-                <option value="{{ st_val }}" {% if status==st_val %}selected{% endif %}>{{ st_label }}</option>
-                {% endfor %}
-            </select>
-        </div>
-        <div class="actions">
-            <button type="submit">Filtrar</button>
-            {% if query or status %}
-            <a href="?" class="secondary">Limpiar</a>
-            {% endif %}
-        </div>
-    </form>
-</section>
-
-<section class="card">
-    <table class="table-compact">
-        <thead>
-            <tr>
-                <th>Fecha</th>
-                <th>Fuente</th>
-                <th>Título</th>
-                <th>Estado</th>
-                <th>Acciones</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for article in articles %}
-            <tr>
-                <td style="white-space: nowrap;">{{ article.published_at|date:"Y-m-d H:i" }}</td>
-                <td>
-                    <div style="font-weight: 500;">{{ article.outlet }}</div>
-                    {% if article.source %}
-                    <div class="muted small">{{ article.source.name|truncatechars:20 }}</div>
-                    {% endif %}
-                </td>
-                <td>
-                    <div style="font-weight: 600; margin-bottom: 2px;">
-                        {{ article.title|truncatechars:80 }}
-                    </div>
-                    {% if article.url %}
-                    <a href="{{ article.url }}" target="_blank" class="muted small" style="text-decoration: none;">
-                        {{ article.url|truncatechars:60 }} ↗
-                    </a>
-                    {% endif %}
-                </td>
-                <td>
-                    <span
-                        class="badge {% if article.pipeline_status == 'error' %}danger{% elif article.pipeline_status == 'digested' %}success{% elif article.pipeline_status == 'ingested' %}neutral{% else %}warning{% endif %}">
-                        {{ article.pipeline_status }}
-                    </span>
-                    {% if article.pipeline_error %}
-                    <div class="muted small" style="color: var(--danger); margin-top: 4px;">{{
-                        article.pipeline_error|truncatechars:40 }}</div>
-                    {% endif %}
-                </td>
-                <td>
-                    <!-- Future actions: Re-classify, Correct, etc -->
-                    <!-- For now just link to admin or similar if needed, but let's keep it clean -->
-                </td>
-            </tr>
-            {% empty %}
-            <tr>
-                <td colspan="5" class="table-empty">No se encontraron artículos.</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-
-    <!-- Simple Pagination -->
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 16px;">
-        <div class="muted small">
-            Mostrando {{ articles|length }} resultados recientes.
-        </div>
-    </div>
-</section>
+<table>
+    <tr>
+        <th>Fecha</th>
+        <th>Medio</th>
+        <th>Título</th>
+        <th>URL</th>
+    </tr>
+    {% for article in articles %}
+        <tr>
+            <td>{{ article.published_at|default:article.fetched_at }}</td>
+            <td>{% if article.outlet %}{{ article.outlet.name }}{% endif %}</td>
+            <td>{{ article.title }}</td>
+            <td><a href="{{ article.url }}" target="_blank" rel="noopener noreferrer">Link</a></td>
+        </tr>
+    {% endfor %}
+</table>
 {% endblock %}

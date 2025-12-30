@@ -1,145 +1,112 @@
+from __future__ import annotations
+
+import contextlib
+import io
 import re
-import hashlib
 from datetime import timedelta
 
 from django.core.management.base import BaseCommand
+from django.db.models import Q
 from django.utils import timezone
-from django.db import transaction
 
-from monitor.aggregations import refresh_cluster_atlas_topics
-from monitor.models import Article, StoryCluster, StoryMention
+from monitor.models import Article, IngestRun, StoryCluster, StoryMention
 
 
-STOPWORDS = {
-    "el","la","los","las","un","una","unos","unas",
-    "de","del","al","y","o","u","en","por","para","con","sin",
-    "que","se","a","su","sus","es","son","fue","será","hoy","ayer"
-}
-
-def tokenize_title(title: str) -> list[str]:
-    t = (title or "").strip().lower()
-    # quita urls
-    t = re.sub(r"https?://\S+", " ", t)
-    # deja letras/números/espacios
-    t = re.sub(r"[^\w\sáéíóúñü]", " ", t, flags=re.UNICODE)
-    # colapsa espacios
-    parts = [p for p in t.split() if p and p not in STOPWORDS]
-    # limita para evitar firmas larguísimas
-    return parts[:14]
-
-def normalized_text(tokens: list[str]) -> str:
-    return " ".join(tokens)
-
-
-def key_from_norm(norm: str) -> str:
-    # key estable corta
-    return hashlib.sha1(norm.encode("utf-8")).hexdigest()[:16]
-
-
-def jaccard(a: set[str], b: set[str]) -> float:
-    if not a or not b:
-        return 0.0
-    inter = a.intersection(b)
-    union = a.union(b)
-    return len(inter) / len(union)
+def _normalize_title(value: str) -> str:
+    normalized = re.sub(r"[^a-z0-9\s]+", " ", (value or "").lower())
+    normalized = re.sub(r"\s+", " ", normalized).strip()
+    return normalized
 
 
 class Command(BaseCommand):
-    help = "Simple clustering: groups Articles by normalized title into StoryCluster + StoryMention."
+    help = "Cluster recent articles using a normalized title key"
 
-    def add_arguments(self, parser):
-        parser.add_argument("--hours", type=int, default=24, help="Lookback window in hours")
-        parser.add_argument("--min-group", type=int, default=2, help="Minimum articles to create a cluster")
-        parser.add_argument("--similarity", type=float, default=0.6, help="Jaccard similarity threshold")
-        parser.add_argument("--dry-run", action="store_true", help="Do not write, only report")
+    def handle(self, *args, **options):
+        run = IngestRun.objects.create(action="cluster_articles_simple", status=IngestRun.Status.RUNNING)
+        buffer = io.StringIO()
+        stats_seen = 0
+        stats_new = 0
+        stats_errors = 0
 
-    def handle(self, *args, **opts):
-        hours = opts["hours"]
-        min_group = opts["min_group"]
-        similarity = opts["similarity"]
-        dry = opts["dry_run"]
+        try:
+            with contextlib.redirect_stdout(buffer):
+                window_start = timezone.now() - timedelta(hours=48)
+                articles = Article.objects.filter(
+                    Q(published_at__gte=window_start) | Q(published_at__isnull=True, fetched_at__gte=window_start)
+                ).order_by("published_at", "id")
+                print(f"Articulos en ventana: {articles.count()}")
 
-        since = timezone.now() - timedelta(hours=hours)
+                grouped = {}
+                for article in articles:
+                    stats_seen += 1
+                    key = _normalize_title(article.title) or f"article-{article.id}"
+                    grouped.setdefault(key, []).append(article)
 
-        qs = Article.objects.filter(created_at__gte=since).select_related("media_outlet")
-        total = qs.count()
-        self.stdout.write(self.style.MIGRATE_HEADING(f"Articles in window: {total} (last {hours}h)"))
-
-        groups = []
-        for a in qs.iterator():
-            tokens = tokenize_title(a.title)
-            if not tokens:
-                continue
-            token_set = set(tokens)
-            matched_group = None
-            for g in groups:
-                score = jaccard(token_set, g["tokens"])
-                if score >= similarity:
-                    matched_group = g
-                    break
-            if matched_group:
-                matched_group["articles"].append(a)
-                matched_group["tokens"] = matched_group["tokens"].union(token_set)
-            else:
-                groups.append(
-                    {
-                        "norm": normalized_text(tokens),
-                        "tokens": token_set,
-                        "articles": [a],
-                    }
-                )
-
-        # filtra grupos chicos
-        clusters = [g for g in groups if len(g["articles"]) >= min_group]
-        clusters.sort(key=lambda g: len(g["articles"]), reverse=True)
-
-        self.stdout.write(self.style.MIGRATE_HEADING(f"Candidate clusters (>= {min_group}): {len(clusters)}"))
-
-        if dry:
-            for g in clusters[:20]:
-                self.stdout.write(f"- {len(g['articles'])} :: {g['articles'][0].title}")
-            self.stdout.write(self.style.WARNING("Dry run: no database writes"))
-            return
-
-        created_clusters = 0
-        created_mentions = 0
-        touched_clusters = set()
-
-        with transaction.atomic():
-            for g in clusters:
-                # si ya existe un cluster con esa key reciente, sáltalo (simple)
-                cluster_key = key_from_norm(g["norm"])
-                cluster, created = StoryCluster.objects.get_or_create(
-                    cluster_key=cluster_key,
-                    defaults={
-                        "headline": g["articles"][0].title,
-                        "lead": (g["articles"][0].lead or "")[:2000],
-                        "base_article": g["articles"][0],
-                        "confidence": 0.5,
-                    },
-                )
-                if created:
-                    created_clusters += 1
-                    touched_clusters.add(cluster.id)
-
-                # menciones
-                for a in g["articles"]:
-                    m, m_created = StoryMention.objects.get_or_create(
-                        cluster=cluster,
-                        article=a,
-                        defaults={
-                            "media_outlet": a.media_outlet,
-                            "match_score": 0.5,
-                            "is_base_candidate": (a.id == cluster.base_article_id),
-                        },
+                for key, group in grouped.items():
+                    base_article = group[0]
+                    cluster = StoryCluster.objects.create(
+                        run=run,
+                        cluster_key=key[:200],
+                        headline=base_article.title,
+                        lead=base_article.lead,
+                        base_article=base_article,
+                        confidence=min(1.0, len(group) / 5.0),
                     )
-                    if m_created:
-                        created_mentions += 1
-                        touched_clusters.add(cluster.id)
+                    stats_new += 1
 
-        if touched_clusters:
-            for cluster in StoryCluster.objects.filter(id__in=touched_clusters):
-                refresh_cluster_atlas_topics(cluster, save=True)
+                    for article in group:
+                        outlet = article.outlet
+                        if outlet is None and article.source_id:
+                            outlet = article.source.media_outlet
+                        if outlet is None:
+                            stats_errors += 1
+                            print(f"Sin outlet para article {article.id}")
+                            continue
+                        StoryMention.objects.get_or_create(
+                            cluster=cluster,
+                            article=article,
+                            defaults={
+                                "media_outlet": outlet,
+                                "match_score": 1.0,
+                                "is_base_candidate": article.id == base_article.id,
+                            },
+                        )
 
-        self.stdout.write(self.style.SUCCESS(f"Created clusters: {created_clusters}"))
-        self.stdout.write(self.style.SUCCESS(f"Created mentions: {created_mentions}"))
+                print(f"Clusters creados: {stats_new} errores: {stats_errors}")
+
+            run.stats_seen = stats_seen
+            run.stats_new = stats_new
+            run.stats_errors = stats_errors
+            run.log_text = buffer.getvalue()
+            run.status = IngestRun.Status.SUCCESS
+            run.finished_at = timezone.now()
+            run.save(
+                update_fields=[
+                    "stats_seen",
+                    "stats_new",
+                    "stats_errors",
+                    "log_text",
+                    "status",
+                    "finished_at",
+                ]
+            )
+        except Exception as exc:
+            run.stats_seen = stats_seen
+            run.stats_new = stats_new
+            run.stats_errors = stats_errors + 1
+            run.log_text = buffer.getvalue()
+            run.error_text = str(exc)
+            run.status = IngestRun.Status.FAILED
+            run.finished_at = timezone.now()
+            run.save(
+                update_fields=[
+                    "stats_seen",
+                    "stats_new",
+                    "stats_errors",
+                    "log_text",
+                    "error_text",
+                    "status",
+                    "finished_at",
+                ]
+            )
+            raise

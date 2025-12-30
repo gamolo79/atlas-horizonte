@@ -1,172 +1,188 @@
-import re
-from datetime import datetime, timezone as dt_timezone
-from email.utils import parsedate_to_datetime
-from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
+from __future__ import annotations
 
-from bs4 import BeautifulSoup
+import contextlib
+import io
+from email.utils import parsedate_to_datetime
+from urllib.request import Request, urlopen
+import xml.etree.ElementTree as ElementTree
+
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 
-import feedparser
+from monitor.models import Article, IngestRun, MediaSource
 
-from monitor.models import Source, Article
-
-
-TRACKING_PARAMS = {
-    "fbclid",
-    "gclid",
-    "igshid",
-    "mc_cid",
-    "mc_eid",
-}
-
-LEAD_DISCLAIMER_PATTERNS = [
-    r"suscr[íi]bete",
-    r"newsletter",
-    r"s[íi]guenos",
-    r"seguir en",
-    r"compartir",
-    r"publicidad",
-    r"pol[íi]tica de privacidad",
-    r"t[ée]rminos y condiciones",
-]
+try:
+    import feedparser  # type: ignore
+except ImportError:  # pragma: no cover - optional dependency
+    feedparser = None
 
 
 def _safe_dt(value):
-    """Convierte fechas RSS comunes a datetime aware (UTC)."""
     if not value:
         return None
     try:
-        dt = parsedate_to_datetime(value)
-        if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=dt_timezone.utc)
-        return dt.astimezone(dt_timezone.utc)
+        parsed = parsedate_to_datetime(value)
+        if parsed is None:
+            return None
+        if parsed.tzinfo is None:
+            return timezone.make_aware(parsed, timezone.get_current_timezone())
+        return parsed
     except Exception:
         return None
 
 
-def _is_tracking_param(key: str) -> bool:
-    key = (key or "").lower()
-    return key.startswith("utm_") or key in TRACKING_PARAMS
+def _fetch_content(url: str) -> bytes:
+    req = Request(url, headers={"User-Agent": "atlas-monitor/1.0"})
+    with urlopen(req, timeout=20) as response:
+        return response.read()
 
 
-def _normalize_url(url: str) -> str:
-    if not url:
-        return url
-    try:
-        parts = urlsplit(url)
-        query = [
-            (k, v)
-            for k, v in parse_qsl(parts.query, keep_blank_values=True)
-            if not _is_tracking_param(k)
-        ]
-        query.sort()
-        clean = parts._replace(query=urlencode(query, doseq=True), fragment="")
-        return urlunsplit(clean)
-    except Exception:
-        return url
+def _parse_with_feedparser(content: bytes):
+    parsed = feedparser.parse(content)
+    entries = []
+    for entry in parsed.entries:
+        entries.append(
+            {
+                "title": (entry.get("title") or "").strip(),
+                "link": (entry.get("link") or "").strip(),
+                "published": entry.get("published") or entry.get("updated"),
+            }
+        )
+    return entries
 
 
-def _get_or_create_article(url, defaults):
-    try:
-        return Article.objects.get_or_create(url=url, defaults=defaults)
-    except Article.MultipleObjectsReturned:
-        return Article.objects.filter(url=url).first(), False
-    except Exception:
-        obj = Article.objects.filter(url=url).first()
-        if obj:
-            return obj, False
-        raise
+def _parse_with_elementtree(content: bytes):
+    entries = []
+    root = ElementTree.fromstring(content)
+    for item in root.findall(".//item"):
+        entries.append(
+            {
+                "title": (item.findtext("title") or "").strip(),
+                "link": (item.findtext("link") or "").strip(),
+                "published": item.findtext("pubDate") or item.findtext("date"),
+            }
+        )
+    for entry in root.findall(".//{*}entry"):
+        link = ""
+        for link_tag in entry.findall("{*}link"):
+            rel = link_tag.attrib.get("rel", "alternate")
+            if rel == "alternate":
+                link = link_tag.attrib.get("href", "")
+                break
+        entries.append(
+            {
+                "title": (entry.findtext("{*}title") or "").strip(),
+                "link": (link or "").strip(),
+                "published": entry.findtext("{*}published") or entry.findtext("{*}updated"),
+            }
+        )
+    return entries
 
 
-def _clean_lead(text: str) -> str:
-    if not text:
-        return ""
-    soup = BeautifulSoup(text, "lxml")
-    for tag in soup(["script", "style", "noscript"]):
-        tag.decompose()
-    cleaned = re.sub(r"\s+", " ", soup.get_text(" ")).strip()
-    if not cleaned:
-        return ""
-    lowered = cleaned.lower()
-    if any(re.search(pattern, lowered) for pattern in LEAD_DISCLAIMER_PATTERNS):
-        return ""
-    return cleaned
+def _parse_feed(content: bytes):
+    if feedparser is not None:
+        return _parse_with_feedparser(content)
+    return _parse_with_elementtree(content)
 
 
 class Command(BaseCommand):
-    help = "Fetch RSS sources and store as Articles (V1: title + lead/snippet)."
+    help = "Fetch RSS sources and store as Articles"
 
-    def add_arguments(self, parser):
-        parser.add_argument("--limit", type=int, default=50, help="Max items per source")
-        parser.add_argument("--source-id", type=int, default=None, help="Fetch only one Source id")
+    def handle(self, *args, **options):
+        run = IngestRun.objects.create(action="fetch_sources", status=IngestRun.Status.RUNNING)
+        buffer = io.StringIO()
+        stats_seen = 0
+        stats_new = 0
+        stats_errors = 0
 
-    def handle(self, *args, **opts):
-        limit = opts["limit"]
-        source_id = opts["source_id"]
+        try:
+            with contextlib.redirect_stdout(buffer):
+                sources = MediaSource.objects.filter(is_active=True, source_type="rss")
+                print(f"Sources activos: {sources.count()}")
+                for source in sources:
+                    print(f"Fetch: {source.media_outlet.name} · {source.url}")
+                    try:
+                        content = _fetch_content(source.url)
+                        entries = _parse_feed(content)
+                        source.last_fetched_at = timezone.now()
+                        source.last_error = ""
+                        source.save(update_fields=["last_fetched_at", "last_error"])
+                    except Exception as exc:
+                        stats_errors += 1
+                        source.last_error = str(exc)
+                        source.last_fetched_at = timezone.now()
+                        source.save(update_fields=["last_fetched_at", "last_error"])
+                        print(f"Error en {source.url}: {exc}")
+                        continue
 
-        qs = Source.objects.filter(is_active=True, source_type="rss")
-        if source_id:
-            qs = qs.filter(id=source_id)
+                    for entry in entries:
+                        stats_seen += 1
+                        link = (entry.get("link") or "").strip()
+                        if not link:
+                            continue
+                        title = (entry.get("title") or "").strip() or link
+                        published = _safe_dt(entry.get("published"))
+                        article, created = Article.objects.get_or_create(
+                            url=link,
+                            defaults={
+                                "source": source,
+                                "outlet": source.media_outlet,
+                                "title": title,
+                                "published_at": published,
+                                "lead": "",
+                                "body": "",
+                                "language": "",
+                                "hash_dedupe": Article.compute_hash(link),
+                            },
+                        )
+                        if created:
+                            stats_new += 1
+                        else:
+                            dirty_fields = []
+                            if article.source_id != source.id:
+                                article.source = source
+                                dirty_fields.append("source")
+                            if article.outlet_id != source.media_outlet_id:
+                                article.outlet = source.media_outlet
+                                dirty_fields.append("outlet")
+                            if dirty_fields:
+                                article.save(update_fields=dirty_fields)
 
-        total_new = 0
-        total_seen = 0
+                print(f"Resumen: vistos={stats_seen} nuevos={stats_new} errores={stats_errors}")
 
-        for src in qs:
-            self.stdout.write(self.style.MIGRATE_HEADING(f"Fetching: {src.outlet} · {src.url}"))
-
-            feed = feedparser.parse(src.url)
-
-            src.last_fetched_at = timezone.now()
-            src.last_error = ""
-            src.save(update_fields=["last_fetched_at", "last_error"])
-
-            entries = feed.entries[:limit]
-            for e in entries:
-                total_seen += 1
-                raw_url = (e.get("link") or "").strip()
-                url = _normalize_url(raw_url)
-                if not url:
-                    continue
-
-                title = (e.get("title") or "").strip()
-                # Muchos RSS traen summary; si no, deja vacío
-                lead = _clean_lead(e.get("summary") or "")
-
-                published = None
-                # feedparser suele traer published/parsing
-                if e.get("published"):
-                    published = _safe_dt(e.get("published"))
-                elif e.get("updated"):
-                    published = _safe_dt(e.get("updated"))
-
-                defaults = {
-                    "source": src,
-                    "outlet": (src.outlet or ""),
-                    "title": title or url,
-                    "lead": lead[:2000],  # recorta para evitar basura enorme
-                    "published_at": published,
-                    "language": "es",
-                    "url": url,
-                }
-
-                obj, created = _get_or_create_article(url, defaults)
-
-                # Asegura que outlet/source queden alineados al Source actual.
-                # Importante porque Article.url es unique y puede existir ya con otro outlet vacío o incorrecto.
-                dirty_fields = []
-                if obj.source_id != src.id:
-                    obj.source = src
-                    dirty_fields.append("source")
-                if obj.outlet != (src.outlet or ""):
-                    obj.outlet = (src.outlet or "")
-                    dirty_fields.append("outlet")
-                if dirty_fields:
-                    obj.save(update_fields=dirty_fields)
-
-                if created:
-                    total_new += 1
-
-            self.stdout.write(self.style.SUCCESS(f"OK. Items vistos: {len(entries)} · Nuevos: {total_new}"))
-
-        self.stdout.write(self.style.SUCCESS(f"Terminado. Vistos: {total_seen} · Nuevos: {total_new}"))
+            run.stats_seen = stats_seen
+            run.stats_new = stats_new
+            run.stats_errors = stats_errors
+            run.log_text = buffer.getvalue()
+            run.status = IngestRun.Status.SUCCESS
+            run.finished_at = timezone.now()
+            run.save(
+                update_fields=[
+                    "stats_seen",
+                    "stats_new",
+                    "stats_errors",
+                    "log_text",
+                    "status",
+                    "finished_at",
+                ]
+            )
+        except Exception as exc:
+            run.stats_seen = stats_seen
+            run.stats_new = stats_new
+            run.stats_errors = stats_errors + 1
+            run.log_text = buffer.getvalue()
+            run.error_text = str(exc)
+            run.status = IngestRun.Status.FAILED
+            run.finished_at = timezone.now()
+            run.save(
+                update_fields=[
+                    "stats_seen",
+                    "stats_new",
+                    "stats_errors",
+                    "log_text",
+                    "error_text",
+                    "status",
+                    "finished_at",
+                ]
+            )
+            raise

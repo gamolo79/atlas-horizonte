@@ -70,3 +70,13 @@
 ### Plan de migración mínima
 
 `monitor_migrate_legacy` copia fuentes y artículos válidos desde tablas legadas (`monitor_mediasource`, `monitor_article`) y descarta parches/embeddings.
+
+---
+
+## Pasos de ejecución (humano)
+1. detener servicio
+2. reset tablas monitor
+3. borrar migraciones monitor y recrear
+4. migrate
+5. start servicio
+6. probar UI ingest
