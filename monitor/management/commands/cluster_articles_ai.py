@@ -8,6 +8,7 @@ from django.db import transaction
 from django.utils import timezone
 from django.db.models import Count
 
+from monitor.aggregations import refresh_cluster_atlas_topics
 from monitor.models import (
     Article,
     StoryCluster,
@@ -113,6 +114,7 @@ class Command(BaseCommand):
 
         created_clusters = 0
         joined_clusters = 0
+        touched_clusters = set()
 
         # Optimization: Pre-calc meta for new articles
         processed_unclustered = []
@@ -172,7 +174,9 @@ class Command(BaseCommand):
                 if best_score >= threshold:
                     # JOIN
                     if not dry:
-                        self._add_mention(best_cluster["obj"], article, score=best_score)
+                        cluster_obj = best_cluster["obj"]
+                        self._add_mention(cluster_obj, article, score=best_score)
+                        touched_clusters.add(cluster_obj.id)
                     joined_clusters += 1
                 else:
                     # CREATE
@@ -194,6 +198,7 @@ class Command(BaseCommand):
                             base_article=article,
                         )
                         self._add_mention(new_cluster_obj, article, score=1.0, is_base=True)
+                        touched_clusters.add(new_cluster_obj.id)
                         active_clusters.append({
                             "obj": new_cluster_obj,
                             "vector": vec,
@@ -202,6 +207,10 @@ class Command(BaseCommand):
                             "entities": a_entities,
                             "topics": a_topics
                         })
+
+        if not dry and touched_clusters:
+            for cluster in StoryCluster.objects.filter(id__in=touched_clusters):
+                refresh_cluster_atlas_topics(cluster, save=True)
 
         if dry:
             self.stdout.write(self.style.SUCCESS(f"[DRY RUN] Would create {created_clusters}, join {joined_clusters}."))

@@ -145,6 +145,7 @@ class StoryCluster(models.Model):
     sentiment_summary = models.JSONField(default=dict, blank=True)
     topic_summary = models.JSONField(default=list, blank=True)
     entity_summary = models.JSONField(default=list, blank=True)
+    atlas_topics = models.ManyToManyField("redpolitica.Topic", blank=True)
 
     base_article = models.ForeignKey(Article, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
     confidence = models.FloatField(default=0.0)

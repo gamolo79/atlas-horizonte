@@ -9,6 +9,7 @@ from monitor.models import (
     ArticleSentiment,
     StoryCluster,
 )
+from redpolitica.models import Topic
 
 
 def _sentiment_summary_base():
@@ -53,6 +54,16 @@ def build_topic_summary(article_ids, limit=6):
         {"label": label, "total": total}
         for label, total in counter.most_common(limit)
     ]
+
+
+def build_atlas_topics(article_ids, limit=6):
+    if not article_ids:
+        return []
+    return list(
+        Topic.objects.filter(article__id__in=article_ids)
+        .annotate(total=Count("article", distinct=True))
+        .order_by("-total", "name")[:limit]
+    )
 
 
 def _accumulate_entity_summary(summary_map, entity_type, rows, label_key, id_key):
@@ -121,6 +132,7 @@ def refresh_cluster_aggregates(cluster: StoryCluster, limit=6, save=True):
     sentiment_summary = build_sentiment_summary(article_ids)
     topic_summary = build_topic_summary(article_ids, limit=limit)
     entity_summary = build_entity_summary(article_ids, limit=limit)
+    atlas_topics = build_atlas_topics(article_ids, limit=limit)
 
     cluster.sentiment_summary = sentiment_summary
     cluster.topic_summary = topic_summary
@@ -128,12 +140,22 @@ def refresh_cluster_aggregates(cluster: StoryCluster, limit=6, save=True):
 
     if save:
         cluster.save(update_fields=["sentiment_summary", "topic_summary", "entity_summary"])
+        cluster.atlas_topics.set(atlas_topics)
 
     return {
         "sentiment_summary": sentiment_summary,
         "topic_summary": topic_summary,
         "entity_summary": entity_summary,
+        "atlas_topics": atlas_topics,
     }
+
+
+def refresh_cluster_atlas_topics(cluster: StoryCluster, limit=6, save=True):
+    article_ids = list(cluster.mentions.values_list("article_id", flat=True))
+    atlas_topics = build_atlas_topics(article_ids, limit=limit)
+    if save:
+        cluster.atlas_topics.set(atlas_topics)
+    return atlas_topics
 
 
 def ensure_cluster_aggregates(clusters, limit=6):
