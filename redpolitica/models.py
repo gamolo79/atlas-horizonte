@@ -1,4 +1,6 @@
 from django.db import models
+from django.db.models.signals import post_save
+from django.dispatch import receiver
 from django.utils.text import slugify
 
 from atlas_core.text_utils import normalize_name
@@ -103,14 +105,6 @@ class PeriodoAdministrativo(models.Model):
     nombre = models.CharField(max_length=100, unique=True)
     fecha_inicio = models.DateField()
     fecha_fin = models.DateField()
-    institucion_raiz = models.ForeignKey(
-        "Institucion",
-        null=True,
-        blank=True,
-        on_delete=models.SET_NULL,
-        related_name="periodos",
-        help_text="Institución raíz asociada (ej. Estado de Sonora).",
-    )
 
     class Meta:
         ordering = ["fecha_inicio"]
@@ -208,6 +202,51 @@ class Relacion(models.Model):
 
     def __str__(self):
         return f"{self.origen} → {self.destino} ({self.tipo})"
+
+
+def _create_relaciones_laborales(cargo):
+    if not cargo.periodo_id or not cargo.institucion_id or not cargo.persona_id:
+        return
+
+    parent_institucion = cargo.institucion.padre
+    if parent_institucion:
+        parent_cargos = Cargo.objects.filter(
+            institucion=parent_institucion,
+            periodo=cargo.periodo,
+        ).select_related("persona", "institucion")
+        child_cargos = [cargo]
+        _build_relaciones_laborales(parent_cargos, child_cargos, cargo.periodo)
+        return
+
+    child_cargos = Cargo.objects.filter(
+        institucion__padre=cargo.institucion,
+        periodo=cargo.periodo,
+    ).select_related("persona", "institucion")
+    _build_relaciones_laborales([cargo], child_cargos, cargo.periodo)
+
+
+def _build_relaciones_laborales(parent_cargos, child_cargos, periodo):
+    for parent_cargo in parent_cargos:
+        for child_cargo in child_cargos:
+            if parent_cargo.persona_id == child_cargo.persona_id:
+                continue
+            Relacion.objects.get_or_create(
+                origen=parent_cargo.persona,
+                destino=child_cargo.persona,
+                tipo="laboral",
+                defaults={
+                    "descripcion": (
+                        "Relación laboral por periodo "
+                        f"{periodo.nombre} entre {parent_cargo.institucion.nombre} "
+                        f"y {child_cargo.institucion.nombre}."
+                    )
+                },
+            )
+
+
+@receiver(post_save, sender=Cargo)
+def cargo_post_save(sender, instance, **kwargs):
+    _create_relaciones_laborales(instance)
 
 
 class Topic(models.Model):
