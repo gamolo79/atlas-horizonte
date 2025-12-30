@@ -97,7 +97,7 @@ class PeriodoAdministrativo(models.Model):
     NIVEL_CHOICES = [
         ("ESTATAL", "Estatal"),
         ("MUNICIPAL", "Municipal"),
-        ("LEGISLATIVO", "Legislativo"),
+        ("FEDERAL", "Federal"),
     ]
 
     tipo = models.CharField(max_length=20, choices=TIPO_CHOICES)
