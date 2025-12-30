@@ -54,7 +54,7 @@
 
     <div class="card">
         <h3 class="card-title">Añadir nuevo foco</h3>
-        <p class="card-desc">Define personas o instituciones a priorizar.</p>
+        <p class="card-desc">Define personas, instituciones o temas a priorizar.</p>
         <form method="post">
             {% csrf_token %}
             <input type="hidden" name="action" value="add_focus">
@@ -63,6 +63,7 @@
             <select id="add_type" name="entity_type" onchange="toggleAddSelect()">
                 <option value="persona">Persona</option>
                 <option value="institucion">Institución</option>
+                <option value="tema">Tema</option>
             </select>
 
             <div id="add_persona_div" style="margin-top: 12px;">
@@ -79,6 +80,15 @@
                 <select name="entity_id_inst" id="add_inst_sel" disabled>
                     {% for i in instituciones %}
                     <option value="{{ i.id }}">{{ i.nombre }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div id="add_tema_div" style="display:none; margin-top: 12px;">
+                <label>Tema</label>
+                <select name="entity_id_tema" id="add_tema_sel" disabled>
+                    {% for t in temas %}
+                    <option value="{{ t.id }}">{{ t.name }}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -102,23 +112,41 @@
         const type = document.getElementById('add_type').value;
         const pDiv = document.getElementById('add_persona_div');
         const iDiv = document.getElementById('add_inst_div');
+        const tDiv = document.getElementById('add_tema_div');
         const pSel = document.getElementById('add_persona_sel');
         const iSel = document.getElementById('add_inst_sel');
+        const tSel = document.getElementById('add_tema_sel');
 
         if (type === 'persona') {
             pDiv.style.display = 'block';
             iDiv.style.display = 'none';
+            tDiv.style.display = 'none';
             pSel.name = 'entity_id';
             pSel.disabled = false;
             iSel.name = '';
             iSel.disabled = true;
-        } else {
+            tSel.name = '';
+            tSel.disabled = true;
+        } else if (type === 'institucion') {
             pDiv.style.display = 'none';
             iDiv.style.display = 'block';
+            tDiv.style.display = 'none';
             pSel.name = '';
             pSel.disabled = true;
-            iSel.name = 'entity_id';
+            iSel.name = 'entity_id_inst';
             iSel.disabled = false;
+            tSel.name = '';
+            tSel.disabled = true;
+        } else {
+            pDiv.style.display = 'none';
+            iDiv.style.display = 'none';
+            tDiv.style.display = 'block';
+            pSel.name = '';
+            pSel.disabled = true;
+            iSel.name = '';
+            iSel.disabled = true;
+            tSel.name = 'entity_id_tema';
+            tSel.disabled = false;
         }
     }
 </script>

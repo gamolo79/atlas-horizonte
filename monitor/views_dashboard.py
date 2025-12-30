@@ -5,7 +5,7 @@ import logging
 
 from django.contrib import messages
 from django.contrib.admin.views.decorators import staff_member_required
-from django.core.management import call_command
+from django.db import IntegrityError
 from django.db.models import Count, Sum
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -62,16 +62,42 @@ def ops_dashboard(request):
         action = request.POST.get("action")
         try:
             if action == "ingest":
+                from monitor.pipeline import ingest_sources
+
                 limit = int(request.POST.get("limit", 50))
-                call_command("fetch_sources", limit=limit) # This assumes command name check
-                # Actually pipeline.py logic is better invoked via management command wrapped nicely
-                messages.success(request, "Ingest triggered.")
+                job = JobLog.objects.create(job_name="manual_ingest", status="running")
+                result = ingest_sources(limit=limit)
+                status = "success" if result.stats.get("errors", 0) == 0 else "partial"
+                job.status = status
+                job.payload = result.stats
+                job.finished_at = timezone.now()
+                job.save(update_fields=["status", "payload", "finished_at"])
+                messages.success(request, f"Ingest completado: {len(result.articles)} artículos nuevos.")
             elif action == "pipeline":
                 # We should trigger the full pipeline
                 from monitor.pipeline import run_pipeline
+
+                job = JobLog.objects.create(job_name="manual_pipeline", status="running")
                 run_pipeline(hours=24)
-                messages.success(request, "Pipeline executed successfully.")
+                job.status = "success"
+                job.finished_at = timezone.now()
+                job.save(update_fields=["status", "finished_at"])
+                messages.success(request, "Pipeline ejecutado correctamente.")
         except Exception as e:
+            if action == "ingest":
+                JobLog.objects.create(
+                    job_name="manual_ingest",
+                    status="error",
+                    finished_at=timezone.now(),
+                    payload={"error": str(e)},
+                )
+            elif action == "pipeline":
+                JobLog.objects.create(
+                    job_name="manual_pipeline",
+                    status="error",
+                    finished_at=timezone.now(),
+                    payload={"error": str(e)},
+                )
             messages.error(request, f"Error: {e}")
             LOGGER.error(f"Ops error: {e}", exc_info=True)
             
@@ -350,17 +376,28 @@ def client_detail(request, client_id):
         action = request.POST.get("action")
         if action == "add_focus":
             entity_type = request.POST.get("entity_type")
-            entity_id = request.POST.get("entity_id")
+            if entity_type == "persona":
+                entity_id = request.POST.get("entity_id")
+            elif entity_type == "institucion":
+                entity_id = request.POST.get("entity_id_inst") or request.POST.get("entity_id")
+            else:
+                entity_id = request.POST.get("entity_id_tema") or request.POST.get("entity_id")
             priority = request.POST.get("priority", 1)
             
             from monitor.models import ClientFocus
-            ClientFocus.objects.create(
-                client=client,
-                entity_type=entity_type,
-                atlas_id=entity_id,
-                priority=priority
-            )
-            messages.success(request, "Foco añadido.")
+            if not entity_id:
+                messages.error(request, "Selecciona una entidad válida.")
+            else:
+                try:
+                    ClientFocus.objects.create(
+                        client=client,
+                        entity_type=entity_type,
+                        atlas_id=entity_id,
+                        priority=priority,
+                    )
+                    messages.success(request, "Foco añadido.")
+                except IntegrityError:
+                    messages.warning(request, "Ese foco ya estaba registrado.")
         elif action == "remove_focus":
             focus_id = request.POST.get("focus_id")
             from monitor.models import ClientFocus
@@ -378,7 +415,9 @@ def client_detail(request, client_id):
         elif item.entity_type == "institucion":
             i = Institucion.objects.filter(id=item.atlas_id).first()
             if i: name = i.nombre
-        # Topic support can be added later
+        elif item.entity_type == "tema":
+            t = Topic.objects.filter(id=item.atlas_id).first()
+            if t: name = t.name
         enriched_items.append({
             "id": item.id,
             "type": item.entity_type,
@@ -391,6 +430,7 @@ def client_detail(request, client_id):
         "client": client,
         "focus_items": enriched_items,
         "personas": Persona.objects.all().order_by("nombre_completo"),
-        "instituciones": Institucion.objects.all().order_by("nombre")
+        "instituciones": Institucion.objects.all().order_by("nombre"),
+        "temas": Topic.objects.all().order_by("name"),
     }
     return render(request, "monitor/dashboard/client_detail.html", context)
