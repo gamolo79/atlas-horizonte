@@ -118,6 +118,7 @@ class Article(models.Model):
     topics = models.JSONField(default=list, blank=True)
     topics_model = models.CharField(max_length=60, blank=True, default="")
     topics_justification = models.TextField(blank=True)
+    atlas_topics = models.ManyToManyField("redpolitica.Topic", blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     training_reviewed = models.BooleanField(default=False)
