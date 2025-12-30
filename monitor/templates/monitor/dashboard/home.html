@@ -1,102 +1,23 @@
 {% extends "monitor/dashboard/base.html" %}
 
 {% block content %}
-<div class="page-header">
-  <div>
-    <h1 class="page-title">Monitor Horizonte</h1>
-    <p class="page-subtitle">Mesa editorial para medir cobertura, detectar riesgos y generar síntesis diarias.</p>
-  </div>
-  <div class="actions">
-    <a class="secondary" href="{% url 'monitor_dashboard_ingest' %}">Ingesta & Digest</a>
-    <a href="{% url 'monitor_dashboard_personas' %}">Ver personas</a>
-  </div>
-</div>
+<h1>Monitor Dashboard</h1>
 
-<section class="hero">
-  <div class="card">
-    <div class="kpi-label">Artículos (hoy)</div>
-    <div class="kpi">{{ kpis.articles_today }}</div>
-    <div class="kpi-subtitle">Notas recibidas en la ventana diaria.</div>
-  </div>
-  <div class="card">
-    <div class="kpi-label">Historias agrupadas</div>
-    <div class="kpi">{{ kpis.stories_today }}</div>
-    <div class="kpi-subtitle">Clusters editoriales activos hoy.</div>
-  </div>
-  <div class="card">
-    <div class="kpi-label">Última ingesta</div>
-    <div class="kpi">{{ kpis.last_ingest_status|upper }}</div>
-    <div class="kpi-subtitle">Estado del último job de ingesta.</div>
-  </div>
-  <div class="card">
-    <div class="kpi-label">Objetivo editorial</div>
-    <div class="kpi-value">Volumen · Tono · Narrativas</div>
-    <div class="kpi-subtitle">Medición sostenida, explicable y entrenable.</div>
-  </div>
-</section>
+<h2>Resumen</h2>
+<table>
+    <tr><th>Métrica</th><th>Valor</th></tr>
+    <tr><td>Artículos</td><td>{{ counts.articles }}</td></tr>
+    <tr><td>Fuentes</td><td>{{ counts.sources }}</td></tr>
+    <tr><td>Medios</td><td>{{ counts.outlets }}</td></tr>
+    <tr><td>Clusters</td><td>{{ counts.clusters }}</td></tr>
+    <tr><td>Mentions</td><td>{{ counts.mentions }}</td></tr>
+</table>
 
-<section class="grid grid-3" style="margin-top: 24px;">
-  <div class="card">
-    <h3 class="card-title">Producto A · Monitoreo</h3>
-    <p class="card-desc">Ingesta horaria, detección de actores Atlas, clasificación editorial y sentimiento por actor.</p>
-    <div class="helper-grid" style="margin-top: 10px;">
-      <div class="helper-item">RSS + scraping con deduplicación.</div>
-      <div class="helper-item">Vinculación Persona/Institución/Tema.</div>
-      <div class="helper-item">Tono y tipo de contenido por actor.</div>
-    </div>
-  </div>
-  <div class="card">
-    <h3 class="card-title">Producto B · Dashboards</h3>
-    <p class="card-desc">Lectura cuantitativa y comparativos por actor, tema y etiqueta editorial.</p>
-    <div class="helper-grid" style="margin-top: 10px;">
-      <div class="helper-item">Volumen y tendencia por periodo.</div>
-      <div class="helper-item">Evolución de sentimiento.</div>
-      <div class="helper-item">Exportables para decisión.</div>
-    </div>
-  </div>
-  <div class="card">
-    <h3 class="card-title">Producto C · Síntesis</h3>
-    <p class="card-desc">Lectura editorial diaria, agrupada por historias y actores prioritarios.</p>
-    <div class="helper-grid" style="margin-top: 10px;">
-      <div class="helper-item">Agrupamiento por narrativa.</div>
-      <div class="helper-item">Lead representativo + chips de medios.</div>
-      <div class="helper-item">Priorización por cliente.</div>
-    </div>
-  </div>
-</section>
-
-<section class="card" style="margin-top: 24px;">
-  <h3 class="card-title">Actividad reciente del sistema</h3>
-  <p class="card-desc">Últimos eventos de ingesta, análisis y correcciones editoriales.</p>
-  <table class="table-compact">
-    <thead>
-      <tr>
-        <th>Fecha</th>
-        <th>Evento</th>
-        <th>Estado</th>
-        <th>Entidad</th>
-        <th>Detalles</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for log in recent_audit %}
-      <tr>
-        <td>{{ log.created_at|date:"Y-m-d H:i" }}</td>
-        <td>{{ log.event_type }}</td>
-        <td>
-          <span class="badge {% if log.status == 'success' %}success{% elif log.status == 'error' %}danger{% else %}neutral{% endif %}">
-            {{ log.status }}
-          </span>
-        </td>
-        <td>{{ log.entity_type }} {{ log.entity_id }}</td>
-        <td>{{ log.payload }}</td>
-      </tr>
-      {% empty %}
-      <tr>
-        <td colspan="5" class="table-empty">No hay actividad reciente.</td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-</section>
+<h2>Última ejecución</h2>
+{% if last_run %}
+    <p><strong>{{ last_run.action }}</strong> - {{ last_run.status }} - {{ last_run.started_at }}</p>
+    <p>Seen: {{ last_run.stats_seen }} | New: {{ last_run.stats_new }} | Errors: {{ last_run.stats_errors }}</p>
+{% else %}
+    <p>No hay ejecuciones aún.</p>
+{% endif %}
 {% endblock %}

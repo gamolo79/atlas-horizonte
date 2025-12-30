@@ -1,33 +1,58 @@
 {% extends "monitor/dashboard/base.html" %}
-{% block title %}Ops · Monitor{% endblock %}
+
 {% block content %}
-<div class="page-header">
-  <div>
-    <h1 class="page-title">Ops & Review</h1>
-    <p class="muted">Herramientas operativas y de revisión editorial.</p>
-  </div>
-  <div class="actions">
-    <a class="secondary" href="/monitor/dashboard/">Home</a>
-  </div>
-</div>
+<h1>Ops</h1>
 
-<section class="grid grid-3">
-  <a class="card card-link" href="/monitor/dashboard/ingest/">
-    <div class="card-title">Ingest/Digest</div>
-    <p class="card-desc">Ejecutar pipeline y generar síntesis.</p>
-    <div class="card-meta">Ingesta</div>
-  </a>
+<p>DB: {% if db_ok %}<span class="badge">ok</span>{% else %}<span class="badge">error</span>{% endif %}</p>
 
-  <a class="card card-link" href="{% url 'monitor_dashboard_review_clusters' %}">
-    <div class="card-title">Revisión de Clusters</div>
-    <p class="card-desc">Revisa y corrige agrupaciones de artículos.</p>
-    <div class="card-meta">Post-Ingesta</div>
-  </a>
+<h2>Conteos</h2>
+<table>
+    <tr><th>Métrica</th><th>Valor</th></tr>
+    <tr><td>Artículos</td><td>{{ counts.articles }}</td></tr>
+    <tr><td>Fuentes</td><td>{{ counts.sources }}</td></tr>
+    <tr><td>Medios</td><td>{{ counts.outlets }}</td></tr>
+    <tr><td>Clusters</td><td>{{ counts.clusters }}</td></tr>
+    <tr><td>Mentions</td><td>{{ counts.mentions }}</td></tr>
+    <tr><td>Runs</td><td>{{ counts.runs }}</td></tr>
+</table>
 
-  <a class="card card-link" href="{% url 'monitor_dashboard_training' %}">
-    <div class="card-title">Revisión de Menciones</div>
-    <p class="card-desc">Corrige vinculaciones de personas/instituciones.</p>
-    <div class="card-meta">Post-Ingesta</div>
-  </a>
-</section>
+<h2>Últimos runs</h2>
+<table>
+    <tr><th>Acción</th><th>Status</th><th>Inicio</th><th>Fin</th><th>Stats</th></tr>
+    {% for run in last_runs %}
+        <tr>
+            <td>{{ run.action }}</td>
+            <td>{{ run.status }}</td>
+            <td>{{ run.started_at }}</td>
+            <td>{{ run.finished_at }}</td>
+            <td>{{ run.stats_seen }}/{{ run.stats_new }}/{{ run.stats_errors }}</td>
+        </tr>
+    {% endfor %}
+</table>
+
+<h2>Fuentes con error</h2>
+<table>
+    <tr><th>Fuente</th><th>Último error</th><th>Última vez</th></tr>
+    {% for source in sources_with_error %}
+        <tr>
+            <td>{{ source.media_outlet.name }}</td>
+            <td>{{ source.last_error }}</td>
+            <td>{{ source.last_fetched_at }}</td>
+        </tr>
+    {% empty %}
+        <tr><td colspan="3">Sin errores recientes.</td></tr>
+    {% endfor %}
+</table>
+
+<h2>Fuentes recientes</h2>
+<table>
+    <tr><th>Medio</th><th>URL</th><th>Última vez</th></tr>
+    {% for source in recent_sources %}
+        <tr>
+            <td>{{ source.media_outlet.name }}</td>
+            <td>{{ source.url }}</td>
+            <td>{{ source.last_fetched_at }}</td>
+        </tr>
+    {% endfor %}
+</table>
 {% endblock %}
