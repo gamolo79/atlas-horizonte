@@ -13,7 +13,7 @@ from django.utils import timezone
 
 from redpolitica.models import Institucion, Persona
 
-from .aggregations import ensure_cluster_aggregates
+from .aggregations import build_atlas_topics, ensure_cluster_aggregates
 from .forms_dashboard import DigestClientConfigForm, DigestClientForm, OpsForm
 from .models import (
     Article,
@@ -227,6 +227,29 @@ def _build_sentiment_summary(sentiment_rows):
     return sentiment_summary
 
 
+def _normalize_topic_label(topic):
+    if isinstance(topic, str):
+        return topic.strip()
+    if isinstance(topic, dict):
+        return str(topic.get("label", "")).strip()
+    return ""
+
+
+def _topic_differences(json_topics, atlas_topics):
+    json_labels = {label for label in json_topics if label}
+    atlas_labels = {label for label in atlas_topics if label}
+    json_norm = {label.lower() for label in json_labels}
+    atlas_norm = {label.lower() for label in atlas_labels}
+    return {
+        "only_json": sorted(
+            label for label in json_labels if label.lower() not in atlas_norm
+        ),
+        "only_atlas": sorted(
+            label for label in atlas_labels if label.lower() not in json_norm
+        ),
+    }
+
+
 def _persona_metrics(persona, days: int):
     since = timezone.now() - timedelta(days=days)
     mentions = ArticlePersonaMention.objects.filter(
@@ -285,21 +308,30 @@ def _persona_metrics(persona, days: int):
         StoryCluster.objects.filter(id__in=matching_cluster_ids)
         .annotate(total=Count("mentions", distinct=True))
         .order_by("-total")[:6]
+        .prefetch_related("atlas_topics")
     )
     ensure_cluster_aggregates(top_clusters)
 
     topic_counter = Counter()
+    json_topic_labels = set()
     for topics in articles.values_list("topics", flat=True):
         if not topics:
             continue
         for topic in topics:
-            label = topic.get("label") if isinstance(topic, dict) else str(topic)
+            label = _normalize_topic_label(topic)
             if label:
                 topic_counter[label] += 1
+                json_topic_labels.add(label)
     topic_summary = [
         {"label": label, "total": total}
         for label, total in topic_counter.most_common(6)
     ]
+    article_ids = list(articles.values_list("id", flat=True))
+    atlas_topic_summary = build_atlas_topics(article_ids, limit=6)
+    topic_diff = _topic_differences(
+        json_topic_labels,
+        {topic.name for topic in atlas_topic_summary},
+    )
 
     return {
         "mentions_count": mentions.count(),
@@ -309,6 +341,8 @@ def _persona_metrics(persona, days: int):
         "sentiment_total": sentiment_total,
         "clusters": top_clusters,
         "topic_summary": topic_summary,
+        "atlas_topic_summary": atlas_topic_summary,
+        "topic_diff": topic_diff,
         "since": since,
     }
 
@@ -377,21 +411,30 @@ def _institucion_metrics(institucion, days: int):
         StoryCluster.objects.filter(id__in=matching_cluster_ids)
         .annotate(total=Count("mentions", distinct=True))
         .order_by("-total")[:6]
+        .prefetch_related("atlas_topics")
     )
     ensure_cluster_aggregates(top_clusters)
 
     topic_counter = Counter()
+    json_topic_labels = set()
     for topics in articles.values_list("topics", flat=True):
         if not topics:
             continue
         for topic in topics:
-            label = topic.get("label") if isinstance(topic, dict) else str(topic)
+            label = _normalize_topic_label(topic)
             if label:
                 topic_counter[label] += 1
+                json_topic_labels.add(label)
     topic_summary = [
         {"label": label, "total": total}
         for label, total in topic_counter.most_common(6)
     ]
+    article_ids = list(articles.values_list("id", flat=True))
+    atlas_topic_summary = build_atlas_topics(article_ids, limit=6)
+    topic_diff = _topic_differences(
+        json_topic_labels,
+        {topic.name for topic in atlas_topic_summary},
+    )
 
     return {
         "mentions_count": mentions.count(),
@@ -401,6 +444,8 @@ def _institucion_metrics(institucion, days: int):
         "sentiment_total": sentiment_total,
         "clusters": top_clusters,
         "topic_summary": topic_summary,
+        "atlas_topic_summary": atlas_topic_summary,
+        "topic_diff": topic_diff,
         "since": since,
     }
 

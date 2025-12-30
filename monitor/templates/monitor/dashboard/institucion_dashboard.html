@@ -86,7 +86,7 @@
   </div>
 </section>
 
-<section class="grid grid-3" style="margin-top: 20px;">
+<section class="grid grid-4" style="margin-top: 20px;">
   <div class="card">
     <h3 class="card-title">Top medios</h3>
     <p class="card-desc">Detalle de outlets que cubren a la institución.</p>
@@ -120,6 +120,7 @@
           <th>Tema</th>
           <th>Sentimiento</th>
           <th>Actividad</th>
+          <th>Temas Atlas</th>
         </tr>
       </thead>
       <tbody>
@@ -132,10 +133,17 @@
             {{ cluster.sentiment_summary.negativo }} neg
           </td>
           <td>{{ cluster.total }}</td>
+          <td>
+            {% for topic in cluster.atlas_topics.all %}
+            <span class="tag">{{ topic.name }}</span>
+            {% empty %}
+            <span class="table-empty">Sin temas Atlas.</span>
+            {% endfor %}
+          </td>
         </tr>
         {% empty %}
         <tr>
-          <td colspan="3" class="table-empty">Sin clusters recientes.</td>
+          <td colspan="4" class="table-empty">Sin clusters recientes.</td>
         </tr>
         {% endfor %}
       </tbody>
@@ -164,6 +172,41 @@
         {% endfor %}
       </tbody>
     </table>
+  </div>
+  <div class="card">
+    <h3 class="card-title">Temas Atlas</h3>
+    <p class="card-desc">Temas Atlas asociados a artículos/clusters.</p>
+    <table>
+      <thead>
+        <tr>
+          <th>Tema</th>
+          <th>Artículos</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for topic in metrics.atlas_topic_summary %}
+        <tr>
+          <td>{{ topic.name }}</td>
+          <td>{{ topic.total }}</td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="2" class="table-empty">Sin temas Atlas en la ventana.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% if metrics.topic_diff.only_json or metrics.topic_diff.only_atlas %}
+    <div class="data-note" style="margin-top: 10px;">
+      <strong>Diferencias editoriales:</strong>
+      {% if metrics.topic_diff.only_json %}
+      <div>Solo JSON: {{ metrics.topic_diff.only_json|join:", " }}</div>
+      {% endif %}
+      {% if metrics.topic_diff.only_atlas %}
+      <div>Solo Atlas: {{ metrics.topic_diff.only_atlas|join:", " }}</div>
+      {% endif %}
+    </div>
+    {% endif %}
   </div>
 </section>
 {% endblock %}
