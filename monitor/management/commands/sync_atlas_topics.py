@@ -1,6 +1,7 @@
 from django.core.management.base import BaseCommand
 
-from monitor.models import Article, MonitorTopicMapping
+from monitor.models import Article, ArticleInstitucionMention, MonitorTopicMapping
+from redpolitica.models import InstitutionTopic
 
 
 class Command(BaseCommand):
@@ -57,6 +58,17 @@ class Command(BaseCommand):
                 if label
             }
             topic_ids.discard(None)
+
+            institution_ids = list(
+                ArticleInstitucionMention.objects.filter(article=article)
+                .values_list("institucion_id", flat=True)
+                .distinct()
+            )
+            if institution_ids:
+                institution_topic_ids = InstitutionTopic.objects.filter(
+                    institution_id__in=institution_ids
+                ).values_list("topic_id", flat=True)
+                topic_ids.update(institution_topic_ids)
 
             if not topic_ids:
                 skipped += 1
