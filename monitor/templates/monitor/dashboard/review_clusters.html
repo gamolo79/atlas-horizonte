@@ -27,10 +27,12 @@
                     {{ story.time_window_start|date:"d M, H:i" }} · {{ story.story_articles.all|length }} artículos
                 </div>
             </div>
-            <button class="actions ghost" style="padding: 4px 8px; font-size: 12px;"
-                onclick="toggleCluster('story-{{ story.id }}')">
-                Ver artículos
-            </button>
+            <div class="actions">
+                <button class="ghost" style="padding: 4px 8px; font-size: 12px;"
+                    onclick="toggleCluster('story-{{ story.id }}')">
+                    Ver artículos
+                </button>
+            </div>
         </div>
 
         <div id="story-{{ story.id }}" style="display: none; margin-top: 12px;">

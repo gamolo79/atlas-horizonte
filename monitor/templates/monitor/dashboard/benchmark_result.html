@@ -4,60 +4,49 @@
 {% endblock %}
 
 {% block content %}
-<div class="row mb-4">
-    <div class="col-12">
-        <a href="javascript:history.back()" class="btn btn-sm btn-outline-secondary mb-3">&larr; Volver a selección</a>
-        <h1 class="h3 mb-0 text-gray-800">
-            Comparativa: <span class="text-primary">
-                {% if entity_a.nombre_completo %}{{ entity_a.nombre_completo }}{% else %}{{ entity_a.nombre }}{% endif
-                %}
-            </span> vs <span class="text-danger">
-                {% if entity_b.nombre_completo %}{{ entity_b.nombre_completo }}{% else %}{{ entity_b.nombre }}{% endif
-                %}
-            </span>
-        </h1>
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Benchmark de cobertura</h1>
+        <p class="page-subtitle">
+            Comparativa: {{ entity_a.nombre_completo|default:entity_a.nombre }} vs
+            {{ entity_b.nombre_completo|default:entity_b.nombre }}.
+        </p>
+    </div>
+    <div class="actions">
+        <a class="secondary" href="{% url 'monitor_dashboard_benchmark' %}">Cambiar selección</a>
     </div>
 </div>
 
-<!-- Volume Comparison -->
-<div class="card shadow mb-4">
-    <div class="card-header py-3">
-        <h6 class="m-0 font-weight-bold text-primary">Volumen de Menciones (30 días)</h6>
+<section class="card chart-card">
+    <div class="chart-header">
+        <h3 class="chart-title">Volumen de menciones (30 días)</h3>
+        <div class="chart-subtitle">Comparativo diario entre ambos actores.</div>
     </div>
-    <div class="card-body">
-        <div class="chart-area" style="height: 400px;">
-            <canvas id="comparisonChart"></canvas>
-        </div>
+    <div class="chart-container">
+        <canvas id="comparisonChart" aria-label="Volumen de menciones" role="img"></canvas>
     </div>
-</div>
+</section>
 
-<!-- Sentiment Comparison -->
-<div class="row">
-    <div class="col-md-6">
-        <div class="card shadow mb-4">
-            <div class="card-header py-3">
-                <h6 class="m-0 font-weight-bold text-primary">Sentimiento: Entidad A</h6>
-            </div>
-            <div class="card-body">
-                <div class="chart-pie pt-4 pb-2">
-                    <canvas id="sentA"></canvas>
-                </div>
-            </div>
+<section class="grid grid-2" style="margin-top: 20px;">
+    <div class="card chart-card">
+        <div class="chart-header">
+            <h3 class="chart-title">Sentimiento · {{ entity_a.nombre_completo|default:entity_a.nombre }}</h3>
+            <div class="chart-subtitle">Distribución de tono por actor A.</div>
+        </div>
+        <div class="chart-container">
+            <canvas id="sentA" aria-label="Sentimiento entidad A" role="img"></canvas>
         </div>
     </div>
-    <div class="col-md-6">
-        <div class="card shadow mb-4">
-            <div class="card-header py-3">
-                <h6 class="m-0 font-weight-bold text-danger">Sentimiento: Entidad B</h6>
-            </div>
-            <div class="card-body">
-                <div class="chart-pie pt-4 pb-2">
-                    <canvas id="sentB"></canvas>
-                </div>
-            </div>
+    <div class="card chart-card">
+        <div class="chart-header">
+            <h3 class="chart-title">Sentimiento · {{ entity_b.nombre_completo|default:entity_b.nombre }}</h3>
+            <div class="chart-subtitle">Distribución de tono por actor B.</div>
+        </div>
+        <div class="chart-container">
+            <canvas id="sentB" aria-label="Sentimiento entidad B" role="img"></canvas>
         </div>
     </div>
-</div>
+</section>
 
 <script>
     const dates = JSON.parse('{{ chart_dates|safe }}');
@@ -73,27 +62,41 @@
                 {
                     label: "{% if entity_a.nombre_completo %}{{ entity_a.nombre_completo }}{% else %}{{ entity_a.nombre }}{% endif %}",
                     data: dataA,
-                    borderColor: "#4e73df",
-                    backgroundColor: "rgba(78, 115, 223, 0.05)",
+                    borderColor: "#38bdf8",
+                    backgroundColor: "rgba(56, 189, 248, 0.08)",
                     fill: false
                 },
                 {
                     label: "{% if entity_b.nombre_completo %}{{ entity_b.nombre_completo }}{% else %}{{ entity_b.nombre }}{% endif %}",
                     data: dataB,
-                    borderColor: "#e74a3b",
-                    backgroundColor: "rgba(231, 74, 59, 0.05)",
+                    borderColor: "#f97316",
+                    backgroundColor: "rgba(249, 115, 22, 0.08)",
                     fill: false
                 }
             ]
         },
-        options: { maintainAspectRatio: false }
+        options: {
+            maintainAspectRatio: false,
+            scales: {
+                x: { ticks: { color: "#cbd5f5" }, grid: { color: "rgba(148, 163, 184, 0.15)" } },
+                y: { ticks: { color: "#cbd5f5" }, grid: { color: "rgba(148, 163, 184, 0.15)" } },
+            },
+            plugins: {
+                legend: { labels: { color: "#e2e8f0" } },
+            }
+        }
     });
 
     // Pie Charts
     const pieConfig = {
         type: 'doughnut',
-        data: { labels: ["Positivo", "Neutro", "Negativo"], datasets: [{ backgroundColor: ['#1cc88a', '#858796', '#e74a3b'] }] },
-        options: { maintainAspectRatio: false }
+        data: { labels: ["Positivo", "Neutro", "Negativo"], datasets: [{ backgroundColor: ['#22c55e', '#94a3b8', '#ef4444'] }] },
+        options: {
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { labels: { color: "#e2e8f0" } },
+            }
+        }
     };
 
     const configA = JSON.parse(JSON.stringify(pieConfig));

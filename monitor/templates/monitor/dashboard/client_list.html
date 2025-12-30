@@ -11,22 +11,20 @@
 
 <div class="grid grid-3">
   {% for client in clients %}
-  <div class="card h-100">
-    <div class="card-body">
-      <h5 class="card-title">{{ client.name }}</h5>
-      <div class="mb-3">
-        <span class="badge badge-{% if client.is_active %}success{% else %}secondary{% endif %}">
-          {% if client.is_active %}Activo{% else %}Inactivo{% endif %}
-        </span>
-      </div>
-      <a href="{% url 'monitor_dashboard_client_detail' client.id %}" class="btn btn-primary btn-sm btn-block">
-        Gestionar Focos
-      </a>
+  <div class="card">
+    <div class="card-title">{{ client.name }}</div>
+    <div style="margin-bottom: 12px;">
+      <span class="badge {% if client.is_active %}success{% else %}neutral{% endif %}">
+        {% if client.is_active %}Activo{% else %}Inactivo{% endif %}
+      </span>
+    </div>
+    <div class="actions">
+      <a href="{% url 'monitor_dashboard_client_detail' client.id %}">Gestionar focos</a>
     </div>
   </div>
   {% empty %}
-  <div class="col-12 text-center text-muted">
-    <p>No hay clientes registrados.</p>
+  <div class="card">
+    <p class="card-desc">No hay clientes registrados.</p>
   </div>
   {% endfor %}
 </div>

@@ -6,108 +6,86 @@
         <h1 class="page-title">Centro de Ingesta</h1>
         <p class="page-subtitle">Controla la adquisición y procesamiento de noticias.</p>
     </div>
+    <div class="actions">
+        <a class="secondary" href="{% url 'monitor_dashboard_home' %}">Volver</a>
+    </div>
 </div>
 
-<div class="row">
-    <!-- Controls (Left) -->
-    <div class="col-lg-4">
-        <div class="card shadow mb-4">
-            <div class="card-header py-3">
-                <h6 class="m-0 font-weight-bold text-primary">Nueva Ejecución</h6>
-            </div>
-            <div class="card-body">
-                <form method="post">
-                    {% csrf_token %}
+<section class="grid grid-2">
+    <div class="card">
+        <h3 class="card-title">Nueva ejecución</h3>
+        <p class="card-desc">Lanza procesos de ingesta, normalización o clasificación IA.</p>
+        <form method="post">
+            {% csrf_token %}
+            <label>Tipo de proceso</label>
+            <select name="ingest_type">
+                <option value="rss">Fetch RSS (nuevos)</option>
+                <option value="reprocess">Reprocesar pipeline</option>
+                <option value="classify">Solo clasificación IA</option>
+            </select>
 
-                    <div class="form-group mb-3">
-                        <label>Tipo de Proceso</label>
-                        <select name="ingest_type" class="form-control">
-                            <option value="rss">Fetch RSS (Nuevos)</option>
-                            <option value="reprocess">Reprocesar Pipeline</option>
-                            <option value="classify">Solo Clasificación AI</option>
-                        </select>
-                    </div>
-
-                    <div class="form-group mb-3">
-                        <label>Ventana de Tiempo</label>
-                        <div class="form-row">
-                            <div class="col-6">
-                                <small class="text-muted">Inicio</small>
-                                <input type="datetime-local" name="date_start" class="form-control form-control-sm">
-                            </div>
-                            <div class="col-6">
-                                <small class="text-muted">Fin</small>
-                                <input type="datetime-local" name="date_end" class="form-control form-control-sm">
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="form-group mb-4">
-                        <label>Fuentes Específicas (Opcional)</label>
-                        <div class="overflow-auto border rounded p-2"
-                            style="max-height: 200px; background: rgba(15, 23, 42, 0.4);">
-                            {% for source in sources %}
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" name="source_ids"
-                                    value="{{ source.id }}" id="src_{{ source.id }}">
-                                <label class="form-check-label text-sm" for="src_{{ source.id }}">
-                                    {{ source.name }} <small class="text-muted">({{ source.outlet }})</small>
-                                </label>
-                            </div>
-                            {% endfor %}
-                        </div>
-                        <small class="form-text text-muted">Si no seleccionas ninguna, se usarán todas.</small>
-                    </div>
-
-                    <button type="submit" class="btn btn-primary btn-block">
-                        <i class="fas fa-play mr-2"></i> Ejecutar
-                    </button>
-                    <p class="mt-2 text-center small text-muted">Esta acción puede tardar varios minutos.</p>
-                </form>
-            </div>
-        </div>
-    </div>
-
-    <!-- Logs/Status (Right) -->
-    <div class="col-lg-8">
-        <div class="card shadow mb-4">
-            <div class="card-header py-3">
-                <h6 class="m-0 font-weight-bold text-primary">Historial de Ejecuciones</h6>
-            </div>
-            <div class="card-body">
-                <div class="table-responsive">
-                    <table class="table table-bordered" width="100%" cellspacing="0">
-                        <thead>
-                            <tr>
-                                <th>Fecha</th>
-                                <th>Tipo</th>
-                                <th>Estado</th>
-                                <th>Detalles</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for log in recent_logs %}
-                            <tr>
-                                <td>{{ log.created_at|date:"Y-m-d H:i" }}</td>
-                                <td>{{ log.event_type }}</td>
-                                <td>
-                                    <span
-                                        class="badge badge-{% if log.status == 'success' %}success{% elif log.status == 'error' %}danger{% else %}secondary{% endif %}">
-                                        {{ log.status }}
-                                    </span>
-                                </td>
-                                <td><small>{{ log.payload|truncatechars:100 }}</small></td>
-                            </tr>
-                            {% empty %}
-                            <tr>
-                                <td colspan="4" class="text-center">No hay registros recientes.</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+            <div class="form-row" style="margin-top: 12px;">
+                <div style="flex: 1;">
+                    <label>Inicio</label>
+                    <input type="datetime-local" name="date_start">
+                </div>
+                <div style="flex: 1;">
+                    <label>Fin</label>
+                    <input type="datetime-local" name="date_end">
                 </div>
             </div>
-        </div>
+
+            <label style="margin-top: 12px;">Fuentes específicas (opcional)</label>
+            <div style="max-height: 220px; overflow: auto; border: 1px solid var(--border); border-radius: 10px; padding: 10px;">
+                {% for source in sources %}
+                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+                    <input type="checkbox" name="source_ids" value="{{ source.id }}" id="src_{{ source.id }}">
+                    <label for="src_{{ source.id }}" style="margin: 0;">
+                        {{ source.name }} <span class="muted small">({{ source.outlet }})</span>
+                    </label>
+                </div>
+                {% endfor %}
+            </div>
+            <div class="data-note">Si no seleccionas fuentes, se ingesta todo el catálogo.</div>
+
+            <div class="actions" style="justify-content: flex-end; margin-top: 16px;">
+                <button type="submit">Ejecutar</button>
+            </div>
+            <div class="data-note">Esta acción puede tardar varios minutos.</div>
+        </form>
     </div>
-</div>
+
+    <div class="card">
+        <h3 class="card-title">Historial de ejecuciones</h3>
+        <p class="card-desc">Estado de los jobs recientes para auditoría y seguimiento.</p>
+        <table class="table-compact">
+            <thead>
+                <tr>
+                    <th>Fecha</th>
+                    <th>Tipo</th>
+                    <th>Estado</th>
+                    <th>Detalles</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in recent_logs %}
+                <tr>
+                    <td>{{ log.created_at|date:"Y-m-d H:i" }}</td>
+                    <td>{{ log.event_type }}</td>
+                    <td>
+                        <span class="badge {% if log.status == 'success' %}success{% elif log.status == 'error' %}danger{% else %}neutral{% endif %}">
+                            {{ log.status }}
+                        </span>
+                    </td>
+                    <td>{{ log.payload|truncatechars:80 }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="4" class="table-empty">No hay registros recientes.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
 {% endblock %}
