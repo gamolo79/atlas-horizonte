@@ -100,7 +100,7 @@ class OpsForm(forms.Form):
         min_value=1,
         widget=forms.NumberInput(attrs={"class": "form-control"}),
         label="source-id (opcional)",
-        help_text="Si lo pones, solo trae un MediaSource id.",
+        help_text="Si lo pones, solo trae un Source id.",
     )
 
     # fetch_article_bodies

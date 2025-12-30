@@ -4,7 +4,7 @@ from django.utils import timezone
 from django.db.models import Avg, Count, Q
 
 from monitor.models import (
-    MediaSource,
+    Source,
     Article,
     StoryCluster,
     ArticlePersonaMention,
@@ -27,10 +27,10 @@ class Command(BaseCommand):
         self.stdout.write(self.style.MIGRATE_LABEL("\n[1] FETCH STATUS"))
         
         # Sources activos con error
-        failing_sources = MediaSource.objects.filter(is_active=True).exclude(last_error="").count()
+        failing_sources = Source.objects.filter(is_active=True).exclude(last_error="").count()
         if failing_sources > 0:
             self.stdout.write(self.style.ERROR(f"  FAILED SOURCES (Active): {failing_sources}"))
-            for src in MediaSource.objects.filter(is_active=True).exclude(last_error="")[:5]:
+            for src in Source.objects.filter(is_active=True).exclude(last_error="")[:5]:
                  self.stdout.write(f"    - {src} (Error: {src.last_error[:50]}...)")
         else:
             self.stdout.write(self.style.SUCCESS("  ALL ACTIVE SOURCES OK"))

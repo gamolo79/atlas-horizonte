@@ -9,7 +9,7 @@ from django.utils import timezone
 
 import feedparser
 
-from monitor.models import MediaSource, Article
+from monitor.models import Source, Article
 
 
 TRACKING_PARAMS = {
@@ -99,13 +99,13 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument("--limit", type=int, default=50, help="Max items per source")
-        parser.add_argument("--source-id", type=int, default=None, help="Fetch only one MediaSource id")
+        parser.add_argument("--source-id", type=int, default=None, help="Fetch only one Source id")
 
     def handle(self, *args, **opts):
         limit = opts["limit"]
         source_id = opts["source_id"]
 
-        qs = MediaSource.objects.filter(is_active=True, source_type="rss")
+        qs = Source.objects.filter(is_active=True, source_type="rss")
         if source_id:
             qs = qs.filter(id=source_id)
 
