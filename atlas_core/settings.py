@@ -68,7 +68,6 @@ INSTALLED_APPS = [
 # apps de Django…
     "rest_framework",   # si no lo agregaste antes
     "redpolitica",      # <- nuestra app
-    "monitor",
 ]
 
 MIDDLEWARE = [
