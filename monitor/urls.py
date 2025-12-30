@@ -22,6 +22,7 @@ urlpatterns = [
     
     # Ops & Training
     path("dashboard/ops/", views_dashboard.ops_dashboard, name="monitor_dashboard_ops"),
+    path("dashboard/ops/review-clusters/", views_dashboard.review_clusters, name="monitor_dashboard_review_clusters"),
     path("dashboard/training/", views_dashboard.training_dashboard, name="monitor_dashboard_training"),
     
     # API
@@ -32,7 +33,8 @@ urlpatterns = [
     path("dashboard/benchmark/", views_dashboard.benchmarks_view, name="monitor_dashboard_benchmark"),
     path("dashboard/instituciones/benchmark/", views_dashboard.benchmarks_view, name="monitor_dashboard_instituciones_benchmark"),
     
-    # Clients (kept placeholder if not ported)
-    path("dashboard/clients/", views_dashboard.dashboard_home, name="monitor_dashboard_client_list"),
+    # Clients
+    path("dashboard/clients/", views_dashboard.clients_dashboard, name="monitor_dashboard_client_list"),
+    path("dashboard/clients/<int:client_id>/", views_dashboard.client_detail, name="monitor_dashboard_client_detail"),
     path("dashboard/ingest/", views_dashboard.media_ingest_dashboard, name="monitor_dashboard_ingest"),
 ]

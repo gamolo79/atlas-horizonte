@@ -1,49 +1,33 @@
 {% extends "monitor/dashboard/base.html" %}
 {% block title %}Clientes · Monitor{% endblock %}
 {% block content %}
-  <div class="page-header">
-    <div>
-      <h1 class="page-title">Clientes</h1>
-      <p class="muted">Configura las síntesis por cliente.</p>
-    </div>
-    <div class="actions">
-      <a class="secondary" href="{% url 'monitor_dashboard_home' %}">Volver</a>
-      <a href="{% url 'monitor_dashboard_client_create' %}">Nuevo cliente</a>
-    </div>
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Clientes</h1>
+    <p class="page-subtitle">Gestión de monitoreo específico por cliente.</p>
   </div>
+  <!-- Add Client could go here -->
+</div>
 
-  <div class="card">
-    <table>
-      <thead>
-        <tr>
-          <th>Cliente</th>
-          <th>Estado</th>
-          <th>Acciones</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for c in clients %}
-          <tr>
-            <td>{{ c.name }}</td>
-            <td>
-              {% if c.is_active %}
-                <span class="tag">Activo</span>
-              {% else %}
-                <span class="tag">Inactivo</span>
-              {% endif %}
-            </td>
-            <td class="actions">
-              <a href="{% url 'monitor_dashboard_client_edit' c.id %}">Editar</a>
-              <a class="secondary" href="{% url 'monitor_dashboard_client_digests' c.id %}">Historial</a>
-              <a class="danger" href="{% url 'monitor_dashboard_client_delete' c.id %}">Eliminar</a>
-            </td>
-          </tr>
-        {% empty %}
-          <tr>
-            <td colspan="3" class="table-empty">No hay clientes aún.</td>
-          </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+<div class="grid grid-3">
+  {% for client in clients %}
+  <div class="card h-100">
+    <div class="card-body">
+      <h5 class="card-title">{{ client.name }}</h5>
+      <div class="mb-3">
+        <span class="badge badge-{% if client.is_active %}success{% else %}secondary{% endif %}">
+          {% if client.is_active %}Activo{% else %}Inactivo{% endif %}
+        </span>
+      </div>
+      <a href="{% url 'monitor_dashboard_client_detail' client.id %}" class="btn btn-primary btn-sm btn-block">
+        Gestionar Focos
+      </a>
+    </div>
   </div>
+  {% empty %}
+  <div class="col-12 text-center text-muted">
+    <p>No hay clientes registrados.</p>
+  </div>
+  {% endfor %}
+</div>
 {% endblock %}

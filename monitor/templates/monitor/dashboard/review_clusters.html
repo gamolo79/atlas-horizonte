@@ -1,81 +1,70 @@
 {% extends "monitor/dashboard/base.html" %}
-{% block title %}Review Clusters · Monitor{% endblock %}
+{% block title %}Revisión de Clusters · Monitor{% endblock %}
 {% block content %}
 <div class="page-header">
     <div>
         <h1 class="page-title">Revisión de Clusters</h1>
-        <p class="page-subtitle">Últimos clusters ({{ since|date:"d M H:i" }} - ahora). Remueve artículos que no
-            pertenecen.</p>
+        <p class="page-subtitle">Últimas historias ({{ since|date:"d M H:i" }} - ahora).</p>
     </div>
     <div class="actions">
-        <a class="secondary" href="/monitor/dashboard/ops/">Volver a Ops</a>
+        <a class="secondary" href="{% url 'monitor_dashboard_ops' %}">Volver a Ops</a>
     </div>
 </div>
 
 <section class="card">
-    <h3 class="card-title">Clusters Recientes ({{ clusters|length }})</h3>
-    <p class="card-desc">Revisa cada cluster y marca artículos mal agrupados.</p>
+    <h3 class="card-title">Historias Recientes ({{ stories|length }})</h3>
+    <p class="card-desc">Revisa la agrupación automática de historias.</p>
 
-    {% for cluster in clusters %}
+    {% for story in stories %}
     <div class="card" style="margin-top: 16px; background: rgba(15, 23, 42, 0.4);">
         <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 12px;">
             <div>
                 <h4 style="margin: 0; font-size: 16px;">
-                    <span class="tag" style="margin-right: 8px;">#{{ cluster.id }}</span>
-                    {{ cluster.headline|truncatechars:80 }}
+                    <span class="tag" style="margin-right: 8px;">#{{ story.id }}</span>
+                    {{ story.title_base|truncatechars:100 }}
                 </h4>
                 <div style="margin-top: 6px; font-size: 12px; color: var(--muted);">
-                    {{ cluster.created_at|date:"d M, H:i" }} · {{ cluster.article_count }} artículos
+                    {{ story.time_window_start|date:"d M, H:i" }} · {{ story.story_articles.all|length }} artículos
                 </div>
             </div>
             <button class="actions ghost" style="padding: 4px 8px; font-size: 12px;"
-                onclick="toggleCluster('cluster-{{ cluster.id }}')">
+                onclick="toggleCluster('story-{{ story.id }}')">
                 Ver artículos
             </button>
         </div>
 
-        <div id="cluster-{{ cluster.id }}" style="display: none; margin-top: 12px;">
+        <div id="story-{{ story.id }}" style="display: none; margin-top: 12px;">
             <table style="width: 100%; font-size: 13px;">
                 <thead>
                     <tr>
                         <th>Titular</th>
                         <th>Medio</th>
-                        <th>Score</th>
-                        <th>Acciones</th>
+                        <th>Confianza (IA)</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {% for article in cluster.articles %}
-                    <tr id="mention-{{ article.mention_id }}">
+                    {% for sa in story.story_articles.all %}
+                    <tr>
                         <td>
-                            <a href="{{ article.url }}" target="_blank"
+                            <a href="{{ sa.article.url }}" target="_blank"
                                 style="color:var(--text); text-decoration:none;">
-                                {{ article.title|truncatechars:60 }}
+                                {{ sa.article.title|truncatechars:80 }}
                             </a>
-                            {% if article.is_base %}
-                            <span class="tag" style="font-size: 10px; margin-left: 6px;">BASE</span>
+                            {% if sa.is_representative %}
+                            <span class="tag" style="font-size: 10px; margin-left: 6px;">REP</span>
                             {% endif %}
                         </td>
-                        <td>{{ article.outlet }}</td>
-                        <td>{{ article.match_score|floatformat:2 }}</td>
-                        <td>
-                            {% if not article.is_base %}
-                            <button class="danger" style="padding: 4px 8px; font-size: 11px; cursor: pointer;"
-                                onclick="removeFromCluster('{{ article.mention_id }}', '{{ cluster.id }}', '{{ article.title|escapejs }}')">
-                                Remover
-                            </button>
-                            {% else %}
-                            <span style="font-size: 11px; color: var(--muted);">—</span>
-                            {% endif %}
-                        </td>
+                        <td>{{ sa.article.outlet }}</td>
+                        <td>{{ sa.confidence|floatformat:2 }}</td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
+            <!-- Correction actions could go here (remove article, etc) -->
         </div>
     </div>
     {% empty %}
-    <p class="muted">No hay clusters en este periodo.</p>
+    <p class="muted">No hay historias recientes.</p>
     {% endfor %}
 </section>
 
@@ -87,38 +76,6 @@
         } else {
             elem.style.display = 'none';
         }
-    }
-
-    function removeFromCluster(mentionId, clusterId, title) {
-        if (!confirm(`¿Remover este artículo del cluster #${clusterId}?\n\n"${title}"\n\nSe eliminará de este cluster y quedará sin agrupar.`)) {
-            return;
-        }
-
-        fetch("/monitor/dashboard/ops/correction/", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "X-CSRFToken": "{{ csrf_token }}"
-            },
-            body: JSON.stringify({
-                object_id: mentionId,
-                model_name: "storymention",
-                correction_type: "cluster_removal",
-                new_value: null,
-                reference_text: `Removed from cluster ${clusterId}: ${title}`
-            })
-        })
-            .then(res => res.json())
-            .then(data => {
-                if (data.status === "success") {
-                    alert("Artículo removido del cluster.");
-                    // Remove row from UI
-                    document.getElementById(`mention-${mentionId}`).remove();
-                } else {
-                    alert("Error: " + data.error);
-                }
-            })
-            .catch(err => alert("Error de red: " + err));
     }
 </script>
 {% endblock %}

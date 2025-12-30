@@ -59,7 +59,7 @@
                 {% endif %}
             </p>
 
-            <a href="{% url 'monitor_dashboard_home' %}../{{ entity_type }}s/{{ obj.id }}/"
+            <a href="{% if entity_type == 'persona' %}{% url 'monitor_dashboard_persona_detail' obj.id %}{% else %}{% url 'monitor_dashboard_institucion_detail' obj.id %}{% endif %}"
                 class="btn btn-sm btn-outline-primary mt-3 align-self-start">
                 Ver Dashboard <i class="fas fa-arrow-right ml-1"></i>
             </a>

@@ -312,6 +312,7 @@ def training_dashboard(request):
 
 
 @staff_member_required
+@staff_member_required
 @require_POST
 def api_correct_link(request):
     """
@@ -344,3 +345,80 @@ def api_correct_link(request):
         return JsonResponse({"status": "ok"})
     except Exception as e:
         return JsonResponse({"status": "error", "message": str(e)}, status=400)
+
+
+@staff_member_required
+def review_clusters(request):
+    """
+    Review recent story clusters.
+    """
+    # Fetch stories from last 3 days
+    since = timezone.now() - timedelta(days=3)
+    stories = Story.objects.filter(time_window_start__gte=since).prefetch_related(
+        "story_articles", "story_articles__article"
+    ).order_by("-time_window_start")[:50]
+    
+    return render(request, "monitor/dashboard/review_clusters.html", {
+        "stories": stories,
+        "since": since
+    })
+
+
+@staff_member_required
+def clients_dashboard(request):
+    clients = Client.objects.all().order_by("name")
+    return render(request, "monitor/dashboard/client_list.html", {"clients": clients})
+
+
+@staff_member_required
+def client_detail(request, client_id):
+    client = get_object_or_404(Client, id=client_id)
+    
+    if request.method == "POST":
+        action = request.POST.get("action")
+        if action == "add_focus":
+            entity_type = request.POST.get("entity_type")
+            entity_id = request.POST.get("entity_id")
+            priority = request.POST.get("priority", 1)
+            
+            from monitor.models import ClientFocus
+            ClientFocus.objects.create(
+                client=client,
+                entity_type=entity_type,
+                atlas_id=entity_id,
+                priority=priority
+            )
+            messages.success(request, "Foco añadido.")
+        elif action == "remove_focus":
+            focus_id = request.POST.get("focus_id")
+            from monitor.models import ClientFocus
+            ClientFocus.objects.filter(id=focus_id, client=client).delete()
+            messages.success(request, "Foco eliminado.")
+            
+    # Fetch focus items with names
+    focus_items = client.focus_items.all().order_by("-priority")
+    enriched_items = []
+    for item in focus_items:
+        name = "Desconocido"
+        if item.entity_type == "persona":
+            p = Persona.objects.filter(id=item.atlas_id).first()
+            if p: name = p.nombre_completo
+        elif item.entity_type == "institucion":
+            i = Institucion.objects.filter(id=item.atlas_id).first()
+            if i: name = i.nombre
+        # Topic support can be added later
+        enriched_items.append({
+            "id": item.id,
+            "type": item.entity_type,
+            "priority": item.priority,
+            "name": name,
+            "atlas_id": item.atlas_id
+        })
+    
+    context = {
+        "client": client,
+        "focus_items": enriched_items,
+        "personas": Persona.objects.all().order_by("nombre_completo"),
+        "instituciones": Institucion.objects.all().order_by("nombre")
+    }
+    return render(request, "monitor/dashboard/client_detail.html", context)
