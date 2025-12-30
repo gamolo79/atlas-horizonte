@@ -28,6 +28,11 @@ from monitor.models import (
 
 LOGGER = logging.getLogger(__name__)
 
+
+def health_check(request):
+    return JsonResponse({"status": "ok", "service": "monitor"})
+
+
 @staff_member_required
 def dashboard_home(request):
     today = timezone.now().date()
@@ -434,3 +439,33 @@ def client_detail(request, client_id):
         "temas": Topic.objects.all().order_by("name"),
     }
     return render(request, "monitor/dashboard/client_detail.html", context)
+
+
+@staff_member_required
+def article_list(request):
+    """
+    List view for raw articles.
+    """
+    from monitor.models import Article
+    
+    query = request.GET.get("q", "")
+    status = request.GET.get("status", "")
+    
+    qs = Article.objects.select_related("source").all().order_by("-published_at")
+    
+    if query:
+        qs = qs.filter(title__icontains=query)
+    
+    if status:
+        qs = qs.filter(pipeline_status=status)
+        
+    # Limit to 100 for performance
+    articles = qs[:100]
+    
+    context = {
+        "articles": articles,
+        "query": query,
+        "status": status,
+        "status_choices": Article.PipelineStatus.choices
+    }
+    return render(request, "monitor/dashboard/article_list.html", context)

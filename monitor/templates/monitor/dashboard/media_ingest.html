@@ -23,6 +23,10 @@
                 <option value="reprocess">Reprocesar pipeline</option>
                 <option value="classify">Solo clasificación IA</option>
             </select>
+            <div style="margin-top: 8px;">
+                <a href="{% url 'monitor_dashboard_article_list' %}" class="small muted"
+                    style="text-decoration: underline;">Ver todos los artículos</a>
+            </div>
 
             <div class="form-row" style="margin-top: 12px;">
                 <div style="flex: 1;">
@@ -36,7 +40,8 @@
             </div>
 
             <label style="margin-top: 12px;">Fuentes específicas (opcional)</label>
-            <div style="max-height: 220px; overflow: auto; border: 1px solid var(--border); border-radius: 10px; padding: 10px;">
+            <div
+                style="max-height: 220px; overflow: auto; border: 1px solid var(--border); border-radius: 10px; padding: 10px;">
                 {% for source in sources %}
                 <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
                     <input type="checkbox" name="source_ids" value="{{ source.id }}" id="src_{{ source.id }}">
@@ -73,7 +78,8 @@
                     <td>{{ log.created_at|date:"Y-m-d H:i" }}</td>
                     <td>{{ log.event_type }}</td>
                     <td>
-                        <span class="badge {% if log.status == 'success' %}success{% elif log.status == 'error' %}danger{% else %}neutral{% endif %}">
+                        <span
+                            class="badge {% if log.status == 'success' %}success{% elif log.status == 'error' %}danger{% else %}neutral{% endif %}">
                             {{ log.status }}
                         </span>
                     </td>

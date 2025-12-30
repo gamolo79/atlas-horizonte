@@ -1,17 +1,19 @@
 from django.urls import path
 
-from monitor import views
+
 from monitor import views_dashboard
 
 urlpatterns = [
     # Health & lists
-    path("health/", views.monitor_health, name="monitor_health"),
-    path("ingest/", views.ingest_list, name="monitor_ingest"),
+    path("health/", views_dashboard.health_check, name="monitor_health"), # Moved logic to dashboard
     
     # Dashboard Home
     path("dashboard/", views_dashboard.dashboard_home, name="monitor_dashboard_home"),
     path("dashboard/home/", views_dashboard.dashboard_home, name="monitor_dashboard_home_alias"),
     
+    # Articles
+    path("dashboard/articles/", views_dashboard.article_list, name="monitor_dashboard_article_list"),
+
     # Entity Dashboards
     path("dashboard/personas/<int:entity_id>/", views_dashboard.entity_dashboard, {"entity_type": "persona"}, name="monitor_dashboard_persona_detail"),
     path("dashboard/instituciones/<int:entity_id>/", views_dashboard.entity_dashboard, {"entity_type": "institucion"}, name="monitor_dashboard_institucion_detail"),
@@ -28,8 +30,7 @@ urlpatterns = [
     # API
     path("api/correct-link/", views_dashboard.api_correct_link, name="monitor_api_correct_link"),
     
-    # Benchmarks (keeping old view if it exists in 'views' or 'views_dashboard'?)
-    # I didn't port benchmark view in the overwrite. I should probably add a placeholder or simple redirect.
+    # Benchmarks
     path("dashboard/benchmark/", views_dashboard.benchmarks_view, name="monitor_dashboard_benchmark"),
     path("dashboard/instituciones/benchmark/", views_dashboard.benchmarks_view, name="monitor_dashboard_instituciones_benchmark"),
     
