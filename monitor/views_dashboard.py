@@ -446,12 +446,12 @@ def article_list(request):
     """
     List view for raw articles.
     """
-    from monitor.models import Article
-    
+    # Use global Article import
     query = request.GET.get("q", "")
     status = request.GET.get("status", "")
     
-    qs = Article.objects.select_related("source").all().order_by("-published_at")
+    # Removed select_related for safety against 500 errors on bad FKs
+    qs = Article.objects.all().order_by("-published_at")
     
     if query:
         qs = qs.filter(title__icontains=query)
@@ -462,10 +462,16 @@ def article_list(request):
     # Limit to 100 for performance
     articles = qs[:100]
     
+    # Safely get choices from model meta
+    try:
+        choices = Article._meta.get_field("pipeline_status").choices
+    except Exception:
+        choices = []
+    
     context = {
         "articles": articles,
         "query": query,
         "status": status,
-        "status_choices": Article.PipelineStatus.choices
+        "status_choices": choices
     }
     return render(request, "monitor/dashboard/article_list.html", context)
