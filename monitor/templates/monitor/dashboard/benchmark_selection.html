@@ -1,0 +1,119 @@
+{% extends "monitor/dashboard/base.html" %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Benchmark Explorer</h1>
+        <p class="page-subtitle">Compara la cobertura mediática entre dos actores o instituciones.</p>
+    </div>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-lg-10">
+        <div class="card shadow">
+            <div class="card-body">
+                <form method="get" action="" class="row">
+                    <!-- Entity A -->
+                    <div class="col-md-5">
+                        <h5 class="text-primary mb-3">Entidad A</h5>
+                        <div class="form-group">
+                            <label>Tipo</label>
+                            <select class="form-control mb-3" id="type_a" name="type_a" onchange="toggleSelect('a')">
+                                <option value="persona">Persona</option>
+                                <option value="institucion">Institución</option>
+                            </select>
+
+                            <div id="container_persona_a">
+                                <label>Persona</label>
+                                <select name="id_a" class="form-control select-entity" id="select_persona_a">
+                                    {% for p in personas %}
+                                    <option value="{{ p.id }}">{{ p.nombre_completo }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <div id="container_institucion_a" style="display:none;">
+                                <label>Institución</label>
+                                <select name="id_a_inst" class="form-control select-entity" id="select_institucion_a"
+                                    disabled>
+                                    {% for i in instituciones %}
+                                    <option value="{{ i.id }}">{{ i.nombre }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- VS Divider -->
+                    <div class="col-md-2 d-flex align-items-center justify-content-center">
+                        <div class="h2 text-muted font-weight-bold">VS</div>
+                    </div>
+
+                    <!-- Entity B -->
+                    <div class="col-md-5">
+                        <h5 class="text-danger mb-3">Entidad B</h5>
+                        <div class="form-group">
+                            <label>Tipo</label>
+                            <select class="form-control mb-3" id="type_b" name="type_b" onchange="toggleSelect('b')">
+                                <option value="persona">Persona</option>
+                                <option value="institucion">Institución</option>
+                            </select>
+
+                            <div id="container_persona_b">
+                                <label>Persona</label>
+                                <select name="id_b" class="form-control select-entity" id="select_persona_b">
+                                    {% for p in personas %}
+                                    <option value="{{ p.id }}">{{ p.nombre_completo }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <div id="container_institucion_b" style="display:none;">
+                                <label>Institución</label>
+                                <select name="id_b_inst" class="form-control select-entity" id="select_institucion_b"
+                                    disabled>
+                                    {% for i in instituciones %}
+                                    <option value="{{ i.id }}">{{ i.nombre }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-12 text-center mt-4">
+                        <button type="submit" class="btn btn-primary btn-lg px-5">
+                            <i class="fas fa-chart-area mr-2"></i> Comparar
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function toggleSelect(side) {
+        const type = document.getElementById('type_' + side).value;
+        const pCont = document.getElementById('container_persona_' + side);
+        const iCont = document.getElementById('container_institucion_' + side);
+        const pSel = document.getElementById('select_persona_' + side);
+        const iSel = document.getElementById('select_institucion_' + side);
+
+        if (type === 'persona') {
+            pCont.style.display = 'block';
+            iCont.style.display = 'none';
+            pSel.name = 'id_' + side;
+            pSel.disabled = false;
+            iSel.name = ''; // Unset name so it's not submitted
+            iSel.disabled = true;
+        } else {
+            pCont.style.display = 'none';
+            iCont.style.display = 'block';
+            pSel.name = '';
+            pSel.disabled = true;
+            iSel.name = 'id_' + side;
+            iSel.disabled = false;
+        }
+    }
+</script>
+{% endblock %}

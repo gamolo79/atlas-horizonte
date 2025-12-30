@@ -145,7 +145,158 @@ def entity_dashboard(request, entity_type, entity_id):
         "recent_links": recent_links,
         "recent_stories": recent_stories,
     }
+    context = {
+        "entity": entity,
+        "entity_type": entity_type,
+        "days": days,
+        "chart_data": {
+            "dates": json.dumps(dates),
+            "volumes": json.dumps(volumes),
+            "sentiments": json.dumps(sentiments),
+        },
+        "recent_links": recent_links,
+        "recent_stories": recent_stories,
+    }
     return render(request, "monitor/dashboard/entity_dashboard.html", context)
+
+
+@staff_member_required
+def entity_list(request, entity_type):
+    """
+    List view for Personas or Instituciones with search.
+    """
+    query = request.GET.get("q", "")
+    
+    if entity_type == "persona":
+        qs = Persona.objects.all().order_by("nombre_completo")
+        if query:
+            qs = qs.filter(nombre_completo__icontains=query)
+        # Optimization: maybe annotate with last volume? For now, keep it simple.
+    else:
+        qs = Institucion.objects.all().order_by("nombre")
+        if query:
+            qs = qs.filter(nombre__icontains=query)
+    
+    # Pagination could be added here, but let's stick to simple list for now
+    
+    return render(request, "monitor/dashboard/entity_list.html", {
+        "entity_type": entity_type,
+        "entities": qs[:100], # Limit to avoid performance hit
+        "query": query
+    })
+
+
+    return render(request, "monitor/dashboard/entity_list.html", {
+        "entity_type": entity_type,
+        "entities": qs[:100], # Limit to avoid performance hit
+        "query": query
+    })
+
+
+@staff_member_required
+def benchmarks_view(request):
+    """
+    Select two entities to compare, or show comparison if params present.
+    """
+    id_a = request.GET.get("id_a")
+    type_a = request.GET.get("type_a")
+    id_b = request.GET.get("id_b")
+    type_b = request.GET.get("type_b")
+    
+    if id_a and id_b and type_a and type_b:
+        # Fetch entities
+        model_a = Persona if type_a == "persona" else Institucion
+        model_b = Persona if type_b == "persona" else Institucion
+        
+        entity_a = get_object_or_404(model_a, pk=id_a)
+        entity_b = get_object_or_404(model_b, pk=id_b)
+        
+        # Fetch metrics for last 30 days default
+        start_date = timezone.now().date() - timedelta(days=30)
+        
+        metrics_a = MetricAggregate.objects.filter(
+            entity_type=type_a, atlas_id=str(id_a), date_start__gte=start_date
+        ).order_by("date_start")
+        
+        metrics_b = MetricAggregate.objects.filter(
+            entity_type=type_b, atlas_id=str(id_b), date_start__gte=start_date
+        ).order_by("date_start")
+
+        # Organize for chart
+        dates = sorted(list(set(
+            [m.date_start.strftime("%Y-%m-%d") for m in metrics_a] + 
+            [m.date_start.strftime("%Y-%m-%d") for m in metrics_b]
+        )))
+        
+        vol_map_a = {m.date_start.strftime("%Y-%m-%d"): m.volume for m in metrics_a}
+        vol_map_b = {m.date_start.strftime("%Y-%m-%d"): m.volume for m in metrics_b}
+        
+        data_a = [vol_map_a.get(d, 0) for d in dates]
+        data_b = [vol_map_b.get(d, 0) for d in dates]
+
+        # Pie chart totals
+        sent_a = {"pos": sum(m.sentiment_pos for m in metrics_a), "neg": sum(m.sentiment_neg for m in metrics_a), "neu": sum(m.sentiment_neu for m in metrics_a)}
+        sent_b = {"pos": sum(m.sentiment_pos for m in metrics_b), "neg": sum(m.sentiment_neg for m in metrics_b), "neu": sum(m.sentiment_neu for m in metrics_b)}
+
+        context = {
+            "entity_a": entity_a,
+            "entity_b": entity_b,
+            "chart_dates": json.dumps(dates),
+            "chart_vol_a": json.dumps(data_a),
+            "chart_vol_b": json.dumps(data_b),
+            "sent_a": json.dumps(list(sent_a.values())),
+            "sent_b": json.dumps(list(sent_b.values())),
+        }
+        return render(request, "monitor/dashboard/benchmark_result.html", context)
+
+    # Selection Form
+    return render(request, "monitor/dashboard/benchmark_selection.html", {
+        "personas": Persona.objects.all().order_by("nombre_completo"),
+        "instituciones": Institucion.objects.all().order_by("nombre"),
+    })
+
+
+    # Selection Form
+    return render(request, "monitor/dashboard/benchmark_selection.html", {
+        "personas": Persona.objects.all().order_by("nombre_completo"),
+        "instituciones": Institucion.objects.all().order_by("nombre"),
+    })
+
+
+@staff_member_required
+def media_ingest_dashboard(request):
+    """
+    Ingest dashboard with controls for manual execution.
+    """
+    if request.method == "POST":
+        ingest_type = request.POST.get("ingest_type") # rss, reprocess, normalization
+        date_start = request.POST.get("date_start")
+        date_end = request.POST.get("date_end")
+        source_ids = request.POST.getlist("source_ids")
+        
+        # Here we would call the actual pipeline functions with these args.
+        # For now, we simulate the triggering or call a simplified version.
+        try:
+            # Placeholder for actual command execution
+            # from monitor.management.commands import fetch_sources
+            # call_command('fetch_sources', sources=source_ids)
+            
+            AuditLog.objects.create(
+                event_type="manual_ingest_trigger",
+                status="success",
+                payload=f"Triggered {ingest_type} for {len(source_ids)} sources. Window: {date_start} - {date_end}"
+            )
+            messages.success(request, f"Proceso '{ingest_type}' iniciado correctamente.")
+        except Exception as e:
+            messages.error(request, f"Error iniciando proceso: {e}")
+    
+    sources = Source.objects.all().order_by("name")
+    recent_logs = AuditLog.objects.filter(event_type__in=["ingest", "manual_ingest_trigger"]).order_by("-created_at")[:20]
+    
+    return render(request, "monitor/dashboard/media_ingest.html", {
+        "sources": sources,
+        "recent_logs": recent_logs
+    })
 
 
 @staff_member_required

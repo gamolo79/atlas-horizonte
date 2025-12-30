@@ -1,0 +1,107 @@
+{% extends "monitor/dashboard/base.html" %}
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <a href="javascript:history.back()" class="btn btn-sm btn-outline-secondary mb-3">&larr; Volver a selección</a>
+        <h1 class="h3 mb-0 text-gray-800">
+            Comparativa: <span class="text-primary">
+                {% if entity_a.nombre_completo %}{{ entity_a.nombre_completo }}{% else %}{{ entity_a.nombre }}{% endif
+                %}
+            </span> vs <span class="text-danger">
+                {% if entity_b.nombre_completo %}{{ entity_b.nombre_completo }}{% else %}{{ entity_b.nombre }}{% endif
+                %}
+            </span>
+        </h1>
+    </div>
+</div>
+
+<!-- Volume Comparison -->
+<div class="card shadow mb-4">
+    <div class="card-header py-3">
+        <h6 class="m-0 font-weight-bold text-primary">Volumen de Menciones (30 días)</h6>
+    </div>
+    <div class="card-body">
+        <div class="chart-area" style="height: 400px;">
+            <canvas id="comparisonChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- Sentiment Comparison -->
+<div class="row">
+    <div class="col-md-6">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Sentimiento: Entidad A</h6>
+            </div>
+            <div class="card-body">
+                <div class="chart-pie pt-4 pb-2">
+                    <canvas id="sentA"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-danger">Sentimiento: Entidad B</h6>
+            </div>
+            <div class="card-body">
+                <div class="chart-pie pt-4 pb-2">
+                    <canvas id="sentB"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const dates = JSON.parse('{{ chart_dates|safe }}');
+    const dataA = JSON.parse('{{ chart_vol_a|safe }}');
+    const dataB = JSON.parse('{{ chart_vol_b|safe }}');
+
+    // Line Chart
+    new Chart(document.getElementById("comparisonChart"), {
+        type: 'line',
+        data: {
+            labels: dates,
+            datasets: [
+                {
+                    label: "{% if entity_a.nombre_completo %}{{ entity_a.nombre_completo }}{% else %}{{ entity_a.nombre }}{% endif %}",
+                    data: dataA,
+                    borderColor: "#4e73df",
+                    backgroundColor: "rgba(78, 115, 223, 0.05)",
+                    fill: false
+                },
+                {
+                    label: "{% if entity_b.nombre_completo %}{{ entity_b.nombre_completo }}{% else %}{{ entity_b.nombre }}{% endif %}",
+                    data: dataB,
+                    borderColor: "#e74a3b",
+                    backgroundColor: "rgba(231, 74, 59, 0.05)",
+                    fill: false
+                }
+            ]
+        },
+        options: { maintainAspectRatio: false }
+    });
+
+    // Pie Charts
+    const pieConfig = {
+        type: 'doughnut',
+        data: { labels: ["Positivo", "Neutro", "Negativo"], datasets: [{ backgroundColor: ['#1cc88a', '#858796', '#e74a3b'] }] },
+        options: { maintainAspectRatio: false }
+    };
+
+    const configA = JSON.parse(JSON.stringify(pieConfig));
+    configA.data.datasets[0].data = JSON.parse('{{ sent_a|safe }}');
+    new Chart(document.getElementById("sentA"), configA);
+
+    const configB = JSON.parse(JSON.stringify(pieConfig));
+    configB.data.datasets[0].data = JSON.parse('{{ sent_b|safe }}');
+    new Chart(document.getElementById("sentB"), configB);
+</script>
+{% endblock %}
