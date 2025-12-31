@@ -191,8 +191,8 @@ header {
 /* Timelines */
 .timeline-body {
   background: radial-gradient(1200px 600px at 20% 0%, #14264b 0%, transparent 60%),
-              radial-gradient(900px 500px at 80% 10%, #1a2a5a 0%, transparent 55%),
-              #0b1220;
+    radial-gradient(900px 500px at 80% 10%, #1a2a5a 0%, transparent 55%),
+    #0b1220;
 }
 
 .timeline-app {
@@ -429,7 +429,8 @@ header {
 }
 
 .timeline-scroller {
-  overflow: auto;
+  overflow-x: auto;
+  overflow-y: hidden;
   padding: 10px 10px 14px;
   scroll-behavior: smooth;
   -webkit-overflow-scrolling: touch;
@@ -441,7 +442,7 @@ header {
   background: rgba(0, 0, 0, 0.18);
   border: 1px solid rgba(255, 255, 255, 0.06);
   min-height: 240px;
-  min-width: 100%;
+  /* min-width and width set by JS */
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.02);
   --month-width: 18px;
   --bar-height: 28px;
@@ -453,6 +454,7 @@ header {
   position: absolute;
   inset: 0;
   pointer-events: none;
+  z-index: 0;
 }
 
 .timeline-year-row {
@@ -489,7 +491,21 @@ header {
   top: 44px;
   bottom: 0;
   width: 2px;
+  width: 2px;
   background: rgba(122, 162, 255, 0.22);
+}
+
+.timeline-year-bg {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.015);
+  border-left: 1px solid rgba(255, 255, 255, 0.04);
+  /* Optional: highlight alternate years lightly or just provide structure */
+}
+
+.timeline-year-bg:nth-child(even) {
+  background: rgba(255, 255, 255, 0.03);
 }
 
 .timeline-year-label {
@@ -503,8 +519,11 @@ header {
 
 .timeline-rows {
   position: relative;
-  padding-top: 52px;
+  z-index: 10;
+  padding-top: 40px;
   padding-bottom: 16px;
+  pointer-events: none;
+  /* Let clicks pass through empty spaces to grid if needed, though grid is none too */
 }
 
 .timeline-lane {
@@ -512,8 +531,10 @@ header {
   margin: 10px 10px 0;
   padding: 10px 10px 14px;
   border-radius: 14px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  /* Remove background so grid shows through, or make semi-transparent */
+  /* background: rgba(255, 255, 255, 0.03); */
+  /* border: 1px solid rgba(255, 255, 255, 0.06); */
+  pointer-events: auto;
 }
 
 .timeline-lane-title {
@@ -524,6 +545,11 @@ header {
   margin-bottom: 10px;
   padding-bottom: 8px;
   border-bottom: 1px dashed rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.2);
+  /* Visual enhancement to read title over grid lines if they cross */
+  border-radius: 4px;
+  padding: 4px 8px;
+  backdrop-filter: blur(2px);
 }
 
 .timeline-lane-title strong {
@@ -552,7 +578,8 @@ header {
   align-items: center;
   padding: 0 10px;
   gap: 10px;
-  cursor: default;
+  cursor: pointer;
+  pointer-events: auto;
   overflow: hidden;
   user-select: none;
   color: #e8eefc;

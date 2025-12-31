@@ -1,6 +1,7 @@
 {% load static %}
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
   <meta charset="UTF-8" />
   <title>Atlas · Timelines</title>
@@ -8,6 +9,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{% static 'css/atlas-design-system.css' %}">
 </head>
+
 <body class="timeline-body">
   <div class="page">
     <header>
@@ -64,7 +66,8 @@
               <div class="timeline-titleblock">
                 <h2 id="headline">Timeline</h2>
                 <div class="timeline-meta">
-                  <span class="timeline-chip"><span class="timeline-dot"></span><span id="subhead">Selecciona una entidad para ver cargos por periodo</span></span>
+                  <span class="timeline-chip"><span class="timeline-dot"></span><span id="subhead">Selecciona una
+                      entidad para ver cargos por periodo</span></span>
                   <span class="timeline-chip">Eje: años + 12 meses</span>
                   <span class="timeline-chip">Empalmes: apilado vertical</span>
                 </div>
@@ -97,7 +100,8 @@
     </main>
 
     <footer>
-      Horizonte Digital · Atlas · <a href="{% url 'privacy-notice' %}">Aviso de privacidad</a> · <a href="{% url 'terms-conditions' %}">Términos y condiciones</a>
+      Horizonte Digital · Atlas · <a href="{% url 'privacy-notice' %}">Aviso de privacidad</a> · <a
+        href="{% url 'terms-conditions' %}">Términos y condiciones</a>
     </footer>
   </div>
 
@@ -179,6 +183,8 @@
 
     function setCanvasWidth(startYear, endYear) {
       const w = totalMonths(startYear, endYear) * getMonthWidth() + 20;
+      // We set width on the content wrapper, so the scroll works
+      canvas.style.minWidth = `${w}px`;
       canvas.style.width = `${w}px`;
     }
 
@@ -186,16 +192,13 @@
       grid.innerHTML = "";
       setCanvasWidth(startYear, endYear);
 
-      const yearRow = document.createElement("div");
-      yearRow.className = "timeline-year-row";
-      yearRow.innerHTML = `<span>${startYear} → ${endYear}</span>`;
-      grid.appendChild(yearRow);
-
-      const months = totalMonths(startYear, endYear);
+      // We need to render the background years and lines
       const monthPx = getMonthWidth();
-      for (let i = 0; i <= months; i++) {
+      const totalM = totalMonths(startYear, endYear);
+
+      for (let i = 0; i <= totalM; i++) {
         const x = 10 + i * monthPx;
-        const isYear = i % 12 === 0;
+        const isYear = (i % 12 === 0);
 
         const line = document.createElement("div");
         line.className = isYear ? "timeline-year-line" : "timeline-month-line";
@@ -203,14 +206,25 @@
         grid.appendChild(line);
       }
 
+      // Render Year Labels
       for (let y = startYear; y <= endYear; y++) {
         const i = (y - startYear) * 12;
         const x = 10 + i * monthPx;
+
         const lab = document.createElement("div");
         lab.className = "timeline-year-label";
         lab.style.left = `${x + 6}px`;
         lab.textContent = String(y);
         grid.appendChild(lab);
+
+        // Render Year Background Row (optional style choice, keeping distinct)
+        if (y < endYear) {
+          const yearBg = document.createElement("div");
+          yearBg.className = "timeline-year-bg";
+          yearBg.style.left = `${x}px`;
+          yearBg.style.width = `${12 * monthPx}px`;
+          grid.appendChild(yearBg);
+        }
       }
     }
 
@@ -470,4 +484,5 @@
     renderTimeline();
   </script>
 </body>
+
 </html>
