@@ -202,6 +202,7 @@ header {
   display: flex;
   flex-direction: column;
   gap: 14px;
+  width: 100%;
 }
 
 .timeline-topbar {
@@ -218,6 +219,7 @@ header {
   top: 10px;
   z-index: 10;
   backdrop-filter: blur(10px);
+  width: 100%;
 }
 
 .timeline-brand {
@@ -321,6 +323,7 @@ header {
   border-radius: 18px;
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.35);
   overflow: hidden;
+  width: 100%;
 }
 
 .timeline-panel-header {
@@ -399,7 +402,8 @@ header {
 }
 
 .timeline-scroller {
-  overflow: auto;
+  overflow-x: auto;
+  overflow-y: hidden;
   padding: 10px 10px 14px;
   scroll-behavior: smooth;
 }
@@ -635,6 +639,25 @@ header {
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.1);
   color: rgba(232, 238, 252, 0.92);
+}
+
+.tooltip-topics {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.tooltip-topics-title {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #9bb0d3;
+}
+
+.tooltip-empty {
+  font-size: 12px;
+  color: #9bb0d3;
 }
 
 .timeline-scroller::-webkit-scrollbar {

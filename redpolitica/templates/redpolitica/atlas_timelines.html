@@ -1,562 +1,132 @@
-<!doctype html>
+{% load static %}
+<!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta charset="UTF-8" />
   <title>Atlas · Timelines</title>
-  <style>
-    :root{
-      --bg:#0b1220;
-      --card:#0f1a2e;
-      --card2:#101f38;
-      --text:#e8eefc;
-      --muted:#9bb0d3;
-      --line:#23385f;
-      --line2:#1a2b4a;
-      --chip:#152645;
-      --accent:#7aa2ff;
-      --shadow: 0 10px 25px rgba(0,0,0,.35);
-      --radius:18px;
-      --font: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
-    }
-
-    * { box-sizing: border-box; }
-    body{
-      margin:0;
-      font-family:var(--font);
-      background: radial-gradient(1200px 600px at 20% 0%, #14264b 0%, transparent 60%),
-                  radial-gradient(900px 500px at 80% 10%, #1a2a5a 0%, transparent 55%),
-                  var(--bg);
-      color: var(--text);
-    }
-
-    .app{
-      max-width: 1200px;
-      margin: 22px auto;
-      padding: 0 14px 28px;
-    }
-
-    .topbar{
-      display:flex;
-      gap:12px;
-      align-items:center;
-      justify-content:space-between;
-      padding: 14px 16px;
-      border: 1px solid rgba(255,255,255,.07);
-      background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
-      border-radius: var(--radius);
-      box-shadow: var(--shadow);
-      position: sticky;
-      top: 10px;
-      z-index: 10;
-      backdrop-filter: blur(10px);
-    }
-
-    .brand{
-      display:flex;
-      gap:10px;
-      align-items:center;
-      min-width: 240px;
-    }
-    .logo{
-      width:34px; height:34px;
-      border-radius: 12px;
-      background: linear-gradient(135deg, #7aa2ff, #b58cff);
-      box-shadow: 0 10px 22px rgba(122,162,255,.25);
-    }
-    .brand h1{
-      margin:0;
-      font-size: 14px;
-      letter-spacing: .2px;
-      line-height: 1.1;
-    }
-    .brand p{
-      margin:2px 0 0;
-      font-size: 12px;
-      color: var(--muted);
-    }
-
-    .filters{
-      display:flex;
-      gap:10px;
-      flex-wrap:wrap;
-      justify-content:flex-end;
-      align-items:center;
-    }
-    .field{
-      display:flex;
-      gap:8px;
-      align-items:center;
-      padding: 10px 10px;
-      border-radius: 14px;
-      background: rgba(0,0,0,.18);
-      border: 1px solid rgba(255,255,255,.08);
-    }
-    .field label{
-      font-size: 12px;
-      color: var(--muted);
-      white-space: nowrap;
-    }
-    select, input{
-      appearance:none;
-      border: 1px solid rgba(255,255,255,.12);
-      background: rgba(255,255,255,.06);
-      color: var(--text);
-      padding: 8px 10px;
-      border-radius: 12px;
-      font-size: 13px;
-      outline: none;
-      min-width: 210px;
-    }
-    select{ min-width: 190px; }
-    .btn{
-      border: 1px solid rgba(255,255,255,.12);
-      background: rgba(122,162,255,.14);
-      color: var(--text);
-      padding: 10px 12px;
-      border-radius: 14px;
-      cursor:pointer;
-      font-size: 13px;
-    }
-    .btn:active{ transform: translateY(1px); }
-
-    .panel{
-      margin-top: 14px;
-      background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.015));
-      border: 1px solid rgba(255,255,255,.08);
-      border-radius: var(--radius);
-      box-shadow: var(--shadow);
-      overflow: hidden;
-    }
-
-    .panel-header{
-      padding: 14px 16px 10px;
-      display:flex;
-      justify-content:space-between;
-      align-items:flex-end;
-      gap:12px;
-      border-bottom: 1px solid rgba(255,255,255,.08);
-      background: rgba(0,0,0,.12);
-    }
-
-    .titleblock h2{
-      margin:0;
-      font-size: 16px;
-      letter-spacing: .2px;
-    }
-    .titleblock .meta{
-      margin-top: 6px;
-      color: var(--muted);
-      font-size: 12px;
-      display:flex;
-      gap:10px;
-      flex-wrap:wrap;
-    }
-    .chip{
-      display:inline-flex;
-      align-items:center;
-      gap:6px;
-      padding: 6px 10px;
-      border-radius: 999px;
-      background: rgba(255,255,255,.06);
-      border: 1px solid rgba(255,255,255,.10);
-    }
-    .dot{
-      width:8px; height:8px; border-radius: 999px;
-      background: var(--accent);
-      box-shadow: 0 0 0 6px rgba(122,162,255,.12);
-    }
-
-    .legend{
-      display:flex;
-      gap:10px;
-      flex-wrap:wrap;
-      justify-content:flex-end;
-      align-items:center;
-      color: var(--muted);
-      font-size: 12px;
-    }
-    .swatch{
-      display:inline-flex;
-      align-items:center;
-      gap:7px;
-      padding: 6px 10px;
-      border-radius: 999px;
-      border: 1px solid rgba(255,255,255,.10);
-      background: rgba(0,0,0,.18);
-    }
-    .swatch i{
-      width:10px;height:10px;border-radius:3px;display:inline-block;
-    }
-
-    .timeline-wrap{
-      position: relative;
-      padding: 12px 0 16px;
-    }
-
-    /* Horizontal scroll area */
-    .scroller{
-      overflow: auto;
-      padding: 10px 10px 14px;
-      scroll-behavior: smooth;
-    }
-
-    .canvas{
-      position: relative;
-      border-radius: 16px;
-      background: rgba(0,0,0,.18);
-      border: 1px solid rgba(255,255,255,.06);
-      min-height: 240px;
-      box-shadow: inset 0 0 0 1px rgba(255,255,255,.02);
-    }
-
-    /* Grid: months */
-    .grid{
-      position:absolute;
-      inset: 0;
-      pointer-events:none;
-    }
-
-    .grid .year-row{
-      position:absolute;
-      top: 0;
-      height: 44px;
-      border-bottom: 1px solid rgba(255,255,255,.06);
-      display:flex;
-      align-items:flex-end;
-      padding: 10px 10px 8px;
-      gap:10px;
-      background: linear-gradient(180deg, rgba(0,0,0,.22), rgba(0,0,0,0));
-    }
-    .grid .year-row span{
-      color: rgba(232,238,252,.85);
-      font-weight: 600;
-      font-size: 12px;
-      letter-spacing: .3px;
-    }
-
-    .month-line{
-      position:absolute;
-      top: 44px;
-      bottom: 0;
-      width: 1px;
-      background: rgba(255,255,255,.06);
-    }
-    .year-line{
-      position:absolute;
-      top: 44px;
-      bottom: 0;
-      width: 2px;
-      background: rgba(122,162,255,.18);
-    }
-
-    .rows{
-      position: relative;
-      padding-top: 52px;
-      padding-bottom: 16px;
-    }
-
-    .lane{
-      position: relative;
-      margin: 10px 10px 0;
-      padding: 10px 10px 14px;
-      border-radius: 14px;
-      background: rgba(255,255,255,.03);
-      border: 1px solid rgba(255,255,255,.06);
-    }
-    .lane-title{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:10px;
-      margin-bottom: 10px;
-      padding-bottom: 8px;
-      border-bottom: 1px dashed rgba(255,255,255,.08);
-    }
-    .lane-title strong{
-      font-size: 13px;
-      letter-spacing: .2px;
-    }
-    .lane-title small{
-      color: var(--muted);
-      font-size: 12px;
-    }
-
-    .bars{
-      position: relative;
-      min-height: 90px;
-    }
-
-    .bar{
-      position:absolute;
-      height: 28px;
-      border-radius: 10px;
-      border: 1px solid rgba(255,255,255,.12);
-      box-shadow: 0 10px 18px rgba(0,0,0,.28);
-      display:flex;
-      align-items:center;
-      padding: 0 10px;
-      gap:10px;
-      cursor: default;
-      overflow:hidden;
-      user-select:none;
-    }
-    .bar .tag{
-      font-size: 11px;
-      opacity: .9;
-      padding: 3px 8px;
-      border-radius: 999px;
-      background: rgba(0,0,0,.22);
-      border: 1px solid rgba(255,255,255,.12);
-      white-space: nowrap;
-    }
-    .bar .txt{
-      display:flex;
-      flex-direction:column;
-      line-height: 1.05;
-      min-width: 0;
-    }
-    .bar .txt b{
-      font-size: 12px;
-      white-space: nowrap;
-      overflow:hidden;
-      text-overflow: ellipsis;
-    }
-    .bar .txt span{
-      font-size: 11px;
-      color: rgba(232,238,252,.85);
-      white-space: nowrap;
-      overflow:hidden;
-      text-overflow: ellipsis;
-      opacity: .9;
-    }
-    .bar:hover{ filter: brightness(1.05); transform: translateY(-1px); }
-
-    .tooltip{
-      position: fixed;
-      z-index: 9999;
-      pointer-events:none;
-      background: rgba(15,26,46,.96);
-      border: 1px solid rgba(255,255,255,.12);
-      border-radius: 14px;
-      padding: 10px 12px;
-      box-shadow: var(--shadow);
-      min-width: 220px;
-      max-width: 280px;
-      opacity: 0;
-      transform: translateY(6px);
-      transition: opacity .12s ease, transform .12s ease;
-    }
-    .tooltip.show{
-      opacity: 1;
-      transform: translateY(0);
-    }
-    .tooltip .t1{ font-weight: 700; font-size: 13px; margin-bottom: 4px; }
-    .tooltip .t2{ color: var(--muted); font-size: 12px; margin-bottom: 6px; }
-    .tooltip .t3{ font-size: 12px; display:flex; gap:8px; flex-wrap:wrap; }
-    .tooltip .pill{
-      padding: 4px 8px;
-      border-radius: 999px;
-      background: rgba(255,255,255,.06);
-      border: 1px solid rgba(255,255,255,.10);
-      color: rgba(232,238,252,.92);
-    }
-
-    /* Subtle scrollbar */
-    .scroller::-webkit-scrollbar{ height: 10px; width: 10px; }
-    .scroller::-webkit-scrollbar-thumb{
-      background: rgba(255,255,255,.14);
-      border-radius: 999px;
-      border: 2px solid rgba(0,0,0,.20);
-    }
-    .scroller::-webkit-scrollbar-track{ background: rgba(0,0,0,.12); }
-
-    .footer-note{
-      margin-top: 10px;
-      color: var(--muted);
-      font-size: 12px;
-      padding: 0 4px;
-    }
-
-    @media (max-width: 720px){
-      .brand{ min-width: auto; }
-      select, input{ min-width: 160px; }
-      .legend{ justify-content:flex-start; }
-    }
-  </style>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/atlas-design-system.css' %}">
 </head>
-
-<body>
-  <div class="app">
-    <div class="topbar">
-      <div class="brand">
-        <div class="logo"></div>
-        <div>
-          <h1>Atlas · Timelines</h1>
-          <p>Mockup UI: 1997 → hoy · meses visibles · cargos apilados</p>
+<body class="timeline-body">
+  <div class="page">
+    <header>
+      <div class="header-inner">
+        <div class="header-row">
+          <a class="brand" href="{% url 'atlas-home' %}">
+            <img src="{% static 'img/logo-horizonte-atlas.png' %}" alt="Atlas" class="brand-logo">
+            <div class="brand-texts">
+              <div class="brand-text-main">Atlas · Timelines</div>
+              <div class="brand-text-sub">Personas e instituciones</div>
+            </div>
+          </a>
+        </div>
+        <div class="header-row header-row-nav">
+          <nav class="chips-row" aria-label="Navegación de Atlas">
+            <a class="chip-link" href="{% url 'atlas-home' %}">Home</a>
+            <a class="chip-link" href="{% url 'atlas-personas-list' %}">Personas</a>
+            <a class="chip-link" href="{% url 'atlas-instituciones-list' %}">Instituciones</a>
+            <a class="chip-link" href="{% url 'atlas-topics-list' %}">Temas</a>
+            <a class="chip-link" href="javascript:history.back()">Regresar</a>
+          </nav>
         </div>
       </div>
+    </header>
 
-      <div class="filters">
-        <div class="field">
-          <label>Entidad</label>
-          <select id="entityType">
-            <option value="persona">Persona</option>
-            <option value="institucion">Institución</option>
-          </select>
-        </div>
+    <main>
+      <div class="main-inner">
+        <div class="timeline-app">
+          <div class="timeline-topbar">
+            <div class="timeline-brand">
+              <div class="timeline-logo"></div>
+              <div>
+                <h1>Atlas · Timelines</h1>
+                <p>Explora periodos y cargos por actor</p>
+              </div>
+            </div>
 
-        <div class="field">
-          <label>Selecciona</label>
-          <select id="entitySelect"></select>
-        </div>
+            <div class="timeline-filters">
+              <div class="timeline-field">
+                <label for="entityType">Entidad</label>
+                <select id="entityType">
+                  <option value="persona">Persona</option>
+                  <option value="institucion">Institución</option>
+                </select>
+              </div>
 
-        <button class="btn" id="btnToday">Ir a hoy</button>
-      </div>
-    </div>
+              <div class="timeline-field">
+                <label for="entitySelect">Selecciona</label>
+                <select id="entitySelect"></select>
+              </div>
 
-    <div class="panel">
-      <div class="panel-header">
-        <div class="titleblock">
-          <h2 id="headline">Timeline</h2>
-          <div class="meta">
-            <span class="chip"><span class="dot"></span><span id="subhead">Selecciona una entidad para ver cargos por periodo</span></span>
-            <span class="chip">Eje: años + 12 meses</span>
-            <span class="chip">Empalmes: apilado vertical</span>
+              <button class="timeline-btn" id="btnToday">Ir a hoy</button>
+            </div>
+          </div>
+
+          <div class="timeline-panel">
+            <div class="timeline-panel-header">
+              <div class="timeline-titleblock">
+                <h2 id="headline">Timeline</h2>
+                <div class="timeline-meta">
+                  <span class="timeline-chip"><span class="timeline-dot"></span><span id="subhead">Selecciona una entidad para ver cargos por periodo</span></span>
+                  <span class="timeline-chip">Eje: años + 12 meses</span>
+                  <span class="timeline-chip">Empalmes: apilado vertical</span>
+                </div>
+              </div>
+
+              <div class="timeline-legend">
+                <span class="timeline-swatch"><i style="background:#7aa2ff"></i> Federal</span>
+                <span class="timeline-swatch"><i style="background:#6ee7b7"></i> Estatal</span>
+                <span class="timeline-swatch"><i style="background:#fbbf24"></i> Municipal</span>
+                <span class="timeline-swatch"><i style="background:#c084fc"></i> Partidista</span>
+                <span class="timeline-swatch"><i style="background:#94a3b8"></i> Otro</span>
+              </div>
+            </div>
+
+            <div class="timeline-wrap">
+              <div class="timeline-scroller" id="scroller">
+                <div class="timeline-canvas" id="canvas">
+                  <div class="timeline-grid" id="grid"></div>
+                  <div class="timeline-rows" id="rows"></div>
+                </div>
+              </div>
+              <div class="timeline-footer-note">
+                Tip: pasa el mouse sobre una barra para ver el tooltip. En móvil, toca una barra.
+              </div>
+            </div>
           </div>
         </div>
-
-        <div class="legend">
-          <span class="swatch"><i style="background:#7aa2ff"></i> Federal</span>
-          <span class="swatch"><i style="background:#6ee7b7"></i> Estatal</span>
-          <span class="swatch"><i style="background:#fbbf24"></i> Municipal</span>
-          <span class="swatch"><i style="background:#c084fc"></i> Partidista</span>
-        </div>
       </div>
+    </main>
 
-      <div class="timeline-wrap">
-        <div class="scroller" id="scroller">
-          <div class="canvas" id="canvas">
-            <div class="grid" id="grid"></div>
-            <div class="rows" id="rows"></div>
-          </div>
-        </div>
-        <div class="footer-note">
-          Tip: pasa el mouse sobre una barra para ver el tooltip. En móvil, toca una barra.
-        </div>
-      </div>
-    </div>
+    <footer>
+      Horizonte Digital · Atlas · <a href="{% url 'privacy-notice' %}">Aviso de privacidad</a> · <a href="{% url 'terms-conditions' %}">Términos y condiciones</a>
+    </footer>
   </div>
 
-  <div class="tooltip" id="tooltip" role="tooltip" aria-hidden="true"></div>
+  <div class="timeline-tooltip" id="tooltip" role="tooltip" aria-hidden="true"></div>
+
+  {{ timeline_data|json_script:"timeline-data" }}
 
   <script>
-    // ===== Mock data (reemplaza por tu API después) =====
-    const DATA = {
-      personas: [
-        {
-          id: "persona_francisco",
-          nombre: "Francisco Domínguez Servién",
-          cargos: [
-            {
-              label: "Gobernador",
-              institucion: "Gobierno del Estado de Querétaro",
-              nivel: "estatal",
-              inicio: "2015-10-01",
-              fin: "2021-09-30",
-            },
-            {
-              label: "Senador",
-              institucion: "Senado de la República",
-              nivel: "federal",
-              inicio: "2012-09-01",
-              fin: "2015-08-31",
-            },
-            {
-              label: "Presidente Municipal",
-              institucion: "Municipio de Querétaro",
-              nivel: "municipal",
-              inicio: "2009-10-01",
-              fin: "2012-08-31",
-            }
-          ],
-        },
-        {
-          id: "persona_agustin",
-          nombre: "Agustín Dorantes Lámbarri",
-          cargos: [
-            {
-              label: "Diputado Local",
-              institucion: "Congreso del Estado de Querétaro",
-              nivel: "estatal",
-              inicio: "2021-09-26",
-              fin: "2024-04-15",
-            },
-            {
-              label: "Presidente estatal",
-              institucion: "PAN Querétaro",
-              nivel: "partidista",
-              inicio: "2022-12-01",
-              fin: "2024-03-10",
-            }
-          ],
-        }
-      ],
+    const dataScript = document.getElementById("timeline-data");
+    const DATA = dataScript ? (JSON.parse(dataScript.textContent) || {}) : {};
+    const PERSONAS = Array.isArray(DATA.personas) ? DATA.personas : [];
+    const INSTITUCIONES = Array.isArray(DATA.instituciones) ? DATA.instituciones : [];
 
-      instituciones: [
-        {
-          id: "inst_gobqro",
-          nombre: "Gobierno del Estado de Querétaro",
-          cargos: [
-            {
-              label: "Gobernador",
-              persona: "Francisco Domínguez Servién",
-              nivel: "estatal",
-              inicio: "2015-10-01",
-              fin: "2021-09-30",
-            },
-            {
-              label: "Gobernador",
-              persona: "— (Ejemplo previo)",
-              nivel: "estatal",
-              inicio: "2009-10-01",
-              fin: "2015-09-30",
-            }
-          ],
-        },
-        {
-          id: "inst_panqro",
-          nombre: "PAN Querétaro",
-          cargos: [
-            {
-              label: "Presidente estatal",
-              persona: "Agustín Dorantes Lámbarri",
-              nivel: "partidista",
-              inicio: "2022-12-01",
-              fin: "2024-03-10",
-            }
-          ],
-        }
-      ]
-    };
-
-    // ===== Timeline config =====
-    const START_YEAR = 1997;
-    const END_YEAR = new Date().getFullYear();
-    const MONTH_PX = 18;            // ancho de un mes (ajusta a gusto)
-    const HEADER_H = 44;            // alto del header del grid (años)
-    const LANE_BAR_H = 28;
-    const LANE_GAP = 8;
-    const STACK_GAP = 6;
+    const START_YEAR_DEFAULT = 1997;
+    const END_YEAR_DEFAULT = new Date().getFullYear();
+    let currentStartYear = START_YEAR_DEFAULT;
+    let currentEndYear = END_YEAR_DEFAULT;
 
     const levelColor = {
-      federal:   "linear-gradient(135deg, rgba(122,162,255,.85), rgba(122,162,255,.55))",
-      estatal:   "linear-gradient(135deg, rgba(110,231,183,.85), rgba(110,231,183,.55))",
+      federal: "linear-gradient(135deg, rgba(122,162,255,.85), rgba(122,162,255,.55))",
+      estatal: "linear-gradient(135deg, rgba(110,231,183,.85), rgba(110,231,183,.55))",
       municipal: "linear-gradient(135deg, rgba(251,191,36,.85), rgba(251,191,36,.55))",
-      partidista:"linear-gradient(135deg, rgba(192,132,252,.85), rgba(192,132,252,.55))",
+      partidista: "linear-gradient(135deg, rgba(192,132,252,.85), rgba(192,132,252,.55))",
+      otro: "linear-gradient(135deg, rgba(148,163,184,.65), rgba(148,163,184,.35))",
     };
 
-    // ===== DOM =====
     const entityType = document.getElementById("entityType");
     const entitySelect = document.getElementById("entitySelect");
     const headline = document.getElementById("headline");
@@ -568,102 +138,110 @@
     const tooltip = document.getElementById("tooltip");
     document.getElementById("btnToday").addEventListener("click", scrollToToday);
 
-    function parseDate(s){
-      // s: YYYY-MM-DD
-      const [y,m,d] = s.split("-").map(Number);
-      return new Date(y, m-1, d || 1);
+    function parseDate(s) {
+      const [y, m, d] = s.split("-").map(Number);
+      return new Date(y, m - 1, d || 1);
     }
 
-    function monthIndex(d){
-      // months since START_YEAR-01
-      return (d.getFullYear() - START_YEAR) * 12 + d.getMonth();
-    }
-
-    function formatMY(s){
+    function formatMY(s) {
       const d = parseDate(s);
-      const months = ["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
+      const months = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
       return `${months[d.getMonth()]} ${d.getFullYear()}`;
     }
 
-    function totalMonths(){
-      return (END_YEAR - START_YEAR + 1) * 12;
+    function getTimelineBounds(items) {
+      let startYear = START_YEAR_DEFAULT;
+      let endYear = END_YEAR_DEFAULT;
+      if (!items.length) {
+        return { startYear, endYear };
+      }
+      let minYear = endYear;
+      let maxYear = startYear;
+      items.forEach((it) => {
+        const start = parseDate(it.inicio).getFullYear();
+        const end = parseDate(it.fin).getFullYear();
+        minYear = Math.min(minYear, start);
+        maxYear = Math.max(maxYear, end);
+      });
+      startYear = Math.min(startYear, minYear);
+      endYear = Math.max(endYear, maxYear);
+      return { startYear, endYear };
     }
 
-    function setCanvasWidth(){
-      const w = totalMonths() * MONTH_PX + 20; // padding
-      canvas.style.width = w + "px";
+    function monthIndex(d, startYear) {
+      return (d.getFullYear() - startYear) * 12 + d.getMonth();
     }
 
-    function buildGrid(){
+    function totalMonths(startYear, endYear) {
+      return (endYear - startYear + 1) * 12;
+    }
+
+    function getMonthWidth() {
+      const styles = getComputedStyle(canvas);
+      const value = parseFloat(styles.getPropertyValue("--month-width"));
+      return Number.isFinite(value) ? value : 18;
+    }
+
+    function setCanvasWidth(startYear, endYear) {
+      const w = totalMonths(startYear, endYear) * getMonthWidth() + 20;
+      canvas.style.width = `${w}px`;
+    }
+
+    function buildGrid(startYear, endYear) {
       grid.innerHTML = "";
-      setCanvasWidth();
+      setCanvasWidth(startYear, endYear);
 
-      // Year header (visual)
       const yearRow = document.createElement("div");
-      yearRow.className = "year-row";
-      yearRow.style.left = "0";
-      yearRow.style.right = "0";
-      yearRow.style.position = "absolute";
-      yearRow.style.top = "0";
-      yearRow.innerHTML = `<span>${START_YEAR} → ${END_YEAR}</span>`;
+      yearRow.className = "timeline-year-row";
+      yearRow.innerHTML = `<span>${startYear} → ${endYear}</span>`;
       grid.appendChild(yearRow);
 
-      // Month lines + year lines
-      const months = totalMonths();
-      for(let i=0;i<=months;i++){
-        const x = 10 + i * MONTH_PX;
-        const isYear = (i % 12 === 0);
+      const months = totalMonths(startYear, endYear);
+      const monthPx = getMonthWidth();
+      for (let i = 0; i <= months; i++) {
+        const x = 10 + i * monthPx;
+        const isYear = i % 12 === 0;
 
         const line = document.createElement("div");
-        line.className = isYear ? "year-line" : "month-line";
-        line.style.left = x + "px";
+        line.className = isYear ? "timeline-year-line" : "timeline-month-line";
+        line.style.left = `${x}px`;
         grid.appendChild(line);
       }
 
-      // Add year labels at each year boundary (small)
-      // (minimal, to avoid clutter; still readable)
-      for(let y=START_YEAR; y<=END_YEAR; y++){
-        const i = (y - START_YEAR) * 12;
-        const x = 10 + i * MONTH_PX;
+      for (let y = startYear; y <= endYear; y++) {
+        const i = (y - startYear) * 12;
+        const x = 10 + i * monthPx;
         const lab = document.createElement("div");
-        lab.style.position = "absolute";
-        lab.style.top = "10px";
-        lab.style.left = (x + 6) + "px";
-        lab.style.fontSize = "11px";
-        lab.style.color = "rgba(155,176,211,.85)";
-        lab.style.fontWeight = "600";
-        lab.style.pointerEvents = "none";
+        lab.className = "timeline-year-label";
+        lab.style.left = `${x + 6}px`;
         lab.textContent = String(y);
         grid.appendChild(lab);
       }
     }
 
-    // ===== stacking algorithm for overlaps =====
-    // Input items: {inicio, fin, ...} (strings)
-    // Output: items with rowIndex
-    function stackOverlaps(items){
-      // Convert to segments by month range
-      const segs = items.map(it => {
-        const s = parseDate(it.inicio);
-        const e = parseDate(it.fin);
-        // inclusive end month: ensure at least 1 month width
-        const start = monthIndex(s);
-        const end = monthIndex(e);
-        return { ...it, _start:start, _end:end };
-      }).sort((a,b)=>a._start-b._start || a._end-b._end);
+    function stackOverlaps(items, startYear) {
+      const segs = items
+        .map((it) => {
+          const s = parseDate(it.inicio);
+          const e = parseDate(it.fin);
+          const start = monthIndex(s, startYear);
+          const end = monthIndex(e, startYear);
+          return { ...it, _start: start, _end: end };
+        })
+        .sort((a, b) => a._start - b._start || a._end - b._end);
 
-      const rowsEnd = []; // last end month per row
-      for(const it of segs){
+      const rowsEnd = [];
+      for (const it of segs) {
         let placed = false;
-        for(let r=0;r<rowsEnd.length;r++){
-          if(it._start > rowsEnd[r]){ // no overlap
+        for (let r = 0; r < rowsEnd.length; r++) {
+          if (it._start > rowsEnd[r]) {
             it._row = r;
             rowsEnd[r] = it._end;
             placed = true;
             break;
           }
         }
-        if(!placed){
+        if (!placed) {
           it._row = rowsEnd.length;
           rowsEnd.push(it._end);
         }
@@ -671,78 +249,72 @@
       return { segs, rowCount: rowsEnd.length };
     }
 
-    function clearTimeline(){
+    function clearTimeline() {
       rows.innerHTML = "";
       tooltip.classList.remove("show");
-      tooltip.setAttribute("aria-hidden","true");
+      tooltip.setAttribute("aria-hidden", "true");
     }
 
-    function renderLane(title, subtitle, items, mode){
-      // mode: "persona" or "institucion" only affects label composition
+    function renderEmpty(message) {
+      const empty = document.createElement("div");
+      empty.className = "timeline-empty";
+      empty.innerHTML = `<strong>Sin datos</strong><span>${message}</span>`;
+      rows.appendChild(empty);
+    }
+
+    function renderLane(title, subtitle, items, mode, startYear) {
       const lane = document.createElement("div");
-      lane.className = "lane";
+      lane.className = "timeline-lane";
 
       const laneTitle = document.createElement("div");
-      laneTitle.className = "lane-title";
+      laneTitle.className = "timeline-lane-title";
       laneTitle.innerHTML = `<strong>${title}</strong><small>${subtitle}</small>`;
       lane.appendChild(laneTitle);
 
       const barsWrap = document.createElement("div");
-      barsWrap.className = "bars";
+      barsWrap.className = "timeline-bars";
       lane.appendChild(barsWrap);
 
-      const { segs, rowCount } = stackOverlaps(items);
-      const neededH = Math.max(70, rowCount * (LANE_BAR_H + STACK_GAP) + 10);
-      barsWrap.style.minHeight = neededH + "px";
+      const { segs, rowCount } = stackOverlaps(items, startYear);
+      barsWrap.style.setProperty("--bar-rows", rowCount || 1);
 
-      for(const it of segs){
-        const startX = 10 + it._start * MONTH_PX;
-        const endX = 10 + (it._end + 1) * MONTH_PX; // +1 to include end month
-        const w = Math.max(MONTH_PX, endX - startX - 2);
-
-        const y = 6 + it._row * (LANE_BAR_H + STACK_GAP);
+      const monthPx = getMonthWidth();
+      for (const it of segs) {
+        const startX = 10 + it._start * monthPx;
+        const endX = 10 + (it._end + 1) * monthPx;
+        const w = Math.max(monthPx, endX - startX - 2);
 
         const bar = document.createElement("div");
-        bar.className = "bar";
-        bar.style.left = startX + "px";
-        bar.style.top = y + "px";
-        bar.style.width = w + "px";
-        bar.style.background = levelColor[it.nivel] || "rgba(122,162,255,.25)";
+        bar.className = "timeline-bar";
+        bar.style.left = `${startX}px`;
+        bar.style.width = `${w}px`;
+        bar.style.background = levelColor[it.nivel] || levelColor.otro;
+        bar.style.setProperty("--row-index", it._row);
 
-        const main = (mode==="persona")
-          ? `${it.label}`
-          : `${it.persona}`;
-
-        const sub = (mode==="persona")
-          ? `${it.institucion}`
-          : `${it.label} · ${it.persona}`;
+        const main = mode === "persona" ? `${it.label}` : `${it.persona}`;
+        const sub = mode === "persona" ? `${it.institucion}` : `${it.label} · ${it.persona}`;
 
         bar.innerHTML = `
-          <span class="tag">${it.nivel}</span>
-          <div class="txt">
+          <span class="bar-tag">${it.nivel}</span>
+          <div class="bar-text">
             <b title="${main}">${main}</b>
             <span title="${sub}">${sub}</span>
           </div>
         `;
 
-        // Tooltip interactions
-        const tooltipTitle = (mode==="persona")
-          ? `${it.label}`
-          : `${it.persona}`;
+        const tooltipTitle = mode === "persona" ? `${it.label}` : `${it.persona}`;
+        const tooltipSub = mode === "persona" ? `${it.institucion}` : `${it.label}`;
+        const temas = Array.isArray(it.temas) ? it.temas : [];
 
-        const tooltipSub = (mode==="persona")
-          ? `${it.institucion}`
-          : `${it.label}`;
-
-        bar.addEventListener("mouseenter", (ev)=>showTip(ev, tooltipTitle, tooltipSub, it.nivel, it.inicio, it.fin));
-        bar.addEventListener("mousemove", (ev)=>moveTip(ev));
+        bar.addEventListener("mouseenter", (ev) =>
+          showTip(ev, tooltipTitle, tooltipSub, it.nivel, it.inicio, it.fin, temas)
+        );
+        bar.addEventListener("mousemove", (ev) => moveTip(ev));
         bar.addEventListener("mouseleave", hideTip);
 
-        // Touch support
-        bar.addEventListener("click", (ev)=>{
-          showTip(ev, tooltipTitle, tooltipSub, it.nivel, it.inicio, it.fin);
-          // auto-hide after a moment on mobile-ish
-          if(window.matchMedia("(max-width: 720px)").matches){
+        bar.addEventListener("click", (ev) => {
+          showTip(ev, tooltipTitle, tooltipSub, it.nivel, it.inicio, it.fin, temas);
+          if (window.matchMedia("(max-width: 720px)").matches) {
             setTimeout(hideTip, 1800);
           }
         });
@@ -753,96 +325,140 @@
       rows.appendChild(lane);
     }
 
-    function showTip(ev, title, sub, nivel, inicio, fin){
+    function showTip(ev, title, sub, nivel, inicio, fin, temas) {
+      const topicsHtml = (temas && temas.length)
+        ? `
+          <div class="tooltip-topics">
+            <div class="tooltip-topics-title">Temas</div>
+            <div class="tooltip-meta">
+              ${temas.map((tema) => `<span class="tooltip-pill">${escapeHtml(tema)}</span>`).join("")}
+            </div>
+          </div>
+        `
+        : `
+          <div class="tooltip-topics">
+            <div class="tooltip-topics-title">Temas</div>
+            <div class="tooltip-empty">Sin temas vinculados</div>
+          </div>
+        `;
+
       tooltip.innerHTML = `
-        <div class="t1">${escapeHtml(title)}</div>
-        <div class="t2">${escapeHtml(sub)}</div>
-        <div class="t3">
-          <span class="pill">${escapeHtml(nivel)}</span>
-          <span class="pill">${formatMY(inicio)} – ${formatMY(fin)}</span>
+        <div class="tooltip-title">${escapeHtml(title)}</div>
+        <div class="tooltip-subtitle">${escapeHtml(sub)}</div>
+        <div class="tooltip-meta">
+          <span class="tooltip-pill">${escapeHtml(nivel)}</span>
+          <span class="tooltip-pill">${formatMY(inicio)} – ${formatMY(fin)}</span>
         </div>
+        ${topicsHtml}
       `;
       tooltip.classList.add("show");
-      tooltip.setAttribute("aria-hidden","false");
+      tooltip.setAttribute("aria-hidden", "false");
       moveTip(ev);
     }
-    function moveTip(ev){
-      const x = ev.clientX + 12;
-      const y = ev.clientY + 12;
-      tooltip.style.left = x + "px";
-      tooltip.style.top = y + "px";
-    }
-    function hideTip(){
-      tooltip.classList.remove("show");
-      tooltip.setAttribute("aria-hidden","true");
+
+    function moveTip(ev) {
+      tooltip.style.left = `${ev.clientX + 12}px`;
+      tooltip.style.top = `${ev.clientY + 12}px`;
     }
 
-    function escapeHtml(s){
-      return String(s).replace(/[&<>"']/g, (c)=>(
-        {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]
+    function hideTip() {
+      tooltip.classList.remove("show");
+      tooltip.setAttribute("aria-hidden", "true");
+    }
+
+    function escapeHtml(s) {
+      return String(s).replace(/[&<>"']/g, (c) => (
+        { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" }[c]
       ));
     }
 
-    function renderTimeline(){
+    function renderTimeline() {
       clearTimeline();
-      buildGrid();
 
       const type = entityType.value;
       const id = entitySelect.value;
+      const list = type === "persona" ? PERSONAS : INSTITUCIONES;
+      const selected = list.find((item) => String(item.id) === String(id));
 
-      if(type === "persona"){
-        const p = DATA.personas.find(x=>x.id===id);
-        headline.textContent = `Timeline · ${p.nombre}`;
-        subhead.textContent = `Cargos ocupados (apilado cuando hay empalmes)`;
-
-        renderLane("Cargos", "Barras = periodos de cargos · meses visibles", p.cargos, "persona");
-
-      } else {
-        const inst = DATA.instituciones.find(x=>x.id===id);
-        headline.textContent = `Timeline · ${inst.nombre}`;
-        subhead.textContent = `Personas y cargos por periodo dentro de la institución`;
-
-        renderLane("Ocupación de cargos", "Barras = personas en el tiempo · apilado si se empalman", inst.cargos, "institucion");
+      if (!selected) {
+        headline.textContent = "Timeline";
+        subhead.textContent = "Selecciona una entidad para ver cargos por periodo";
+        renderEmpty("Selecciona una entidad para visualizar sus periodos.");
+        currentStartYear = START_YEAR_DEFAULT;
+        currentEndYear = END_YEAR_DEFAULT;
+        buildGrid(currentStartYear, currentEndYear);
+        return;
       }
 
-      // Start view roughly around the first meaningful area (optional)
-      scrollNearYear(2010);
+      if (type === "persona") {
+        headline.textContent = `Timeline · ${selected.nombre}`;
+        subhead.textContent = "Cargos ocupados (apilado cuando hay empalmes)";
+      } else {
+        headline.textContent = `Timeline · ${selected.nombre}`;
+        subhead.textContent = "Personas y cargos por periodo dentro de la institución";
+      }
+
+      const items = selected.cargos || [];
+      const { startYear, endYear } = getTimelineBounds(items);
+      currentStartYear = startYear;
+      currentEndYear = endYear;
+      buildGrid(currentStartYear, currentEndYear);
+
+      if (!items.length) {
+        renderEmpty("Esta entidad todavía no tiene cargos con fechas completas.");
+        return;
+      }
+
+      if (type === "persona") {
+        renderLane("Cargos", "Barras = periodos de cargos · meses visibles", items, "persona", startYear);
+      } else {
+        renderLane("Ocupación de cargos", "Barras = personas en el tiempo · apilado si se empalman", items, "institucion", startYear);
+      }
+
+      scrollNearYear(currentStartYear + 10, currentStartYear);
     }
 
-    function scrollNearYear(year){
-      const idx = (year - START_YEAR) * 12;
-      const x = Math.max(0, idx * MONTH_PX - 200);
+    function scrollNearYear(year, startYear) {
+      const idx = (year - startYear) * 12;
+      const x = Math.max(0, idx * getMonthWidth() - 200);
       scroller.scrollLeft = x;
     }
 
-    function scrollToToday(){
+    function scrollToToday() {
       const now = new Date();
-      const idx = monthIndex(now);
-      const x = Math.max(0, idx * MONTH_PX - 260);
+      const idx = monthIndex(now, currentStartYear);
+      const x = Math.max(0, idx * getMonthWidth() - 260);
       scroller.scrollLeft = x;
     }
 
-    function populateEntities(){
+    function populateEntities() {
       const type = entityType.value;
       entitySelect.innerHTML = "";
 
-      const list = (type==="persona") ? DATA.personas : DATA.instituciones;
-      for(const it of list){
+      const list = type === "persona" ? PERSONAS : INSTITUCIONES;
+      const sorted = [...list].sort((a, b) => a.nombre.localeCompare(b.nombre));
+      sorted.forEach((item) => {
         const opt = document.createElement("option");
-        opt.value = it.id;
-        opt.textContent = it.nombre;
+        opt.value = item.id;
+        opt.textContent = item.nombre;
+        entitySelect.appendChild(opt);
+      });
+
+      if (!sorted.length) {
+        const opt = document.createElement("option");
+        opt.value = "";
+        opt.textContent = "Sin resultados";
         entitySelect.appendChild(opt);
       }
     }
 
-    entityType.addEventListener("change", ()=>{
+    entityType.addEventListener("change", () => {
       populateEntities();
       renderTimeline();
     });
 
     entitySelect.addEventListener("change", renderTimeline);
 
-    // Init
     populateEntities();
     renderTimeline();
   </script>
