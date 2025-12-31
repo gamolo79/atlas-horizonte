@@ -52,6 +52,9 @@ def atlas_timelines(request):
     import json
     from django.core.serializers.json import DjangoJSONEncoder
 
+    personas = Persona.objects.all().order_by("nombre_completo")
+    instituciones = Institucion.objects.all().order_by("nombre")
+
     # Helper functions for the view
     def infer_level(cargo):
         if not cargo.institucion_id:
