@@ -208,20 +208,26 @@ def _create_relaciones_laborales(cargo):
     if not cargo.periodo_id or not cargo.institucion_id or not cargo.persona_id:
         return
 
-    parent_institucion = cargo.institucion.padre
+    try:
+        institucion = cargo.institucion
+        periodo = cargo.periodo
+    except (Institucion.DoesNotExist, PeriodoAdministrativo.DoesNotExist):
+        return
+
+    parent_institucion = institucion.padre
     if parent_institucion:
         parent_cargos = Cargo.objects.filter(
             institucion=parent_institucion,
-            periodo=cargo.periodo,
+            periodo=periodo,
         ).select_related("persona", "institucion")
         child_cargos = [cargo]
-        _build_relaciones_laborales(parent_cargos, child_cargos, cargo.periodo)
+        _build_relaciones_laborales(parent_cargos, child_cargos, periodo)
 
     child_cargos = Cargo.objects.filter(
-        institucion__padre=cargo.institucion,
-        periodo=cargo.periodo,
+        institucion__padre=institucion,
+        periodo=periodo,
     ).select_related("persona", "institucion")
-    _build_relaciones_laborales([cargo], child_cargos, cargo.periodo)
+    _build_relaciones_laborales([cargo], child_cargos, periodo)
 
 
 def _build_relaciones_laborales(parent_cargos, child_cargos, periodo):
