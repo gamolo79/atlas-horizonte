@@ -44,6 +44,7 @@ def atlas_timelines(request):
     entity_type = request.GET.get("tipo", "persona")
     entity_id = request.GET.get("entidad_id", "").strip()
     include_children = request.GET.get("incluir_hijas") == "1"
+    current_date = date.today()
 
     personas = Persona.objects.all().order_by("nombre_completo")
     instituciones = Institucion.objects.all().order_by("nombre")
