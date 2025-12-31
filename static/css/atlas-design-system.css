@@ -637,6 +637,25 @@ header {
   color: rgba(232, 238, 252, 0.92);
 }
 
+.tooltip-topics {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.tooltip-topics-title {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #9bb0d3;
+}
+
+.tooltip-empty {
+  font-size: 12px;
+  color: #9bb0d3;
+}
+
 .timeline-scroller::-webkit-scrollbar {
   height: 10px;
   width: 10px;
