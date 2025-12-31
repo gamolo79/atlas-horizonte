@@ -1,0 +1,201 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Atlas · Timelines</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/atlas-design-system.css' %}">
+</head>
+<body>
+  <div class="page">
+    <header>
+      <div class="header-inner">
+        <div class="header-row">
+          <a class="brand" href="{% url 'atlas-home' %}">
+            <img src="{% static 'img/logo-horizonte-atlas.png' %}" alt="Atlas" class="brand-logo">
+            <div class="brand-texts">
+              <div class="brand-text-main">Atlas · Timelines</div>
+              <div class="brand-text-sub">Trayectorias temporales</div>
+            </div>
+          </a>
+        </div>
+        <div class="header-row header-row-nav">
+          <nav class="chips-row" aria-label="Navegación de Atlas">
+            <a class="chip-link" href="{% url 'atlas-home' %}">Home</a>
+            <a class="chip-link" href="{% url 'atlas-personas-list' %}">Personas</a>
+            <a class="chip-link" href="{% url 'atlas-instituciones-list' %}">Instituciones</a>
+            <a class="chip-link" href="{% url 'atlas-topics-list' %}">Temas</a>
+          </nav>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <div class="main-inner">
+        <section class="panel timeline-panel">
+          <div>
+            <div class="panel-title">Timelines</div>
+            <div class="panel-desc">Selecciona una persona o institución para visualizar la línea de tiempo desde 1997.</div>
+          </div>
+
+          <form id="timeline-form" class="timeline-filters" method="get">
+            <div class="timeline-field">
+              <label class="field-label" for="entity-type">Tipo de entidad</label>
+              <select id="entity-type" name="tipo" class="search-input">
+                <option value="persona" {% if entity_type == "persona" %}selected{% endif %}>Persona</option>
+                <option value="institucion" {% if entity_type == "institucion" %}selected{% endif %}>Institución</option>
+              </select>
+            </div>
+            <div class="timeline-field">
+              <label class="field-label" for="entity-input">Entidad</label>
+              <input
+                id="entity-input"
+                class="search-input"
+                type="text"
+                placeholder="Escribe para buscar"
+                value="{% if selected_entity %}{% if entity_type == 'persona' %}{{ selected_entity.nombre_completo }}{% else %}{{ selected_entity.nombre }}{% endif %}{% endif %}"
+                list="{% if entity_type == 'persona' %}persona-options{% else %}institucion-options{% endif %}"
+                autocomplete="off"
+              />
+              <datalist id="persona-options">
+                {% for persona in personas %}
+                  <option value="{{ persona.nombre_completo }}" data-id="{{ persona.id }}"></option>
+                {% endfor %}
+              </datalist>
+              <datalist id="institucion-options">
+                {% for institucion in instituciones %}
+                  <option value="{{ institucion.nombre }}" data-id="{{ institucion.id }}"></option>
+                {% endfor %}
+              </datalist>
+              <input type="hidden" id="entity-id" name="entidad_id" value="{{ entity_id }}">
+            </div>
+            {% if entity_type == "institucion" %}
+              <label class="timeline-toggle">
+                <input type="checkbox" name="incluir_hijas" value="1" {% if include_children %}checked{% endif %}>
+                Incluir instituciones hijas
+              </label>
+            {% endif %}
+            <button class="btn btn-primary" type="submit">Ver timeline</button>
+          </form>
+        </section>
+
+        {% if selected_entity %}
+          <section class="panel timeline-panel">
+            <div class="timeline-header">
+              <div>
+                <div class="panel-title">
+                  {% if entity_type == "persona" %}
+                    {{ selected_entity.nombre_completo }}
+                  {% else %}
+                    {{ selected_entity.nombre }}
+                  {% endif %}
+                </div>
+                <div class="panel-desc">Línea de tiempo de cargos registrados.</div>
+              </div>
+              <div class="timeline-legend">
+                <span class="legend-item"><span class="legend-dot"></span> Cargo</span>
+                {% if entity_type == "institucion" and include_children %}
+                  <span class="legend-item"><span class="legend-dot is-child"></span> Institución hija</span>
+                {% endif %}
+              </div>
+            </div>
+            {% if timeline_rows %}
+              <div class="timeline-scroll">
+                <div class="timeline-scale" style="--month-width: 26px; width: calc(var(--month-width) * {{ total_months }});">
+                  {% for year in years %}
+                    <div class="timeline-year" style="left: calc(var(--month-width) * {{ forloop.counter0 }} * 12); width: calc(var(--month-width) * 12);">
+                      <span>{{ year }}</span>
+                    </div>
+                  {% endfor %}
+                </div>
+                <div class="timeline-rows" style="--month-width: 26px; width: calc(var(--month-width) * {{ total_months }});">
+                  {% for row in timeline_rows %}
+                    <div class="timeline-row">
+                      {% for item in row %}
+                        <button
+                          type="button"
+                          class="timeline-bar{% if item.is_child %} is-child{% endif %}"
+                          style="left: calc(var(--month-width) * {{ item.start }}); width: calc(var(--month-width) * {{ item.span }}); background-color: {{ item.color }};"
+                          title="{{ item.tooltip }}"
+                        >
+                          <span class="timeline-bar-title">{{ item.label }}</span>
+                          <span class="timeline-bar-subtitle">{{ item.sub_label }}</span>
+                        </button>
+                      {% endfor %}
+                    </div>
+                  {% endfor %}
+                </div>
+              </div>
+            {% else %}
+              <div class="card">
+                <div class="card-title">Sin cargos con fechas suficientes</div>
+                <div class="card-desc">Verifica que la entidad tenga cargos con fecha de inicio y fin registrados.</div>
+              </div>
+            {% endif %}
+          </section>
+        {% else %}
+          <section class="panel">
+            <div class="card">
+              <div class="card-title">Selecciona una entidad</div>
+              <div class="card-desc">Usa el selector superior para generar la línea de tiempo.</div>
+            </div>
+          </section>
+        {% endif %}
+      </div>
+    </main>
+
+    <footer>
+      Horizonte Digital · Atlas · <a href="{% url 'privacy-notice' %}">Aviso de privacidad</a> · <a href="{% url 'terms-conditions' %}">Términos y condiciones</a>
+    </footer>
+  </div>
+
+  <script>
+    const form = document.getElementById("timeline-form");
+    const entityInput = document.getElementById("entity-input");
+    const entityIdInput = document.getElementById("entity-id");
+    const entityType = document.getElementById("entity-type");
+    const childToggle = form.querySelector("input[name='incluir_hijas']");
+
+    const updateDatalist = () => {
+      const listId = entityType.value === "persona" ? "persona-options" : "institucion-options";
+      entityInput.setAttribute("list", listId);
+      entityIdInput.value = "";
+      entityInput.value = "";
+    };
+
+    const updateEntityId = () => {
+      const listId = entityInput.getAttribute("list");
+      const list = document.getElementById(listId);
+      const option = Array.from(list.options).find((item) => item.value === entityInput.value);
+      if (option) {
+        entityIdInput.value = option.dataset.id || "";
+        form.submit();
+      }
+    };
+
+    entityType.addEventListener("change", updateDatalist);
+    entityInput.addEventListener("input", () => {
+      entityIdInput.value = "";
+    });
+    entityInput.addEventListener("change", updateEntityId);
+    entityInput.addEventListener("blur", updateEntityId);
+
+    if (childToggle) {
+      childToggle.addEventListener("change", () => {
+        if (entityIdInput.value) {
+          form.submit();
+        }
+      });
+    }
+
+    document.querySelectorAll(".timeline-bar").forEach((bar) => {
+      bar.addEventListener("click", () => {
+        document.querySelectorAll(".timeline-bar").forEach((item) => item.classList.remove("is-active"));
+        bar.classList.add("is-active");
+      });
+    });
+  </script>
+</body>
+</html>
