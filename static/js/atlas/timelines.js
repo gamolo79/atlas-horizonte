@@ -366,7 +366,8 @@
       return;
     }
 
-    headline.textContent = `Timeline · ${selected.nombre}`;
+    const selectedName = selected.nombre || "Sin nombre";
+    headline.textContent = `Timeline · ${selectedName}`;
     if (type === "persona") {
       subhead.textContent = "Cargos ocupados (apilado cuando hay empalmes)";
     } else {
@@ -417,11 +418,19 @@
     entitySelect.innerHTML = "";
 
     const list = type === "persona" ? PERSONAS : INSTITUCIONES;
-    const sorted = [...list].sort((a, b) => a.nombre.localeCompare(b.nombre));
+    const sorted = [...list].sort((a, b) => (a.nombre || "").localeCompare(b.nombre || ""));
+
+    const placeholder = document.createElement("option");
+    placeholder.value = "";
+    placeholder.textContent = "Selecciona una opción";
+    placeholder.disabled = true;
+    placeholder.selected = true;
+    entitySelect.appendChild(placeholder);
+
     sorted.forEach((item) => {
       const opt = document.createElement("option");
       opt.value = item.id;
-      opt.textContent = item.nombre;
+      opt.textContent = item.nombre || "Sin nombre";
       entitySelect.appendChild(opt);
     });
 
