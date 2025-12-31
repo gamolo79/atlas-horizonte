@@ -36,30 +36,26 @@
     <main>
       <div class="main-inner">
         <div class="timeline-app">
-          <div class="timeline-topbar">
-            <div class="timeline-brand">
-              <div class="timeline-logo"></div>
-              <div>
-                <h1>Atlas · Timelines</h1>
-                <p>Explora periodos y cargos por actor</p>
-              </div>
+          <div class="panel timeline-header-card">
+            <div>
+              <div class="page-title">Atlas · Timelines</div>
+              <div class="page-subtitle">Explora periodos y cargos por actor.</div>
             </div>
-
-            <div class="timeline-filters">
-              <div class="timeline-field">
-                <label for="entityType">Entidad</label>
-                <select id="entityType">
+            <div class="search-bar timeline-controls">
+              <div class="timeline-control">
+                <label class="timeline-control-label" for="entityType">Entidad</label>
+                <select id="entityType" class="select-input">
                   <option value="persona">Persona</option>
                   <option value="institucion">Institución</option>
                 </select>
               </div>
 
-              <div class="timeline-field">
-                <label for="entitySelect">Selecciona</label>
-                <select id="entitySelect"></select>
+              <div class="timeline-control">
+                <label class="timeline-control-label" for="entitySelect">Selecciona</label>
+                <select id="entitySelect" class="select-input"></select>
               </div>
 
-              <button class="timeline-btn" id="btnToday">Ir a hoy</button>
+              <button class="btn btn-primary" id="btnToday">Ir a hoy</button>
             </div>
           </div>
 
@@ -94,6 +90,7 @@
                 Tip: pasa el mouse sobre una barra para ver el tooltip. En móvil, toca una barra.
               </div>
             </div>
+            <div class="timeline-tooltip" id="tooltip" role="tooltip" aria-hidden="true"></div>
           </div>
         </div>
       </div>
@@ -103,8 +100,6 @@
       Horizonte Digital · Atlas · <a href="{% url 'privacy-notice' %}">Aviso de privacidad</a> · <a href="{% url 'terms-conditions' %}">Términos y condiciones</a>
     </footer>
   </div>
-
-  <div class="timeline-tooltip" id="tooltip" role="tooltip" aria-hidden="true"></div>
 
   {{ timeline_data|json_script:"timeline-data" }}
 
@@ -136,6 +131,7 @@
     const canvas = document.getElementById("canvas");
     const scroller = document.getElementById("scroller");
     const tooltip = document.getElementById("tooltip");
+    const timelinePanel = document.querySelector(".timeline-panel");
     document.getElementById("btnToday").addEventListener("click", scrollToToday);
 
     function parseDate(s) {
@@ -357,8 +353,28 @@
     }
 
     function moveTip(ev) {
-      tooltip.style.left = `${ev.clientX + 12}px`;
-      tooltip.style.top = `${ev.clientY + 12}px`;
+      if (!timelinePanel) {
+        tooltip.style.left = `${ev.clientX + 12}px`;
+        tooltip.style.top = `${ev.clientY + 12}px`;
+        return;
+      }
+      const rect = timelinePanel.getBoundingClientRect();
+      const padding = 12;
+      const tooltipRect = tooltip.getBoundingClientRect();
+      let x = ev.clientX - rect.left + padding;
+      let y = ev.clientY - rect.top + padding;
+
+      if (x + tooltipRect.width + padding > rect.width) {
+        x = rect.width - tooltipRect.width - padding;
+      }
+      if (y + tooltipRect.height + padding > rect.height) {
+        y = rect.height - tooltipRect.height - padding;
+      }
+      if (x < padding) x = padding;
+      if (y < padding) y = padding;
+
+      tooltip.style.left = `${x}px`;
+      tooltip.style.top = `${y}px`;
     }
 
     function hideTip() {
