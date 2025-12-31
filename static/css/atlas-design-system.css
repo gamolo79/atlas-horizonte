@@ -210,8 +210,11 @@ header {
 }
 
 .timeline-controls {
-  width: 100%;
-  justify-content: space-between;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: flex-end;
+  justify-content: flex-end;
 }
 
 .timeline-control {
@@ -236,13 +239,14 @@ header {
   gap: 12px;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
   padding: 14px 16px;
   border: 1px solid rgba(255, 255, 255, 0.07);
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02));
   border-radius: 18px;
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.35);
   position: sticky;
-  top: 10px;
+  top: 84px;
   z-index: 10;
   backdrop-filter: blur(10px);
   width: 100%;
@@ -561,7 +565,7 @@ header {
   align-items: center;
   padding: 0 10px;
   gap: 10px;
-  cursor: default;
+  cursor: pointer;
   overflow: hidden;
   user-select: none;
   color: #e8eefc;
@@ -570,6 +574,11 @@ header {
 .timeline-bar:hover {
   filter: brightness(1.05);
   transform: translateY(-1px);
+}
+
+.timeline-bar:focus {
+  outline: 2px solid rgba(122, 162, 255, 0.7);
+  outline-offset: 2px;
 }
 
 .timeline-bar .bar-tag {
@@ -626,8 +635,8 @@ header {
 }
 
 .timeline-tooltip {
-  position: fixed;
-  z-index: 9999;
+  position: absolute;
+  z-index: 20;
   pointer-events: none;
   background: rgba(15, 26, 46, 0.96);
   border: 1px solid rgba(255, 255, 255, 0.12);
@@ -636,6 +645,8 @@ header {
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.35);
   min-width: 220px;
   max-width: 280px;
+  left: 0;
+  top: 0;
   opacity: 0;
   transform: translateY(6px);
   transition: opacity 0.12s ease, transform 0.12s ease;
