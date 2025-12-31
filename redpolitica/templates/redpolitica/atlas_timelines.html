@@ -90,9 +90,9 @@
                 Tip: pasa el mouse sobre una barra para ver el tooltip. En móvil, toca una barra.
               </div>
             </div>
-            <div class="timeline-tooltip" id="tooltip" role="tooltip" aria-hidden="true"></div>
           </div>
         </div>
+        <div class="timeline-tooltip" id="tooltip" role="tooltip" aria-hidden="true"></div>
       </div>
     </main>
 
@@ -131,7 +131,6 @@
     const canvas = document.getElementById("canvas");
     const scroller = document.getElementById("scroller");
     const tooltip = document.getElementById("tooltip");
-    const timelinePanel = document.querySelector(".timeline-panel");
     document.getElementById("btnToday").addEventListener("click", scrollToToday);
 
     function parseDate(s) {
@@ -353,23 +352,15 @@
     }
 
     function moveTip(ev) {
-      if (!timelinePanel) {
-        tooltip.style.left = `${ev.clientX + 12}px`;
-        tooltip.style.top = `${ev.clientY + 12}px`;
-        return;
-      }
-      const rect = timelinePanel.getBoundingClientRect();
       const padding = 12;
       const tooltipRect = tooltip.getBoundingClientRect();
-      let x = ev.clientX - rect.left + padding;
-      let y = ev.clientY - rect.top + padding;
+      let x = ev.clientX + padding;
+      let y = ev.clientY + padding;
+      const maxX = window.innerWidth - tooltipRect.width - padding;
+      const maxY = window.innerHeight - tooltipRect.height - padding;
 
-      if (x + tooltipRect.width + padding > rect.width) {
-        x = rect.width - tooltipRect.width - padding;
-      }
-      if (y + tooltipRect.height + padding > rect.height) {
-        y = rect.height - tooltipRect.height - padding;
-      }
+      if (x > maxX) x = maxX;
+      if (y > maxY) y = maxY;
       if (x < padding) x = padding;
       if (y < padding) y = padding;
 
