@@ -352,6 +352,9 @@
     clearTimeline();
 
     const type = entityType.value;
+    if (entitySelect.dataset.entityType !== type) {
+      populateEntities(type);
+    }
     const id = entitySelect.value;
     const list = type === "persona" ? PERSONAS : INSTITUCIONES;
     const selected = list.find((item) => String(item.id) === String(id));
@@ -413,9 +416,9 @@
     scroller.scrollLeft = x;
   }
 
-  function populateEntities() {
-    const type = entityType.value;
+  function populateEntities(type = entityType.value) {
     entitySelect.innerHTML = "";
+    entitySelect.dataset.entityType = type;
 
     const list = type === "persona" ? PERSONAS : INSTITUCIONES;
     const sorted = [...list].sort((a, b) => (a.nombre || "").localeCompare(b.nombre || ""));
@@ -440,10 +443,12 @@
       opt.textContent = "Sin resultados";
       entitySelect.appendChild(opt);
     }
+
+    entitySelect.disabled = !sorted.length;
   }
 
   entityType.addEventListener("change", () => {
-    populateEntities();
+    populateEntities(entityType.value);
     renderTimeline();
   });
 
