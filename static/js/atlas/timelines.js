@@ -1,10 +1,17 @@
-(() => {
+document.addEventListener("DOMContentLoaded", () => {
   const dataScript = document.getElementById("timeline-data");
   if (!dataScript) {
+    console.error("Atlas Timelines: #timeline-data script not found.");
     return;
   }
 
-  const DATA = JSON.parse(dataScript.textContent || "{}") || {};
+  let DATA = {};
+  try {
+    DATA = JSON.parse(dataScript.textContent || "{}");
+  } catch (e) {
+    console.error("Atlas Timelines: Failed to parse JSON data", e);
+  }
+
   const PERSONAS = Array.isArray(DATA.personas) ? DATA.personas : [];
   const INSTITUCIONES = Array.isArray(DATA.instituciones) ? DATA.instituciones : [];
 
@@ -33,11 +40,17 @@
   const panel = document.getElementById("timelinePanel");
   const todayButton = document.getElementById("btnToday");
 
-  if (!entityType || !entitySelect || !headline || !grid || !rows || !canvas || !scroller || !tooltip || !panel) {
-    return;
+  const requiredElements = { entityType, entitySelect, headline, grid, rows, canvas, scroller, tooltip, panel };
+  for (const [name, el] of Object.entries(requiredElements)) {
+    if (!el) {
+      console.error(`Atlas Timelines: Missing required element #${name}`);
+      return;
+    }
   }
 
-  todayButton?.addEventListener("click", scrollToToday);
+  if (todayButton) {
+    todayButton.addEventListener("click", scrollToToday);
+  }
 
   const MONTH_PX = 18;
   const LANE_BAR_H = 28;
@@ -51,6 +64,7 @@
   }
 
   function parseDate(s) {
+    if (!s) return new Date();
     const [y, m, d] = s.split("-").map(Number);
     return new Date(y, m - 1, d || 1);
   }
@@ -244,11 +258,12 @@
       bar.addEventListener("blur", hideTip);
       bar.addEventListener("click", (event) => {
         event.preventDefault();
+        // Toggle tooltip on click
         if (activeBar === bar && tooltip.classList.contains("show")) {
           hideTip();
-          return;
+        } else {
+          handleShow();
         }
-        handleShow();
       });
       bar.addEventListener("keydown", (event) => {
         if (event.key === "Enter" || event.key === " ") {
@@ -338,8 +353,11 @@
     activeBar = bar;
     tooltip.innerHTML = buildTooltipContent(title, sub, nivel, inicio, fin, temas);
     tooltip.classList.add("show");
-    tooltip.setAttribute("aria-hidden", "false");
+
+    // Position immediately to allow measurement
     scheduleTooltipPosition();
+
+    tooltip.setAttribute("aria-hidden", "false");
   }
 
   function hideTip() {
@@ -361,7 +379,7 @@
 
     if (!selected) {
       headline.textContent = "Timeline";
-      subhead.textContent = "Selecciona una entidad para ver cargos por periodo";
+      if (subhead) subhead.textContent = "Selecciona una entidad para ver cargos por periodo";
       renderEmpty("Selecciona una entidad para visualizar sus periodos.");
       currentStartYear = START_YEAR_DEFAULT;
       currentEndYear = END_YEAR_DEFAULT;
@@ -371,10 +389,13 @@
 
     const selectedName = selected.nombre || "Sin nombre";
     headline.textContent = `Timeline · ${selectedName}`;
-    if (type === "persona") {
-      subhead.textContent = "Cargos ocupados (apilado cuando hay empalmes)";
-    } else {
-      subhead.textContent = "Personas y cargos por periodo dentro de la institución";
+
+    if (subhead) {
+      if (type === "persona") {
+        subhead.textContent = "Cargos ocupados (apilado cuando hay empalmes)";
+      } else {
+        subhead.textContent = "Personas y cargos por periodo dentro de la institución";
+      }
     }
 
     const items = selected.cargos || [];
@@ -450,6 +471,8 @@
   entityType.addEventListener("change", () => {
     populateEntities(entityType.value);
     renderTimeline();
+    // Reset selection effectively
+    entitySelect.value = "";
   });
 
   entitySelect.addEventListener("change", renderTimeline);
@@ -473,6 +496,7 @@
     }
   });
 
+  // Initial render
   populateEntities();
   renderTimeline();
-})();
+});
