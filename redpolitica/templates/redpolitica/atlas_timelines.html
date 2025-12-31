@@ -104,6 +104,7 @@
             data-start-year="{{ start_year }}"
             data-end-year="{{ end_year }}"
             data-month-width="18"
+            data-initial-month="{{ initial_month|default_if_none:'' }}"
           >
             <div class="timeline-grid" id="timeline-grid"></div>
             <div class="timeline-rows" id="timeline-rows">
@@ -200,6 +201,9 @@
     const monthWidth = Number(canvas.dataset.monthWidth || "18");
     const startYear = Number(canvas.dataset.startYear);
     const endYear = Number(canvas.dataset.endYear);
+    const initialMonth = Number.isFinite(Number(canvas.dataset.initialMonth))
+      ? Number(canvas.dataset.initialMonth)
+      : null;
 
     const totalMonths = () => (endYear - startYear + 1) * 12;
 
@@ -247,6 +251,13 @@
       scroller.scrollLeft = Math.max(0, index * monthWidth - 260);
     };
 
+    const scrollToInitial = () => {
+      if (initialMonth === null) {
+        return;
+      }
+      scroller.scrollLeft = Math.max(0, initialMonth * monthWidth - 200);
+    };
+
     document.getElementById("btn-today").addEventListener("click", scrollToToday);
 
     const showTooltip = (event, bar) => {
@@ -290,7 +301,19 @@
       });
     });
 
+    scroller.addEventListener(
+      "wheel",
+      (event) => {
+        if (Math.abs(event.deltaY) > Math.abs(event.deltaX)) {
+          scroller.scrollLeft += event.deltaY;
+          event.preventDefault();
+        }
+      },
+      { passive: false }
+    );
+
     buildGrid();
+    scrollToInitial();
   </script>
 </body>
 </html>

@@ -195,6 +195,7 @@ def atlas_timelines(request):
             rows.append({"items": [item], "last_end": item["end"]})
 
     timeline_rows = [row["items"] for row in rows]
+    initial_month = timeline_items[0]["start"] if timeline_items else None
 
     context = {
         "personas": personas,
@@ -204,6 +205,7 @@ def atlas_timelines(request):
         "include_children": include_children,
         "selected_entity": selected_entity,
         "timeline_rows": timeline_rows,
+        "initial_month": initial_month,
         "start_year": start_year,
         "end_year": end_year,
         "total_months": total_months,
