@@ -66,10 +66,8 @@ def atlas_timelines(request):
         if not cargo.fecha_inicio:
             return None
         end = cargo.fecha_fin
-        if not end and cargo.es_actual:
-            end = today
         if not end:
-            return None
+            end = today
         return cargo.fecha_inicio, end
 
     today = timezone.now().date()

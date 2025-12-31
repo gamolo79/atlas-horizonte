@@ -202,6 +202,7 @@ header {
   display: flex;
   flex-direction: column;
   gap: 14px;
+  width: 100%;
 }
 
 .timeline-topbar {
@@ -218,6 +219,7 @@ header {
   top: 10px;
   z-index: 10;
   backdrop-filter: blur(10px);
+  width: 100%;
 }
 
 .timeline-brand {
@@ -321,6 +323,7 @@ header {
   border-radius: 18px;
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.35);
   overflow: hidden;
+  width: 100%;
 }
 
 .timeline-panel-header {
@@ -399,7 +402,8 @@ header {
 }
 
 .timeline-scroller {
-  overflow: auto;
+  overflow-x: auto;
+  overflow-y: hidden;
   padding: 10px 10px 14px;
   scroll-behavior: smooth;
 }

@@ -109,7 +109,10 @@
   {{ timeline_data|json_script:"timeline-data" }}
 
   <script>
-    const DATA = JSON.parse(document.getElementById("timeline-data").textContent);
+    const dataScript = document.getElementById("timeline-data");
+    const DATA = dataScript ? (JSON.parse(dataScript.textContent) || {}) : {};
+    const PERSONAS = Array.isArray(DATA.personas) ? DATA.personas : [];
+    const INSTITUCIONES = Array.isArray(DATA.instituciones) ? DATA.instituciones : [];
 
     const START_YEAR_DEFAULT = 1997;
     const END_YEAR_DEFAULT = new Date().getFullYear();
@@ -374,7 +377,7 @@
 
       const type = entityType.value;
       const id = entitySelect.value;
-      const list = type === "persona" ? DATA.personas : DATA.instituciones;
+      const list = type === "persona" ? PERSONAS : INSTITUCIONES;
       const selected = list.find((item) => String(item.id) === String(id));
 
       if (!selected) {
@@ -432,15 +435,16 @@
       const type = entityType.value;
       entitySelect.innerHTML = "";
 
-      const list = type === "persona" ? DATA.personas : DATA.instituciones;
-      list.forEach((item) => {
+      const list = type === "persona" ? PERSONAS : INSTITUCIONES;
+      const sorted = [...list].sort((a, b) => a.nombre.localeCompare(b.nombre));
+      sorted.forEach((item) => {
         const opt = document.createElement("option");
         opt.value = item.id;
         opt.textContent = item.nombre;
         entitySelect.appendChild(opt);
       });
 
-      if (!list.length) {
+      if (!sorted.length) {
         const opt = document.createElement("option");
         opt.value = "";
         opt.textContent = "Sin resultados";
