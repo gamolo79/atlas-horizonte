@@ -49,30 +49,10 @@ def atlas_timelines(request):
     instituciones = Institucion.objects.all().order_by("nombre")
 
     selected_entity = None
-    timeline_rows = []
-    timeline_items = []
+    import json
+    from django.core.serializers.json import DjangoJSONEncoder
 
-    start_year = 1997
-    current_date = date.today()
-    end_year = current_date.year
-    total_months = (end_year - start_year + 1) * 12
-
-    level_labels = {
-        "federal": "Federal",
-        "estatal": "Estatal",
-        "municipal": "Municipal",
-        "partidista": "Partidista",
-        "otro": "Otro",
-    }
-
-    level_gradients = {
-        "federal": "linear-gradient(135deg, rgba(122, 162, 255, 0.85), rgba(122, 162, 255, 0.55))",
-        "estatal": "linear-gradient(135deg, rgba(110, 231, 183, 0.85), rgba(110, 231, 183, 0.55))",
-        "municipal": "linear-gradient(135deg, rgba(251, 191, 36, 0.85), rgba(251, 191, 36, 0.55))",
-        "partidista": "linear-gradient(135deg, rgba(192, 132, 252, 0.85), rgba(192, 132, 252, 0.55))",
-        "otro": "linear-gradient(135deg, rgba(148, 163, 184, 0.7), rgba(148, 163, 184, 0.4))",
-    }
-
+    # Helper functions for the view
     def infer_level(cargo):
         if not cargo.institucion_id:
             return "otro"
@@ -88,14 +68,6 @@ def atlas_timelines(request):
             return "estatal"
         return "otro"
 
-    def month_index(value):
-        return (value.year - start_year) * 12 + (value.month - 1)
-
-    def format_period(start_value, end_value):
-        if not start_value or not end_value:
-            return "Sin fechas completas"
-        return f"{start_value.month:02d}/{start_value.year} – {end_value.month:02d}/{end_value.year}"
-
     def normalize_dates(cargo):
         start_value = cargo.fecha_inicio or (
             cargo.periodo.fecha_inicio if cargo.periodo_id else None
@@ -109,11 +81,23 @@ def atlas_timelines(request):
             end_value = start_value
         return start_value, end_value
 
+    entity_items = []
+    
     if entity_id:
         if entity_type == "institucion":
             selected_entity = get_object_or_404(Institucion, id=entity_id)
-            instituciones_ids = [selected_entity.id]
+            cargos = (
+                Cargo.objects.filter(institucion=selected_entity)
+                .select_related("persona", "institucion", "periodo")
+                .order_by("fecha_inicio")
+            )
+            # If "include_children", fetch children institutions and their cargos too?
+            # The mockup implies we just show people in THIS institution or related?
+            # For now, let's keep it simple: just this institution's cargos.
+            # If the user selected "incluir hijas", we'd need recursion again.
+            
             if include_children:
+                instituciones_ids = [selected_entity.id]
                 pendientes = [selected_entity.id]
                 while pendientes:
                     current_id = pendientes.pop()
@@ -121,81 +105,58 @@ def atlas_timelines(request):
                         if child.id not in instituciones_ids:
                             instituciones_ids.append(child.id)
                             pendientes.append(child.id)
-            cargos = (
-                Cargo.objects.filter(institucion_id__in=instituciones_ids)
-                .select_related("persona", "institucion", "periodo")
-            )
+                # Re-fetch with all ids
+                cargos = (
+                    Cargo.objects.filter(institucion_id__in=instituciones_ids)
+                    .select_related("persona", "institucion", "periodo")
+                    .order_by("fecha_inicio")
+                )
+
             for cargo in cargos:
                 start_value, end_value = normalize_dates(cargo)
                 if not start_value or not end_value:
                     continue
-                start_idx = month_index(start_value)
-                end_idx = month_index(end_value)
-                if end_idx < 0 or start_idx >= total_months:
-                    continue
-                start_idx = max(0, start_idx)
-                end_idx = min(total_months - 1, end_idx)
-                timeline_items.append(
-                    {
-                        "label": cargo.persona.nombre_completo,
-                        "sub_label": f"{cargo.nombre_cargo} · {cargo.institucion.nombre}",
-                        "tooltip": f"{cargo.nombre_cargo} · {cargo.institucion.nombre} · {format_period(start_value, end_value)}",
-                        "period": format_period(start_value, end_value),
-                        "start": start_idx,
-                        "end": end_idx,
-                        "span": end_idx - start_idx + 1,
-                        "nivel": level_labels[infer_level(cargo)],
-                        "color": level_gradients[infer_level(cargo)],
-                        "is_child": cargo.institucion_id != selected_entity.id,
-                    }
-                )
+                
+                # We pass dates as strings YYYY-MM-DD
+                entity_items.append({
+                    "label": cargo.nombre_cargo,
+                    "persona": cargo.persona.nombre_completo,
+                    "nivel": infer_level(cargo),
+                    "inicio": start_value.strftime("%Y-%m-%d"),
+                    "fin": end_value.strftime("%Y-%m-%d"),
+                    "institucion": cargo.institucion.nombre,
+                })
+                
         else:
             selected_entity = get_object_or_404(Persona, id=entity_id)
+            # Fetch all cargos for this person
             cargos = (
                 Cargo.objects.filter(persona=selected_entity)
                 .select_related("institucion", "periodo")
-                .order_by("fecha_inicio", "fecha_fin")
+                .order_by("fecha_inicio")
             )
             for cargo in cargos:
                 start_value, end_value = normalize_dates(cargo)
                 if not start_value or not end_value:
                     continue
-                start_idx = month_index(start_value)
-                end_idx = month_index(end_value)
-                if end_idx < 0 or start_idx >= total_months:
-                    continue
-                start_idx = max(0, start_idx)
-                end_idx = min(total_months - 1, end_idx)
-                timeline_items.append(
-                    {
-                        "label": cargo.nombre_cargo,
-                        "sub_label": cargo.institucion.nombre,
-                        "tooltip": f"{cargo.nombre_cargo} · {cargo.institucion.nombre} · {format_period(start_value, end_value)}",
-                        "period": format_period(start_value, end_value),
-                        "start": start_idx,
-                        "end": end_idx,
-                        "span": end_idx - start_idx + 1,
-                        "nivel": level_labels[infer_level(cargo)],
-                        "color": level_gradients[infer_level(cargo)],
-                        "is_child": False,
-                    }
-                )
+                
+                entity_items.append({
+                    "label": cargo.nombre_cargo,
+                    "institucion": cargo.institucion.nombre if cargo.institucion else "Sin Institución",
+                    "nivel": infer_level(cargo),
+                    "inicio": start_value.strftime("%Y-%m-%d"),
+                    "fin": end_value.strftime("%Y-%m-%d"),
+                })
 
-    timeline_items.sort(key=lambda item: (item["start"], item["end"]))
-    rows = []
-    for item in timeline_items:
-        placed = False
-        for row in rows:
-            if item["start"] > row["last_end"]:
-                row["items"].append(item)
-                row["last_end"] = item["end"]
-                placed = True
-                break
-        if not placed:
-            rows.append({"items": [item], "last_end": item["end"]})
-
-    timeline_rows = [row["items"] for row in rows]
-    initial_month = timeline_items[0]["start"] if timeline_items else None
+    # Prepare JSON structure for the frontend
+    # It mimics the mocked "DATA" structure but flat enough to just be used directly
+    entity_data = {
+        "type": entity_type,
+        "selected_id": entity_id,
+        "items": entity_items
+    }
+    
+    entity_data_json = json.dumps(entity_data, cls=DjangoJSONEncoder)
 
     context = {
         "personas": personas,
@@ -204,19 +165,7 @@ def atlas_timelines(request):
         "entity_id": entity_id,
         "include_children": include_children,
         "selected_entity": selected_entity,
-        "timeline_rows": timeline_rows,
-        "initial_month": initial_month,
-        "start_year": start_year,
-        "end_year": end_year,
-        "total_months": total_months,
-        "years": list(range(start_year, end_year + 1)),
-        "level_legend": [
-            {"key": "federal", "label": level_labels["federal"], "color": level_gradients["federal"]},
-            {"key": "estatal", "label": level_labels["estatal"], "color": level_gradients["estatal"]},
-            {"key": "municipal", "label": level_labels["municipal"], "color": level_gradients["municipal"]},
-            {"key": "partidista", "label": level_labels["partidista"], "color": level_gradients["partidista"]},
-            {"key": "otro", "label": level_labels["otro"], "color": level_gradients["otro"]},
-        ],
+        "entity_data_json": entity_data_json, # <--- The new magic
     }
     return render(request, "redpolitica/atlas_timelines.html", context)
 
