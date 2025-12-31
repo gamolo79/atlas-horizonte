@@ -429,8 +429,7 @@ header {
 }
 
 .timeline-scroller {
-  overflow-x: auto;
-  overflow-y: hidden;
+  overflow: auto;
   padding: 10px 10px 14px;
   scroll-behavior: smooth;
   -webkit-overflow-scrolling: touch;
@@ -442,19 +441,14 @@ header {
   background: rgba(0, 0, 0, 0.18);
   border: 1px solid rgba(255, 255, 255, 0.06);
   min-height: 240px;
-  /* min-width and width set by JS */
+  /* width set by JS */
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.02);
-  --month-width: 18px;
-  --bar-height: 28px;
-  --row-gap: 6px;
-  --bar-offset: 6px;
 }
 
 .timeline-grid {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  z-index: 0;
 }
 
 .timeline-year-row {
@@ -519,11 +513,8 @@ header {
 
 .timeline-rows {
   position: relative;
-  z-index: 10;
-  padding-top: 40px;
+  padding-top: 52px;
   padding-bottom: 16px;
-  pointer-events: none;
-  /* Let clicks pass through empty spaces to grid if needed, though grid is none too */
 }
 
 .timeline-lane {
@@ -531,10 +522,8 @@ header {
   margin: 10px 10px 0;
   padding: 10px 10px 14px;
   border-radius: 14px;
-  /* Remove background so grid shows through, or make semi-transparent */
-  /* background: rgba(255, 255, 255, 0.03); */
-  /* border: 1px solid rgba(255, 255, 255, 0.06); */
-  pointer-events: auto;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .timeline-lane-title {
@@ -545,11 +534,6 @@ header {
   margin-bottom: 10px;
   padding-bottom: 8px;
   border-bottom: 1px dashed rgba(255, 255, 255, 0.08);
-  background: rgba(0, 0, 0, 0.2);
-  /* Visual enhancement to read title over grid lines if they cross */
-  border-radius: 4px;
-  padding: 4px 8px;
-  backdrop-filter: blur(2px);
 }
 
 .timeline-lane-title strong {
@@ -564,29 +548,23 @@ header {
 
 .timeline-bars {
   position: relative;
-  min-height: max(90px, calc(var(--bar-rows, 1) * (var(--bar-height) + var(--row-gap)) + 20px));
+  min-height: 90px;
 }
 
 .timeline-bar {
   position: absolute;
-  height: var(--bar-height);
-  top: calc(var(--bar-offset) + var(--row-index) * (var(--bar-height) + var(--row-gap)));
-  border-radius: 14px;
+  height: 28px;
+  border-radius: 10px;
   border: 1px solid rgba(255, 255, 255, 0.12);
   box-shadow: 0 10px 18px rgba(0, 0, 0, 0.28);
   display: flex;
   align-items: center;
   padding: 0 10px;
   gap: 10px;
-  cursor: pointer;
-  pointer-events: auto;
+  cursor: default;
   overflow: hidden;
   user-select: none;
   color: #e8eefc;
-}
-
-.timeline-bar.is-child {
-  border-style: dashed;
 }
 
 .timeline-bar:hover {
@@ -594,7 +572,7 @@ header {
   transform: translateY(-1px);
 }
 
-.bar-tag {
+.timeline-bar .bar-tag {
   font-size: 11px;
   opacity: 0.9;
   padding: 3px 8px;
@@ -604,21 +582,21 @@ header {
   white-space: nowrap;
 }
 
-.bar-text {
+.timeline-bar .bar-text {
   display: flex;
   flex-direction: column;
   line-height: 1.05;
   min-width: 0;
 }
 
-.bar-text b {
+.timeline-bar .bar-text b {
   font-size: 12px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.bar-text span {
+.timeline-bar .bar-text span {
   font-size: 11px;
   color: rgba(232, 238, 252, 0.85);
   white-space: nowrap;

@@ -188,16 +188,28 @@
       canvas.style.width = `${w}px`;
     }
 
+    const MONTH_PX = 18;
+    const LANE_BAR_H = 28;
+    const STACK_GAP = 6;
+
     function buildGrid(startYear, endYear) {
       grid.innerHTML = "";
       setCanvasWidth(startYear, endYear);
 
-      // We need to render the background years and lines
-      const monthPx = getMonthWidth();
+      // Year header (visual)
+      const yearRow = document.createElement("div");
+      yearRow.className = "timeline-year-row";
+      yearRow.style.left = "0";
+      yearRow.style.right = "0";
+      yearRow.style.position = "absolute";
+      yearRow.style.top = "0";
+      yearRow.innerHTML = `<span>${startYear} → ${endYear}</span>`;
+      grid.appendChild(yearRow);
+
       const totalM = totalMonths(startYear, endYear);
 
       for (let i = 0; i <= totalM; i++) {
-        const x = 10 + i * monthPx;
+        const x = 10 + i * MONTH_PX;
         const isYear = (i % 12 === 0);
 
         const line = document.createElement("div");
@@ -209,22 +221,13 @@
       // Render Year Labels
       for (let y = startYear; y <= endYear; y++) {
         const i = (y - startYear) * 12;
-        const x = 10 + i * monthPx;
+        const x = 10 + i * MONTH_PX;
 
         const lab = document.createElement("div");
         lab.className = "timeline-year-label";
         lab.style.left = `${x + 6}px`;
         lab.textContent = String(y);
         grid.appendChild(lab);
-
-        // Render Year Background Row (optional style choice, keeping distinct)
-        if (y < endYear) {
-          const yearBg = document.createElement("div");
-          yearBg.className = "timeline-year-bg";
-          yearBg.style.left = `${x}px`;
-          yearBg.style.width = `${12 * monthPx}px`;
-          grid.appendChild(yearBg);
-        }
       }
     }
 
@@ -233,6 +236,7 @@
         .map((it) => {
           const s = parseDate(it.inicio);
           const e = parseDate(it.fin);
+          // inclusive end month: ensure at least 1 month width
           const start = monthIndex(s, startYear);
           const end = monthIndex(e, startYear);
           return { ...it, _start: start, _end: end };
@@ -285,20 +289,23 @@
       lane.appendChild(barsWrap);
 
       const { segs, rowCount } = stackOverlaps(items, startYear);
-      barsWrap.style.setProperty("--bar-rows", rowCount || 1);
 
-      const monthPx = getMonthWidth();
+      const neededH = Math.max(90, rowCount * (LANE_BAR_H + STACK_GAP) + 10);
+      barsWrap.style.minHeight = `${neededH}px`;
+
       for (const it of segs) {
-        const startX = 10 + it._start * monthPx;
-        const endX = 10 + (it._end + 1) * monthPx;
-        const w = Math.max(monthPx, endX - startX - 2);
+        const startX = 10 + it._start * MONTH_PX;
+        const endX = 10 + (it._end + 1) * MONTH_PX;
+        const w = Math.max(MONTH_PX, endX - startX - 2);
+
+        const y = 6 + it._row * (LANE_BAR_H + STACK_GAP);
 
         const bar = document.createElement("div");
         bar.className = "timeline-bar";
         bar.style.left = `${startX}px`;
+        bar.style.top = `${y}px`;
         bar.style.width = `${w}px`;
         bar.style.background = levelColor[it.nivel] || levelColor.otro;
-        bar.style.setProperty("--row-index", it._row);
 
         const main = mode === "persona" ? `${it.label}` : `${it.persona}`;
         const sub = mode === "persona" ? `${it.institucion}` : `${it.label} · ${it.persona}`;
