@@ -3,8 +3,10 @@ from collections import deque
 from django.contrib import messages
 from django.contrib.admin.views.decorators import staff_member_required
 from django.db import IntegrityError
+from django.db.models import Prefetch
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
 from django.views.generic import ListView
 from rest_framework import generics
 from rest_framework.response import Response
@@ -40,7 +42,124 @@ def atlas_home(request):
 
 
 def atlas_timelines(request):
-    return render(request, "redpolitica/atlas_timelines.html")
+    def normalize_level(cargo):
+        if cargo.institucion and cargo.institucion.tipo == "partido":
+            return "partidista"
+
+        ambito = (cargo.institucion.ambito if cargo.institucion else "") or ""
+        ambito = ambito.lower()
+        if "federal" in ambito:
+            return "federal"
+        if "estatal" in ambito:
+            return "estatal"
+        if "municipal" in ambito:
+            return "municipal"
+
+        if cargo.periodo and cargo.periodo.nivel:
+            nivel = cargo.periodo.nivel.lower()
+            if nivel in {"federal", "estatal", "municipal"}:
+                return nivel
+
+        return "otro"
+
+    def cargo_dates(cargo, today):
+        if not cargo.fecha_inicio:
+            return None
+        end = cargo.fecha_fin
+        if not end and cargo.es_actual:
+            end = today
+        if not end:
+            return None
+        return cargo.fecha_inicio, end
+
+    today = timezone.now().date()
+
+    person_topics_map = {}
+    for link in PersonTopicManual.objects.select_related("topic", "person"):
+        person_topics_map.setdefault(link.person_id, set()).add(link.topic.name)
+
+    inst_topics_map = {}
+    for link in InstitutionTopic.objects.select_related("topic", "institution"):
+        inst_topics_map.setdefault(link.institution_id, set()).add(link.topic.name)
+
+    personas = Persona.objects.prefetch_related(
+        Prefetch(
+            "cargos",
+            queryset=Cargo.objects.select_related("institucion", "periodo"),
+        )
+    )
+    instituciones = Institucion.objects.prefetch_related(
+        Prefetch(
+            "cargos",
+            queryset=Cargo.objects.select_related("persona", "periodo"),
+        )
+    )
+
+    personas_data = []
+    for persona in personas:
+        cargos_data = []
+        persona_topics = person_topics_map.get(persona.id, set())
+        for cargo in persona.cargos.all():
+            dates = cargo_dates(cargo, today)
+            if not dates:
+                continue
+            inicio, fin = dates
+            inst_topics = inst_topics_map.get(cargo.institucion_id, set())
+            cargos_data.append(
+                {
+                    "label": cargo.nombre_cargo,
+                    "institucion": cargo.institucion.nombre if cargo.institucion else "—",
+                    "nivel": normalize_level(cargo),
+                    "inicio": inicio.isoformat(),
+                    "fin": fin.isoformat(),
+                    "temas": sorted(persona_topics | inst_topics),
+                }
+            )
+        personas_data.append(
+            {
+                "id": persona.id,
+                "nombre": persona.nombre_completo,
+                "cargos": cargos_data,
+            }
+        )
+
+    instituciones_data = []
+    for institucion in instituciones:
+        cargos_data = []
+        institucion_topics = inst_topics_map.get(institucion.id, set())
+        for cargo in institucion.cargos.all():
+            dates = cargo_dates(cargo, today)
+            if not dates:
+                continue
+            inicio, fin = dates
+            persona_topics = person_topics_map.get(cargo.persona_id, set())
+            cargos_data.append(
+                {
+                    "label": cargo.nombre_cargo,
+                    "persona": (
+                        cargo.persona.nombre_completo if cargo.persona else "—"
+                    ),
+                    "nivel": normalize_level(cargo),
+                    "inicio": inicio.isoformat(),
+                    "fin": fin.isoformat(),
+                    "temas": sorted(institucion_topics | persona_topics),
+                }
+            )
+        instituciones_data.append(
+            {
+                "id": institucion.id,
+                "nombre": institucion.nombre,
+                "cargos": cargos_data,
+            }
+        )
+
+    context = {
+        "timeline_data": {
+            "personas": personas_data,
+            "instituciones": instituciones_data,
+        }
+    }
+    return render(request, "redpolitica/atlas_timelines.html", context)
 
 
 def monitor_placeholder(request):
