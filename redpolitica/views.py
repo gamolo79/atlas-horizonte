@@ -57,19 +57,36 @@ def atlas_timelines(request):
     end_year = current_date.year
     total_months = (end_year - start_year + 1) * 12
 
-    palette = [
-        "#c144d2",
-        "#22d3ee",
-        "#f59e0b",
-        "#4ade80",
-        "#f97316",
-        "#a78bfa",
-        "#f472b6",
-        "#38bdf8",
-    ]
+    level_labels = {
+        "federal": "Federal",
+        "estatal": "Estatal",
+        "municipal": "Municipal",
+        "partidista": "Partidista",
+        "otro": "Otro",
+    }
 
-    def color_for_key(key):
-        return palette[hash(key) % len(palette)]
+    level_gradients = {
+        "federal": "linear-gradient(135deg, rgba(122, 162, 255, 0.85), rgba(122, 162, 255, 0.55))",
+        "estatal": "linear-gradient(135deg, rgba(110, 231, 183, 0.85), rgba(110, 231, 183, 0.55))",
+        "municipal": "linear-gradient(135deg, rgba(251, 191, 36, 0.85), rgba(251, 191, 36, 0.55))",
+        "partidista": "linear-gradient(135deg, rgba(192, 132, 252, 0.85), rgba(192, 132, 252, 0.55))",
+        "otro": "linear-gradient(135deg, rgba(148, 163, 184, 0.7), rgba(148, 163, 184, 0.4))",
+    }
+
+    def infer_level(cargo):
+        if not cargo.institucion_id:
+            return "otro"
+        tipo = (cargo.institucion.tipo or "").lower()
+        ambito = (cargo.institucion.ambito or "").lower()
+        if "partido" in tipo or "partid" in ambito:
+            return "partidista"
+        if "federal" in ambito or "nacional" in ambito:
+            return "federal"
+        if "municipal" in ambito or "municipio" in ambito:
+            return "municipal"
+        if "estatal" in ambito:
+            return "estatal"
+        return "otro"
 
     def month_index(value):
         return (value.year - start_year) * 12 + (value.month - 1)
@@ -123,10 +140,12 @@ def atlas_timelines(request):
                         "label": cargo.persona.nombre_completo,
                         "sub_label": f"{cargo.nombre_cargo} · {cargo.institucion.nombre}",
                         "tooltip": f"{cargo.nombre_cargo} · {cargo.institucion.nombre} · {format_period(start_value, end_value)}",
+                        "period": format_period(start_value, end_value),
                         "start": start_idx,
                         "end": end_idx,
                         "span": end_idx - start_idx + 1,
-                        "color": color_for_key(cargo.institucion_id),
+                        "nivel": level_labels[infer_level(cargo)],
+                        "color": level_gradients[infer_level(cargo)],
                         "is_child": cargo.institucion_id != selected_entity.id,
                     }
                 )
@@ -152,10 +171,12 @@ def atlas_timelines(request):
                         "label": cargo.nombre_cargo,
                         "sub_label": cargo.institucion.nombre,
                         "tooltip": f"{cargo.nombre_cargo} · {cargo.institucion.nombre} · {format_period(start_value, end_value)}",
+                        "period": format_period(start_value, end_value),
                         "start": start_idx,
                         "end": end_idx,
                         "span": end_idx - start_idx + 1,
-                        "color": color_for_key(cargo.institucion_id),
+                        "nivel": level_labels[infer_level(cargo)],
+                        "color": level_gradients[infer_level(cargo)],
                         "is_child": False,
                     }
                 )
@@ -187,6 +208,13 @@ def atlas_timelines(request):
         "end_year": end_year,
         "total_months": total_months,
         "years": list(range(start_year, end_year + 1)),
+        "level_legend": [
+            {"key": "federal", "label": level_labels["federal"], "color": level_gradients["federal"]},
+            {"key": "estatal", "label": level_labels["estatal"], "color": level_gradients["estatal"]},
+            {"key": "municipal", "label": level_labels["municipal"], "color": level_gradients["municipal"]},
+            {"key": "partidista", "label": level_labels["partidista"], "color": level_gradients["partidista"]},
+            {"key": "otro", "label": level_labels["otro"], "color": level_gradients["otro"]},
+        ],
     }
     return render(request, "redpolitica/atlas_timelines.html", context)
 
