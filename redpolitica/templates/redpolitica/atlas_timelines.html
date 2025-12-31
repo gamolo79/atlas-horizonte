@@ -1,0 +1,296 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Atlas · Timelines</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/atlas-design-system.css' %}">
+</head>
+<body class="timeline-body">
+  <div class="timeline-app">
+    <div class="timeline-topbar">
+      <div class="timeline-brand">
+        <div class="timeline-logo"></div>
+        <div>
+          <h1>Atlas · Timelines</h1>
+          <p>1997 → hoy · meses visibles · cargos apilados</p>
+        </div>
+      </div>
+
+      <form id="timeline-form" class="timeline-filters" method="get">
+        <div class="timeline-field">
+          <label for="entity-type">Entidad</label>
+          <select id="entity-type" name="tipo">
+            <option value="persona" {% if entity_type == "persona" %}selected{% endif %}>Persona</option>
+            <option value="institucion" {% if entity_type == "institucion" %}selected{% endif %}>Institución</option>
+          </select>
+        </div>
+
+        <div class="timeline-field">
+          <label for="entity-select">Selecciona</label>
+          <select id="entity-select" name="entidad_id">
+            <option value="">Elige una opción</option>
+            {% if entity_type == "persona" %}
+              {% for persona in personas %}
+                <option value="{{ persona.id }}" {% if entity_id == persona.id|stringformat:"s" %}selected{% endif %}>{{ persona.nombre_completo }}</option>
+              {% endfor %}
+            {% else %}
+              {% for institucion in instituciones %}
+                <option value="{{ institucion.id }}" {% if entity_id == institucion.id|stringformat:"s" %}selected{% endif %}>{{ institucion.nombre }}</option>
+              {% endfor %}
+            {% endif %}
+          </select>
+        </div>
+
+        {% if entity_type == "institucion" %}
+          <label class="timeline-toggle">
+            <input type="checkbox" name="incluir_hijas" value="1" {% if include_children %}checked{% endif %}>
+            Incluir hijas
+          </label>
+        {% endif %}
+
+        <button class="timeline-btn" type="button" id="btn-today">Ir a hoy</button>
+      </form>
+    </div>
+
+    <div class="timeline-nav chips-row" aria-label="Navegación de Atlas">
+      <a class="chip-link" href="{% url 'atlas-home' %}">Home</a>
+      <a class="chip-link" href="{% url 'atlas-personas-list' %}">Personas</a>
+      <a class="chip-link" href="{% url 'atlas-instituciones-list' %}">Instituciones</a>
+      <a class="chip-link" href="{% url 'atlas-topics-list' %}">Temas</a>
+    </div>
+
+    <section class="timeline-panel">
+      <div class="timeline-panel-header">
+        <div class="timeline-titleblock">
+          <h2>
+            {% if selected_entity %}
+              Timeline · {% if entity_type == "persona" %}{{ selected_entity.nombre_completo }}{% else %}{{ selected_entity.nombre }}{% endif %}
+            {% else %}
+              Timeline
+            {% endif %}
+          </h2>
+          <div class="timeline-meta">
+            <span class="timeline-chip"><span class="timeline-dot"></span>
+              {% if selected_entity %}
+                {% if entity_type == "persona" %}
+                  Cargos ocupados (apilado cuando hay empalmes)
+                {% else %}
+                  Personas y cargos por periodo dentro de la institución
+                {% endif %}
+              {% else %}
+                Selecciona una entidad para ver cargos por periodo
+              {% endif %}
+            </span>
+            <span class="timeline-chip">Eje: años + 12 meses</span>
+            <span class="timeline-chip">Empalmes: apilado vertical</span>
+          </div>
+        </div>
+
+        <div class="timeline-legend">
+          {% for level in level_legend %}
+            <span class="timeline-swatch"><i style="background: {{ level.color }}"></i>{{ level.label }}</span>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="timeline-wrap">
+        <div class="timeline-scroller" id="timeline-scroller">
+          <div
+            class="timeline-canvas"
+            id="timeline-canvas"
+            data-start-year="{{ start_year }}"
+            data-end-year="{{ end_year }}"
+            data-month-width="18"
+          >
+            <div class="timeline-grid" id="timeline-grid"></div>
+            <div class="timeline-rows" id="timeline-rows">
+              {% if selected_entity and timeline_rows %}
+                <div class="timeline-lane">
+                  <div class="timeline-lane-title">
+                    <strong>
+                      {% if entity_type == "persona" %}
+                        Cargos
+                      {% else %}
+                        Ocupación de cargos
+                      {% endif %}
+                    </strong>
+                    <small>
+                      {% if entity_type == "persona" %}
+                        Barras = periodos de cargos · meses visibles
+                      {% else %}
+                        Barras = personas en el tiempo · apilado si se empalman
+                      {% endif %}
+                    </small>
+                  </div>
+                  <div class="timeline-bars" style="--bar-rows: {{ timeline_rows|length }};">
+                    {% for row in timeline_rows %}
+                      {% for item in row %}
+                        <div
+                          class="timeline-bar{% if item.is_child %} is-child{% endif %}"
+                          style="--row-index: {{ forloop.parentloop.counter0 }}; left: calc(var(--month-width) * {{ item.start }} + 10px); width: calc(var(--month-width) * {{ item.span }} - 4px); background: {{ item.color }};"
+                          data-title="{{ item.label }}"
+                          data-subtitle="{{ item.sub_label }}"
+                          data-level="{{ item.nivel }}"
+                          data-period="{{ item.period }}"
+                        >
+                          <span class="bar-tag">{{ item.nivel }}</span>
+                          <span class="bar-text">
+                            <b>{{ item.label }}</b>
+                            <span>{{ item.sub_label }}</span>
+                          </span>
+                        </div>
+                      {% endfor %}
+                    {% endfor %}
+                  </div>
+                </div>
+              {% elif selected_entity %}
+                <div class="timeline-empty">
+                  <strong>Sin cargos con fechas suficientes</strong>
+                  <span>Verifica que la entidad tenga cargos con fecha de inicio y fin registrados.</span>
+                </div>
+              {% else %}
+                <div class="timeline-empty">
+                  <strong>Selecciona una entidad</strong>
+                  <span>Usa los filtros superiores para generar la línea de tiempo.</span>
+                </div>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+        <div class="timeline-footer-note">
+          Tip: pasa el mouse sobre una barra para ver el tooltip. En móvil, toca una barra.
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div class="timeline-tooltip" id="timeline-tooltip" role="tooltip" aria-hidden="true"></div>
+
+  <script>
+    const form = document.getElementById("timeline-form");
+    const entityType = document.getElementById("entity-type");
+    const entitySelect = document.getElementById("entity-select");
+    const childToggle = form.querySelector("input[name='incluir_hijas']");
+    const tooltip = document.getElementById("timeline-tooltip");
+
+    entityType.addEventListener("change", () => {
+      form.submit();
+    });
+
+    entitySelect.addEventListener("change", () => {
+      if (entitySelect.value) {
+        form.submit();
+      }
+    });
+
+    if (childToggle) {
+      childToggle.addEventListener("change", () => {
+        if (entitySelect.value) {
+          form.submit();
+        }
+      });
+    }
+
+    const scroller = document.getElementById("timeline-scroller");
+    const canvas = document.getElementById("timeline-canvas");
+    const grid = document.getElementById("timeline-grid");
+    const monthWidth = Number(canvas.dataset.monthWidth || "18");
+    const startYear = Number(canvas.dataset.startYear);
+    const endYear = Number(canvas.dataset.endYear);
+
+    const totalMonths = () => (endYear - startYear + 1) * 12;
+
+    const setCanvasWidth = () => {
+      const width = totalMonths() * monthWidth + 20;
+      canvas.style.width = `${width}px`;
+    };
+
+    const buildGrid = () => {
+      grid.innerHTML = "";
+      setCanvasWidth();
+
+      const yearRow = document.createElement("div");
+      yearRow.className = "timeline-year-row";
+      yearRow.innerHTML = `<span>${startYear} → ${endYear}</span>`;
+      grid.appendChild(yearRow);
+
+      for (let i = 0; i <= totalMonths(); i += 1) {
+        const x = 10 + i * monthWidth;
+        const isYear = i % 12 === 0;
+        const line = document.createElement("div");
+        line.className = isYear ? "timeline-year-line" : "timeline-month-line";
+        line.style.left = `${x}px`;
+        grid.appendChild(line);
+      }
+
+      for (let year = startYear; year <= endYear; year += 1) {
+        const index = (year - startYear) * 12;
+        const x = 10 + index * monthWidth;
+        const label = document.createElement("div");
+        label.className = "timeline-year-label";
+        label.style.left = `${x + 6}px`;
+        label.textContent = String(year);
+        grid.appendChild(label);
+      }
+    };
+
+    const monthIndex = (date) => {
+      return (date.getFullYear() - startYear) * 12 + date.getMonth();
+    };
+
+    const scrollToToday = () => {
+      const now = new Date();
+      const index = monthIndex(now);
+      scroller.scrollLeft = Math.max(0, index * monthWidth - 260);
+    };
+
+    document.getElementById("btn-today").addEventListener("click", scrollToToday);
+
+    const showTooltip = (event, bar) => {
+      const title = bar.dataset.title;
+      const subtitle = bar.dataset.subtitle;
+      const level = bar.dataset.level;
+      const period = bar.dataset.period;
+
+      tooltip.innerHTML = `
+        <div class="tooltip-title">${title}</div>
+        <div class="tooltip-subtitle">${subtitle}</div>
+        <div class="tooltip-meta">
+          <span class="tooltip-pill">${level}</span>
+          <span class="tooltip-pill">${period}</span>
+        </div>
+      `;
+      tooltip.classList.add("show");
+      tooltip.setAttribute("aria-hidden", "false");
+      moveTooltip(event);
+    };
+
+    const moveTooltip = (event) => {
+      tooltip.style.left = `${event.clientX + 12}px`;
+      tooltip.style.top = `${event.clientY + 12}px`;
+    };
+
+    const hideTooltip = () => {
+      tooltip.classList.remove("show");
+      tooltip.setAttribute("aria-hidden", "true");
+    };
+
+    document.querySelectorAll(".timeline-bar").forEach((bar) => {
+      bar.addEventListener("mouseenter", (event) => showTooltip(event, bar));
+      bar.addEventListener("mousemove", moveTooltip);
+      bar.addEventListener("mouseleave", hideTooltip);
+      bar.addEventListener("click", (event) => {
+        showTooltip(event, bar);
+        if (window.matchMedia("(max-width: 720px)").matches) {
+          setTimeout(hideTooltip, 1800);
+        }
+      });
+    });
+
+    buildGrid();
+  </script>
+</body>
+</html>

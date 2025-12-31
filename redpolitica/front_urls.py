@@ -4,6 +4,7 @@ from .views import (
     AtlasInstitucionesListView,
     AtlasPersonasListView,
     atlas_home,
+    atlas_timelines,
     atlas_topic_create,
     atlas_topic_detail,
     atlas_topic_edit,
@@ -25,6 +26,7 @@ urlpatterns = [
     path("aviso-privacidad/", privacy_notice, name="privacy-notice"),
     path("terminos-condiciones/", terms_conditions, name="terms-conditions"),
     path("apps/atlas/", atlas_home, name="atlas-home"),
+    path("apps/atlas/timelines/", atlas_timelines, name="atlas-timelines"),
     path("apps/atlas/personas/", AtlasPersonasListView.as_view(), name="atlas-personas-list"),
     path(
         "apps/atlas/instituciones/",
