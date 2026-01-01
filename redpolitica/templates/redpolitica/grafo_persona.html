@@ -12,6 +12,7 @@
 
   <!-- Cytoscape -->
   <script src="https://unpkg.com/cytoscape@3.28.0/dist/cytoscape.min.js"></script>
+  <script src="{% static 'js/atlas/graph_party_colors.js' %}"></script>
 </head>
 <body>
 <div class="page">
@@ -148,6 +149,34 @@
           </div>
         </div>
 
+        <div class="panel-section">
+          <div class="panel-section-title">Colores por partido</div>
+          <div class="legend-item">
+            <span class="legend-color" style="background:#0057B8;"></span>
+            <span>PAN</span>
+          </div>
+          <div class="legend-item">
+            <span class="legend-color" style="background:#D50000;"></span>
+            <span>PRI</span>
+          </div>
+          <div class="legend-item">
+            <span class="legend-color" style="background:#FF6A00;"></span>
+            <span>Movimiento Ciudadano</span>
+          </div>
+          <div class="legend-item">
+            <span class="legend-color" style="background:#1B8F2E;"></span>
+            <span>PVEM</span>
+          </div>
+          <div class="legend-item">
+            <span class="legend-color" style="background:#F2C300;"></span>
+            <span>PT</span>
+          </div>
+          <div class="legend-item">
+            <span class="legend-color" style="background:#7A1F3D;"></span>
+            <span>MORENA</span>
+          </div>
+        </div>
+
         <!-- Navegación a otras personas -->
         <div class="panel-section" id="related-people-section" style="display:none;">
           <div class="panel-section-title">Otras personas relacionadas</div>
@@ -198,33 +227,10 @@
   const relatedTopicsSection = document.getElementById("related-topics-section");
   const relatedTopicsContainer = document.getElementById("related-topics");
 
-  // =========================
-  // Colores por partido
-  // =========================
-  const PARTY_COLORS = {
-    "Partido Acción Nacional": "#0057B8",               // azul PAN
-    "PRI": "#D50000",                                  // rojo PRI
-    "Movimiento Ciudadano": "#FF6A00",                 // naranja MC
-    "Partido Verde Ecologista de México": "#1B8F2E",    // verde PVEM
-    "Partido del Trabajo": "#F2C300",                   // amarillo PT
-    "Movimiento de Regeneración Nacional": "#7A1F3D",   // guinda MORENA
+  const partyColors = window.AtlasPartyColors || {};
+  const partyFillColor = partyColors.partyFillColor || function(partyName) {
+    return partyName ? "#4b5563" : "#9AA0A6";
   };
-
-  function stableColorFromString(str) {
-    if (!str) return "#9AA0A6"; // gris si no hay dato
-    let hash = 0;
-    for (let i = 0; i < str.length; i++) {
-      hash = ((hash << 5) - hash) + str.charCodeAt(i);
-      hash |= 0;
-    }
-    const hue = Math.abs(hash) % 360;
-    return `hsl(${hue}, 65%, 45%)`;
-  }
-
-  function partyToColor(partyName) {
-    if (!partyName) return "#9AA0A6"; // Sin partido
-    return PARTY_COLORS[partyName] || stableColorFromString(partyName);
-  }
 
   function mostrarErrorCarga(mensaje) {
     console.error(mensaje);
@@ -725,7 +731,9 @@
           {
             selector: "node[tipo = 'persona_central']",
             style: {
-              "background-color": function(ele) { return partyToColor(ele.data("party")); },
+              "background-color": function(ele) {
+                return partyFillColor(ele.data("party"), ele.data("label"));
+              },
               "border-width": 3,
               "border-color": "#ffffff",
               "width": 56,
@@ -739,7 +747,9 @@
           {
             selector: "node[tipo = 'persona']",
             style: {
-              "background-color": function(ele) { return partyToColor(ele.data("party")); },
+              "background-color": function(ele) {
+                return partyFillColor(ele.data("party"), ele.data("label"));
+              },
               "border-width": 2,
               "border-color": "#111827",
               "width": 42,

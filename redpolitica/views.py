@@ -24,7 +24,11 @@ from .models import (
     PersonTopicManual,
 )
 from .serializers import InstitucionSerializer, PersonaSerializer, RelacionSerializer
-from .utils_grafos import partido_vigente_en_periodo, conteo_por_partido_en_periodo
+from .utils_grafos import (
+    partido_vigente_en_fecha,
+    partido_vigente_en_periodo,
+    conteo_por_partido_en_periodo,
+)
 
 
 def index_apps(request):
@@ -266,10 +270,46 @@ class PersonaGrafoView(APIView):
             except (ValueError, PeriodoAdministrativo.DoesNotExist):
                 periodo_obj = None
 
+        today = timezone.now().date()
+
+        def _cargos_filtrados_por_persona(p):
+            qs = Cargo.objects.filter(persona=p).select_related("institucion", "periodo")
+            if periodo_id:
+                try:
+                    qs = qs.filter(periodo_id=int(periodo_id))
+                except ValueError:
+                    pass
+            if cargo_clase:
+                qs = qs.filter(cargo_clase=cargo_clase)
+            return qs
+
+        cargos_central = list(_cargos_filtrados_por_persona(persona))
+        periodo_contexto = periodo_obj
+        fecha_contexto = None
+
+        if not periodo_contexto and cargos_central:
+            cargos_con_periodo = [c for c in cargos_central if c.periodo]
+            if cargos_con_periodo:
+                cargo_ref = max(
+                    cargos_con_periodo,
+                    key=lambda c: (c.periodo.fecha_fin, c.periodo.fecha_inicio),
+                )
+                periodo_contexto = cargo_ref.periodo
+            else:
+                fechas = [
+                    f
+                    for f in [c.fecha_fin or c.fecha_inicio for c in cargos_central]
+                    if f
+                ]
+                if fechas:
+                    fecha_contexto = max(fechas)
+
         def _party_name_for_person(person_id: int):
-            if not periodo_obj:
-                return None
-            part = partido_vigente_en_periodo(person_id, periodo_obj)
+            if periodo_contexto:
+                part = partido_vigente_en_periodo(person_id, periodo_contexto)
+                return part.nombre if part else None
+            ref_date = fecha_contexto or today
+            part = partido_vigente_en_fecha(person_id, ref_date)
             return part.nombre if part else None
 
         persona_data = PersonaSerializer(persona).data
@@ -326,17 +366,6 @@ class PersonaGrafoView(APIView):
 
         # === INSTITUCIONES RELACIONADAS (para cargos) ===
         instituciones_ids = set()
-
-        def _cargos_filtrados_por_persona(p):
-            qs = Cargo.objects.filter(persona=p).select_related("institucion", "periodo")
-            if periodo_id:
-                try:
-                    qs = qs.filter(periodo_id=int(periodo_id))
-                except ValueError:
-                    pass
-            if cargo_clase:
-                qs = qs.filter(cargo_clase=cargo_clase)
-            return qs
 
         # Cargos de la persona central
         for cargo in _cargos_filtrados_por_persona(persona):
@@ -487,18 +516,7 @@ class InstitucionGrafoView(APIView):
         periodo_id = request.GET.get("periodo_id")
         cargo_clase = request.GET.get("cargo_clase")
 
-        periodo_obj = None
-        if periodo_id:
-            try:
-                periodo_obj = PeriodoAdministrativo.objects.get(id=int(periodo_id))
-            except (ValueError, PeriodoAdministrativo.DoesNotExist):
-                periodo_obj = None
-
-        def _party_name_for_person(person_id: int):
-            if not periodo_obj:
-                return None
-            part = partido_vigente_en_periodo(person_id, periodo_obj)
-            return part.nombre if part else None
+        today = timezone.now().date()
 
         institucion_central_data = InstitucionSerializer(institucion).data
 
@@ -525,10 +543,25 @@ class InstitucionGrafoView(APIView):
 
         cargos_data = []
         personas_ids = set()
+        persona_context = {}
+
+        def _cargo_context(cargo):
+            if cargo.periodo:
+                return {
+                    "periodo": cargo.periodo,
+                    "fecha": None,
+                    "sort_date": cargo.periodo.fecha_fin or cargo.periodo.fecha_inicio or today,
+                }
+            fecha = cargo.fecha_fin or cargo.fecha_inicio or today
+            return {"periodo": None, "fecha": fecha, "sort_date": fecha}
 
         for c in cargos_qs:
             if c.persona_id:
                 personas_ids.add(c.persona_id)
+                contexto = _cargo_context(c)
+                previo = persona_context.get(c.persona_id)
+                if not previo or contexto["sort_date"] > previo["sort_date"]:
+                    persona_context[c.persona_id] = contexto
             cargos_data.append(
                 {
                     "id": c.id,
@@ -550,7 +583,14 @@ class InstitucionGrafoView(APIView):
         # Enriquecer con partido vigente en el periodo (para colorear)
         for d in personas_data:
             try:
-                d["party"] = _party_name_for_person(int(d["id"]))
+                contexto = persona_context.get(int(d["id"]))
+                part = None
+                if contexto and contexto["periodo"]:
+                    part = partido_vigente_en_periodo(int(d["id"]), contexto["periodo"])
+                else:
+                    fecha_ref = contexto["fecha"] if contexto else today
+                    part = partido_vigente_en_fecha(int(d["id"]), fecha_ref)
+                d["party"] = part.nombre if part else None
             except Exception:
                 d["party"] = None
 
