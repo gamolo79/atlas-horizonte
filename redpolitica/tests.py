@@ -85,6 +85,59 @@ class TopicModuleTests(TestCase):
 
 
 class GrafoEndpointsTests(TestCase):
+    def test_persona_grafo_incluye_periodos_en_cargos(self):
+        persona = Persona.objects.create(
+            nombre_completo="Ana Torres",
+            slug="ana-torres",
+        )
+        institucion = Institucion.objects.create(
+            nombre="Congreso estatal",
+            slug="congreso-estatal",
+        )
+        periodos = [
+            PeriodoAdministrativo.objects.create(
+                tipo="LEGISLATURA",
+                nivel="ESTATAL",
+                nombre="Legislatura A",
+                fecha_inicio=date(2006, 1, 1),
+                fecha_fin=date(2009, 12, 31),
+            ),
+            PeriodoAdministrativo.objects.create(
+                tipo="LEGISLATURA",
+                nivel="ESTATAL",
+                nombre="Legislatura B",
+                fecha_inicio=date(2010, 1, 1),
+                fecha_fin=date(2013, 12, 31),
+            ),
+            PeriodoAdministrativo.objects.create(
+                tipo="LEGISLATURA",
+                nivel="ESTATAL",
+                nombre="Legislatura C",
+                fecha_inicio=date(2014, 1, 1),
+                fecha_fin=date(2017, 12, 31),
+            ),
+        ]
+        for idx, periodo in enumerate(periodos, start=1):
+            Cargo.objects.create(
+                persona=persona,
+                institucion=institucion,
+                periodo=periodo,
+                nombre_cargo=f"Diputada {idx}",
+            )
+
+        response = self.client.get(
+            reverse("persona-grafo", kwargs={"slug": persona.slug})
+        )
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+
+        persona_central = data.get("persona_central", {})
+        cargos = persona_central.get("cargos", [])
+
+        self.assertEqual(persona_central.get("id"), persona.id)
+        self.assertEqual(len(cargos), 3)
+        self.assertEqual(len({c["periodo_id"] for c in cargos}), 3)
+
     def test_institucion_grafo_unifica_persona_y_periodos(self):
         institucion = Institucion.objects.create(
             nombre="Congreso local",

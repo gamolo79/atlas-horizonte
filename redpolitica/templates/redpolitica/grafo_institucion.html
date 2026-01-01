@@ -213,6 +213,7 @@
 
     let personasMap = {};
     let institucionesMap = {};
+    let periodosMap = {};
     let temasMap = {};
 
     function logDebug(msg, obj) {
@@ -257,6 +258,37 @@
       return stablePartyColor(partyName, fallbackKey);
     }
 
+    function parseDate(value) {
+      if (!value) return null;
+      const date = new Date(value);
+      return Number.isNaN(date.getTime()) ? null : date;
+    }
+
+    function partyForCargo(persona, cargo) {
+      if (!persona) return null;
+      const directParty = cargo.partido || cargo.partido_nombre;
+      if (directParty) return normalizePartyName(directParty);
+
+      const militancias = persona.militancias || [];
+      if (!militancias.length) return null;
+
+      const refDate =
+        parseDate(cargo.fecha_inicio) ||
+        parseDate(cargo.fecha_fin) ||
+        parseDate(cargo.periodo_fecha_inicio) ||
+        parseDate(cargo.periodo_fecha_fin);
+      if (!refDate) return null;
+
+      const match = militancias.find(m => {
+        const start = parseDate(m.fecha_inicio);
+        const end = parseDate(m.fecha_fin);
+        if (start && refDate < start) return false;
+        if (end && refDate > end) return false;
+        return true;
+      });
+      return match ? normalizePartyName(match.partido_nombre) : null;
+    }
+
     function setPanelForInstitucion(inst) {
       panelTitle.textContent = inst.nombre || "Institución";
       let html = "";
@@ -274,6 +306,45 @@
       if (inst.pais) partes.push(inst.pais);
       if (partes.length) {
         html += `<p><strong>Ubicación:</strong> ${partes.join(", ")}</p>`;
+      }
+
+      panelContent.innerHTML = html || "<p>Sin detalles adicionales.</p>";
+    }
+
+    function setPanelForPeriodo(periodoNode) {
+      panelTitle.textContent = periodoNode.data("label") || "Periodo";
+      let html = "";
+
+      const tipo = periodoNode.data("periodo_tipo");
+      const nivel = periodoNode.data("periodo_nivel");
+      if (tipo || nivel) {
+        html += `<p><strong>Tipo:</strong> ${[tipo, nivel].filter(Boolean).join(" · ")}</p>`;
+      }
+
+      const fechaInicio = periodoNode.data("fecha_inicio");
+      const fechaFin = periodoNode.data("fecha_fin");
+      if (fechaInicio || fechaFin) {
+        html += `<p><strong>Fechas:</strong> ${fechaInicio || "¿?"} – ${fechaFin || "actual o sin registro"}</p>`;
+      }
+
+      const instituciones = periodoNode
+        .connectedEdges("[tipo = 'periodo_institucion']")
+        .map(edge => institucionesMap[edge.data("institucion_id")])
+        .filter(Boolean);
+      if (instituciones.length) {
+        html += `<p><strong>Institución asociada:</strong> ${instituciones.map(inst => inst.nombre).join(", ")}</p>`;
+      }
+
+      const personas = periodoNode
+        .connectedEdges("[tipo = 'cargo']")
+        .map(edge => personasMap[edge.data("persona_id")])
+        .filter(Boolean);
+      if (personas.length) {
+        html += `<p><strong>Personas conectadas:</strong></p><ul>`;
+        personas.forEach(p => {
+          html += `<li>${p.nombre_completo}</li>`;
+        });
+        html += `</ul>`;
       }
 
       panelContent.innerHTML = html || "<p>Sin detalles adicionales.</p>";
@@ -328,18 +399,22 @@
         html += `${cargo.nombre_cargo || "Cargo"} en institución</p>`;
       }
 
-      if (cargo.fecha_inicio || cargo.fecha_fin) {
-        html += `<p><strong>Periodo:</strong> ${
-          cargo.fecha_inicio || "¿?"
-        } – ${cargo.fecha_fin || "actual o sin registro"}</p>`;
-      }
-
       if (cargo.periodo_nombre || cargo.periodo_tipo) {
         const partes = [];
         if (cargo.periodo_nombre) partes.push(cargo.periodo_nombre);
         if (cargo.periodo_tipo) partes.push(cargo.periodo_tipo);
         if (cargo.periodo_nivel) partes.push(cargo.periodo_nivel);
         html += `<p><strong>Periodo administrativo:</strong> ${partes.join(" · ")}</p>`;
+      }
+
+      if (cargo.fecha_inicio || cargo.fecha_fin) {
+        html += `<p><strong>Periodo:</strong> ${
+          cargo.fecha_inicio || "¿?"
+        } – ${cargo.fecha_fin || "actual o sin registro"}</p>`;
+      }
+
+      if (cargo.partido_nombre) {
+        html += `<p><strong>Partido:</strong> ${cargo.partido_nombre}</p>`;
       }
 
       if (cargo.notas) {
@@ -374,6 +449,7 @@
         const elements = [];
         personasMap = {};
         institucionesMap = {};
+        periodosMap = {};
         temasMap = {};
 
         // --- 1) Institución central ---
@@ -536,7 +612,9 @@
           });
         });
 
-        // --- 6) Aristas de cargos persona → institución central ---
+        // --- 6) Aristas de cargos persona → periodo → institución central ---
+        //     Se reutilizan nodos de periodo para evitar duplicados.
+        const periodoEdgeMap = new Set();
         cargos.forEach(c => {
           if (c.persona_id == null || c.institucion_id == null) return;
           if (c.institucion_id !== instCentral.id) return;
@@ -547,25 +625,87 @@
           const personaExiste = personasConCargoCentral.has(c.persona_id);
           if (!personaExiste) return;
 
-          elements.push({
-            data: {
-              id: c.edge_id || `cargo-${c.persona_id}-${c.institucion_id}-${c.periodo_id || "sin-periodo"}-${c.id}`,
-              source: personaNodeId,
-              target: instNodeId,
-              tipo: "cargo",
-              cargo_id: c.id,
-              nombre_cargo: c.nombre_cargo,
-              persona_id: c.persona_id,
-              institucion_id: c.institucion_id,
-              periodo_id: c.periodo_id || null,
-              periodo_nombre: c.periodo_nombre || null,
-              periodo_tipo: c.periodo_tipo || null,
-              periodo_nivel: c.periodo_nivel || null,
-              fecha_inicio: c.fecha_inicio || null,
-              fecha_fin: c.fecha_fin || null,
-              notas: c.notas || ""
+          const persona = personasMap[c.persona_id];
+          const partyName = partyForCargo(persona, c);
+          const partyStyle = partyStyleFor(partyName, `cargo-${c.id}`);
+
+          if (c.periodo_id) {
+            const periodoNodeId = `per-${c.periodo_id}`;
+            if (!periodosMap[c.periodo_id]) {
+              periodosMap[c.periodo_id] = {
+                id: periodoNodeId,
+                periodo_id: c.periodo_id,
+                label: c.periodo_nombre || "Periodo sin nombre",
+                tipo: "periodo",
+                periodo_tipo: c.periodo_tipo || null,
+                periodo_nivel: c.periodo_nivel || null,
+                fecha_inicio: c.fecha_inicio || null,
+                fecha_fin: c.fecha_fin || null,
+                level: nivelCentral + MAX_NIVEL_ORGANIGRAMA + 0.5
+              };
+              elements.push({ data: periodosMap[c.periodo_id] });
             }
-          });
+
+            elements.push({
+              data: {
+                id: c.edge_id || `cargo-${c.persona_id}-${c.institucion_id}-${c.periodo_id}-${c.id}`,
+                source: personaNodeId,
+                target: periodoNodeId,
+                tipo: "cargo",
+                cargo_id: c.id,
+                nombre_cargo: c.nombre_cargo,
+                persona_id: c.persona_id,
+                institucion_id: c.institucion_id,
+                periodo_id: c.periodo_id,
+                periodo_nombre: c.periodo_nombre || null,
+                periodo_tipo: c.periodo_tipo || null,
+                periodo_nivel: c.periodo_nivel || null,
+                fecha_inicio: c.fecha_inicio || null,
+                fecha_fin: c.fecha_fin || null,
+                notas: c.notas || "",
+                partido_nombre: partyName,
+                party_color: partyStyle.fill
+              }
+            });
+
+            const periodoInstKey = `${c.periodo_id}-${instCentral.id}`;
+            if (!periodoEdgeMap.has(periodoInstKey)) {
+              periodoEdgeMap.add(periodoInstKey);
+              elements.push({
+                data: {
+                  id: `pi-${c.periodo_id}-${instCentral.id}`,
+                  source: periodoNodeId,
+                  target: instNodeId,
+                  tipo: "periodo_institucion",
+                  institucion_id: instCentral.id,
+                  periodo_id: c.periodo_id
+                }
+              });
+            }
+          } else {
+            // Compatibilidad: si no hay periodo, mantener persona → institución directo.
+            elements.push({
+              data: {
+                id: c.edge_id || `cargo-${c.persona_id}-${c.institucion_id}-sin-periodo-${c.id}`,
+                source: personaNodeId,
+                target: instNodeId,
+                tipo: "cargo",
+                cargo_id: c.id,
+                nombre_cargo: c.nombre_cargo,
+                persona_id: c.persona_id,
+                institucion_id: c.institucion_id,
+                periodo_id: null,
+                periodo_nombre: null,
+                periodo_tipo: null,
+                periodo_nivel: null,
+                fecha_inicio: c.fecha_inicio || null,
+                fecha_fin: c.fecha_fin || null,
+                notas: c.notas || "",
+                partido_nombre: partyName,
+                party_color: partyStyle.fill
+              }
+            });
+          }
         });
 
         // --- 7) Temas vinculados a la institución central ---
@@ -742,6 +882,23 @@
               }
             },
             {
+              selector: "node[tipo = 'periodo']",
+              style: {
+                "shape": "round-rectangle",
+                "background-color": "#2a3441",
+                "border-width": 1,
+                "border-color": "#64748b",
+                "width": 150,
+                "height": 40,
+                "font-size": 10,
+                "font-weight": "500",
+                "text-wrap": "wrap",
+                "text-max-width": 130,
+                "text-background-color": "#0c1220",
+                "text-background-opacity": 0.9
+              }
+            },
+            {
               selector: "edge",
               style: {
                 "width": 2,
@@ -757,7 +914,9 @@
             {
               selector: "edge[tipo = 'cargo']",
               style: {
-                "width": 2.4
+                "width": 2.4,
+                "line-color": "data(party_color)",
+                "target-arrow-color": "data(party_color)"
               }
             },
             {
@@ -775,6 +934,15 @@
                 "curve-style": "straight",
                 "target-arrow-shape": "triangle",
                 "target-arrow-color": "#9aa0a6"
+              }
+            },
+            {
+              selector: "edge[tipo = 'periodo_institucion']",
+              style: {
+                "line-style": "dashed",
+                "line-color": "#7f8ea3",
+                "target-arrow-color": "#7f8ea3",
+                "width": 1.6
               }
             }
           ]
@@ -876,6 +1044,24 @@
 
               const mostrar = showPersonas && matchesPeriodo;
               edge.style("display", mostrar ? "element" : "none");
+            });
+
+            cy.edges("[tipo = 'periodo_institucion']").forEach(edge => {
+              const periodoId = edge.data("periodo_id");
+              const relatedCargo = cy.edges("[tipo = 'cargo']").filter(cargoEdge => {
+                return (
+                  cargoEdge.style("display") !== "none" &&
+                  cargoEdge.data("periodo_id") === periodoId
+                );
+              });
+              const mostrar = showPersonas && relatedCargo.length > 0;
+              edge.style("display", mostrar ? "element" : "none");
+            });
+
+            cy.nodes("[tipo = 'periodo']").forEach(node => {
+              const hasVisibleCargo = node.connectedEdges("[tipo = 'cargo']")
+                .some(edge => edge.style("display") !== "none");
+              node.style("display", hasVisibleCargo ? "element" : "none");
             });
 
             cy.nodes("[tipo = 'persona']").forEach(node => {
@@ -990,6 +1176,8 @@
             const personaId = node.data("persona_id");
             const persona = personasMap[personaId];
             if (persona) setPanelForPersona(persona);
+          } else if (tipo === "periodo") {
+            setPanelForPeriodo(node);
           } else if (tipo === "tema") {
             const temaId = node.data("tema_id");
             const tema = temasMap[temaId];
@@ -1009,9 +1197,14 @@
             persona_id: edge.data("persona_id"),
             institucion_id: edge.data("institucion_id"),
             nombre_cargo: edge.data("nombre_cargo"),
+            periodo_id: edge.data("periodo_id"),
+            periodo_nombre: edge.data("periodo_nombre"),
+            periodo_tipo: edge.data("periodo_tipo"),
+            periodo_nivel: edge.data("periodo_nivel"),
             fecha_inicio: edge.data("fecha_inicio"),
             fecha_fin: edge.data("fecha_fin"),
-            notas: edge.data("notas")
+            notas: edge.data("notas"),
+            partido_nombre: edge.data("partido_nombre")
           };
           setPanelForCargo(cargo);
         });
