@@ -17,12 +17,14 @@ from .models import (
     Cargo,
     Institucion,
     Persona,
+    PeriodoAdministrativo,
     Relacion,
     Topic,
     InstitutionTopic,
     PersonTopicManual,
 )
 from .serializers import InstitucionSerializer, PersonaSerializer, RelacionSerializer
+from .utils_grafos import partido_vigente_en_periodo, conteo_por_partido_en_periodo
 
 
 def index_apps(request):
@@ -253,7 +255,25 @@ class PersonaGrafoView(APIView):
     def get(self, request, slug):
         persona = get_object_or_404(Persona, slug=slug)
 
+        # Filtros opcionales (editoriales)
+        periodo_id = request.GET.get("periodo_id")
+        cargo_clase = request.GET.get("cargo_clase")
+
+        periodo_obj = None
+        if periodo_id:
+            try:
+                periodo_obj = PeriodoAdministrativo.objects.get(id=int(periodo_id))
+            except (ValueError, PeriodoAdministrativo.DoesNotExist):
+                periodo_obj = None
+
+        def _party_name_for_person(person_id: int):
+            if not periodo_obj:
+                return None
+            part = partido_vigente_en_periodo(person_id, periodo_obj)
+            return part.nombre if part else None
+
         persona_data = PersonaSerializer(persona).data
+        persona_data["party"] = _party_name_for_person(persona.id)
 
         # Relaciones persona <-> persona hasta grado 3 (BFS)
         max_depth = 3
@@ -294,6 +314,12 @@ class PersonaGrafoView(APIView):
         personas_conectadas_data = PersonaSerializer(
             personas_conectadas, many=True
         ).data
+        # Enriquecer con partido vigente en el periodo (para colorear)
+        for d in personas_conectadas_data:
+            try:
+                d["party"] = _party_name_for_person(int(d["id"]))
+            except Exception:
+                d["party"] = None
 
         relaciones = Relacion.objects.filter(id__in=relaciones_ids)
         relaciones_data = RelacionSerializer(relaciones, many=True).data
@@ -301,14 +327,25 @@ class PersonaGrafoView(APIView):
         # === INSTITUCIONES RELACIONADAS (para cargos) ===
         instituciones_ids = set()
 
+        def _cargos_filtrados_por_persona(p):
+            qs = Cargo.objects.filter(persona=p).select_related("institucion", "periodo")
+            if periodo_id:
+                try:
+                    qs = qs.filter(periodo_id=int(periodo_id))
+                except ValueError:
+                    pass
+            if cargo_clase:
+                qs = qs.filter(cargo_clase=cargo_clase)
+            return qs
+
         # Cargos de la persona central
-        for cargo in Cargo.objects.filter(persona=persona):
+        for cargo in _cargos_filtrados_por_persona(persona):
             if cargo.institucion_id:
                 instituciones_ids.add(cargo.institucion_id)
 
         # Cargos de personas conectadas
         for p in personas_conectadas:
-            for cargo in Cargo.objects.filter(persona=p):
+            for cargo in _cargos_filtrados_por_persona(p):
                 if cargo.institucion_id:
                     instituciones_ids.add(cargo.institucion_id)
 
@@ -351,7 +388,15 @@ class PersonaGrafoView(APIView):
                 }
             )
 
-        cargos_persona = Cargo.objects.filter(persona=persona).select_related("institucion")
+        cargos_persona = Cargo.objects.filter(persona=persona).select_related("institucion", "periodo")
+        if periodo_id:
+            try:
+                cargos_persona = cargos_persona.filter(periodo_id=int(periodo_id))
+            except ValueError:
+                pass
+        if cargo_clase:
+            cargos_persona = cargos_persona.filter(cargo_clase=cargo_clase)
+
         temas_cargo_vistos = set()
         for cargo in cargos_persona:
             if not cargo.institucion_id:
@@ -383,6 +428,10 @@ class PersonaGrafoView(APIView):
                         "institucion_id": cargo.institucion_id,
                         "cargo_id": cargo.id,
                         "cargo_nombre": cargo.nombre_cargo,
+                        "cargo_clase": getattr(cargo, "cargo_clase", None),
+                        "cargo_titulo": getattr(cargo, "cargo_titulo", None) or cargo.nombre_cargo,
+                        "periodo_id": cargo.periodo_id,
+                        "periodo_nombre": cargo.periodo.nombre if cargo.periodo else None,
                         "fecha_inicio": cargo.fecha_inicio,
                         "fecha_fin": cargo.fecha_fin,
                     }
@@ -396,6 +445,10 @@ class PersonaGrafoView(APIView):
                 "instituciones": instituciones_data,
                 "temas": list(temas_map.values()),
                 "tema_relaciones": tema_relaciones,
+                "meta": {
+                    "periodo_id": int(periodo_id) if (periodo_id and str(periodo_id).isdigit()) else None,
+                    "cargo_clase": cargo_clase or None,
+                },
             }
         )
 
@@ -430,6 +483,23 @@ class InstitucionGrafoView(APIView):
     def get(self, request, slug):
         institucion = get_object_or_404(Institucion, slug=slug)
 
+        # Filtros opcionales (editoriales)
+        periodo_id = request.GET.get("periodo_id")
+        cargo_clase = request.GET.get("cargo_clase")
+
+        periodo_obj = None
+        if periodo_id:
+            try:
+                periodo_obj = PeriodoAdministrativo.objects.get(id=int(periodo_id))
+            except (ValueError, PeriodoAdministrativo.DoesNotExist):
+                periodo_obj = None
+
+        def _party_name_for_person(person_id: int):
+            if not periodo_obj:
+                return None
+            part = partido_vigente_en_periodo(person_id, periodo_obj)
+            return part.nombre if part else None
+
         institucion_central_data = InstitucionSerializer(institucion).data
 
         # Hijas directas de la institución central
@@ -445,6 +515,13 @@ class InstitucionGrafoView(APIView):
             "persona",
             "periodo",
         )
+        if periodo_id:
+            try:
+                cargos_qs = cargos_qs.filter(periodo_id=int(periodo_id))
+            except ValueError:
+                pass
+        if cargo_clase:
+            cargos_qs = cargos_qs.filter(cargo_clase=cargo_clase)
 
         cargos_data = []
         personas_ids = set()
@@ -458,6 +535,8 @@ class InstitucionGrafoView(APIView):
                     "persona_id": c.persona_id,
                     "institucion_id": c.institucion_id,
                     "nombre_cargo": c.nombre_cargo,
+                    "cargo_clase": getattr(c, "cargo_clase", None),
+                    "cargo_titulo": getattr(c, "cargo_titulo", None) or c.nombre_cargo,
                     "periodo_id": c.periodo_id,
                     "periodo_nombre": c.periodo.nombre if c.periodo else None,
                     "fecha_inicio": c.fecha_inicio,
@@ -468,6 +547,12 @@ class InstitucionGrafoView(APIView):
 
         personas_qs = Persona.objects.filter(id__in=personas_ids)
         personas_data = PersonaSerializer(personas_qs, many=True).data
+        # Enriquecer con partido vigente en el periodo (para colorear)
+        for d in personas_data:
+            try:
+                d["party"] = _party_name_for_person(int(d["id"]))
+            except Exception:
+                d["party"] = None
 
         # Institución padre (si existe)
         institucion_padre_data = None
@@ -519,9 +604,13 @@ class InstitucionGrafoView(APIView):
                 "instituciones_nivel2": nietas_data,  # hijas de las hijas
                 "instituciones_ancestros": ancestros_data,  # cadena de padres
                 "personas": personas_data,              # personas con cargos en la central
-                "cargos": cargos_data,                  # cargos en la central
+                "cargos": cargos_data,                  # cargos en la central (filtrables)
                 "temas": list(temas_map.values()),
                 "tema_relaciones": tema_relaciones,
+                "meta": {
+                    "periodo_id": int(periodo_id) if (periodo_id and str(periodo_id).isdigit()) else None,
+                    "cargo_clase": cargo_clase or None,
+                },
             }
         )
 
@@ -536,6 +625,29 @@ def grafo_institucion_page(request, slug):
         request,
         "redpolitica/grafo_institucion.html",
         {"institucion": institucion},
+    )
+
+
+def conteo_partidos_periodo_json(request, periodo_id):
+    """
+    Conteo de personas por partido vigente dentro de un periodo,
+    filtrando por cargo_clase (puede venir repetido en querystring).
+
+    Ejemplos:
+      /api/periodos/20/conteo-partidos.json?cargo_clase=diputacion_local
+      /api/periodos/2/conteo-partidos.json?cargo_clase=senaduria&cargo_clase=diputacion_federal
+    """
+    cargo_clases = request.GET.getlist("cargo_clase")
+    if not cargo_clases:
+        cargo_clases = ["diputacion_local", "diputacion_federal", "senaduria"]
+
+    data = conteo_por_partido_en_periodo(int(periodo_id), cargo_clases)
+    return JsonResponse(
+        {
+            "periodo_id": int(periodo_id),
+            "cargo_clases": cargo_clases,
+            "conteo": data,
+        }
     )
 
 
