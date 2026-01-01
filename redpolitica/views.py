@@ -23,7 +23,12 @@ from .models import (
     InstitutionTopic,
     PersonTopicManual,
 )
-from .serializers import InstitucionSerializer, PersonaSerializer, RelacionSerializer
+from .serializers import (
+    InstitucionSerializer,
+    PersonaSerializer,
+    PersonaGrafoSerializer,
+    RelacionSerializer,
+)
 from .utils_grafos import (
     partido_vigente_en_fecha,
     partido_vigente_en_periodo,
@@ -312,7 +317,7 @@ class PersonaGrafoView(APIView):
             part = partido_vigente_en_fecha(person_id, ref_date)
             return part.nombre if part else None
 
-        persona_data = PersonaSerializer(persona).data
+        persona_data = PersonaGrafoSerializer(persona).data
         persona_data["party"] = _party_name_for_person(persona.id)
 
         # Relaciones persona <-> persona hasta grado 3 (BFS)
@@ -351,7 +356,7 @@ class PersonaGrafoView(APIView):
         personas_ids.discard(persona.id)
 
         personas_conectadas = Persona.objects.filter(id__in=personas_ids).distinct()
-        personas_conectadas_data = PersonaSerializer(
+        personas_conectadas_data = PersonaGrafoSerializer(
             personas_conectadas, many=True
         ).data
         # Enriquecer con partido vigente en el periodo (para colorear)
@@ -544,6 +549,7 @@ class InstitucionGrafoView(APIView):
         cargos_data = []
         personas_ids = set()
         persona_context = {}
+        periodos_por_persona = {}
 
         def _cargo_context(cargo):
             if cargo.periodo:
@@ -562,9 +568,41 @@ class InstitucionGrafoView(APIView):
                 previo = persona_context.get(c.persona_id)
                 if not previo or contexto["sort_date"] > previo["sort_date"]:
                     persona_context[c.persona_id] = contexto
+                period_key = c.periodo_id if c.periodo_id else "sin-periodo"
+                persona_periodos = periodos_por_persona.setdefault(c.persona_id, {})
+                if period_key not in persona_periodos:
+                    persona_periodos[period_key] = {
+                        "periodo_id": c.periodo_id,
+                        "periodo_nombre": c.periodo.nombre if c.periodo else "Sin periodo",
+                        "periodo_tipo": c.periodo.tipo if c.periodo else None,
+                        "periodo_nivel": c.periodo.nivel if c.periodo else None,
+                        "fecha_inicio": c.fecha_inicio,
+                        "fecha_fin": c.fecha_fin,
+                        "cargo_ids": [],
+                        "cargos_nombres": [],
+                    }
+                periodo_entry = persona_periodos[period_key]
+                periodo_entry["cargo_ids"].append(c.id)
+                periodo_entry["cargos_nombres"].append(c.nombre_cargo)
+                if c.fecha_inicio:
+                    if (
+                        periodo_entry["fecha_inicio"] is None
+                        or c.fecha_inicio < periodo_entry["fecha_inicio"]
+                    ):
+                        periodo_entry["fecha_inicio"] = c.fecha_inicio
+                if c.fecha_fin:
+                    if (
+                        periodo_entry["fecha_fin"] is None
+                        or c.fecha_fin > periodo_entry["fecha_fin"]
+                    ):
+                        periodo_entry["fecha_fin"] = c.fecha_fin
             cargos_data.append(
                 {
                     "id": c.id,
+                    "edge_id": (
+                        f"cargo-{c.persona_id}-{c.institucion_id}-"
+                        f"{c.periodo_id or 'sin-periodo'}-{c.id}"
+                    ),
                     "persona_id": c.persona_id,
                     "institucion_id": c.institucion_id,
                     "nombre_cargo": c.nombre_cargo,
@@ -572,6 +610,8 @@ class InstitucionGrafoView(APIView):
                     "cargo_titulo": getattr(c, "cargo_titulo", None) or c.nombre_cargo,
                     "periodo_id": c.periodo_id,
                     "periodo_nombre": c.periodo.nombre if c.periodo else None,
+                    "periodo_tipo": c.periodo.tipo if c.periodo else None,
+                    "periodo_nivel": c.periodo.nivel if c.periodo else None,
                     "fecha_inicio": c.fecha_inicio,
                     "fecha_fin": c.fecha_fin,
                     "notas": c.notas,
@@ -579,7 +619,7 @@ class InstitucionGrafoView(APIView):
             )
 
         personas_qs = Persona.objects.filter(id__in=personas_ids)
-        personas_data = PersonaSerializer(personas_qs, many=True).data
+        personas_data = PersonaGrafoSerializer(personas_qs, many=True).data
         # Enriquecer con partido vigente en el periodo (para colorear)
         for d in personas_data:
             try:
@@ -593,6 +633,8 @@ class InstitucionGrafoView(APIView):
                 d["party"] = part.nombre if part else None
             except Exception:
                 d["party"] = None
+            periodos = periodos_por_persona.get(int(d["id"]), {})
+            d["periodos_en_institucion"] = list(periodos.values())
 
         # Institución padre (si existe)
         institucion_padre_data = None

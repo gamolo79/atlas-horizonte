@@ -308,6 +308,15 @@
     panelTitle.textContent = p.nombre_completo;
     let html = "";
 
+    const partido =
+      p.party ||
+      p.partido_principal ||
+      p.partido_actual ||
+      (p.militancias && p.militancias.length ? p.militancias[0].partido_nombre : null);
+    if (partido) {
+      html += `<p><strong>Partido:</strong> ${partido}</p>`;
+    }
+
     if (p.bio_corta) {
       html += `<p>${p.bio_corta}</p>`;
     }
@@ -379,6 +388,14 @@
         html += `<p><strong>Periodo:</strong> ${
           rel.fecha_inicio || "¿?"
         } – ${rel.fecha_fin || "actual o sin registro"}</p>`;
+      }
+
+      if (rel.periodo_nombre || rel.periodo_tipo) {
+        const partes = [];
+        if (rel.periodo_nombre) partes.push(rel.periodo_nombre);
+        if (rel.periodo_tipo) partes.push(rel.periodo_tipo);
+        if (rel.periodo_nivel) partes.push(rel.periodo_nivel);
+        html += `<p><strong>Periodo administrativo:</strong> ${partes.join(" · ")}</p>`;
       }
 
       if (rel.notas) {
@@ -633,7 +650,8 @@
         if (!top || top.id == null) return;
 
         const targetNodeId = `i-${top.id}`;
-        const edgeId = `c-${central.id}-${cargo.id}-${top.id}`;
+        const periodoId = cargo.periodo_id || (cargo.periodo ? cargo.periodo.id : null);
+        const edgeId = `c-${central.id}-${cargo.id}-${periodoId || "sin-periodo"}-${top.id}`;
 
         elements.push({
           data: {
@@ -646,6 +664,10 @@
             persona_id: central.id,
             institucion_id: instOriginalId,
             institucion_padre_id: top.id,
+            periodo_id: periodoId,
+            periodo_nombre: cargo.periodo_nombre || (cargo.periodo ? cargo.periodo.nombre : null),
+            periodo_tipo: cargo.periodo_tipo || (cargo.periodo ? cargo.periodo.tipo : null),
+            periodo_nivel: cargo.periodo_nivel || (cargo.periodo ? cargo.periodo.nivel : null),
             fecha_inicio: cargo.fecha_inicio || null,
             fecha_fin: cargo.fecha_fin || null,
             notas: cargo.notas || ""
@@ -732,7 +754,7 @@
             selector: "node[tipo = 'persona_central']",
             style: {
               "background-color": function(ele) {
-                return partyFillColor(ele.data("party"), ele.data("label"));
+                return partyFillColor(ele.data("party"), ele.data("persona_id") || ele.data("label"));
               },
               "border-width": 3,
               "border-color": "#ffffff",
@@ -748,7 +770,7 @@
             selector: "node[tipo = 'persona']",
             style: {
               "background-color": function(ele) {
-                return partyFillColor(ele.data("party"), ele.data("label"));
+                return partyFillColor(ele.data("party"), ele.data("persona_id") || ele.data("label"));
               },
               "border-width": 2,
               "border-color": "#111827",
@@ -936,6 +958,10 @@
             institucion_id: edge.data("institucion_id"),
             institucion_padre_id: edge.data("institucion_padre_id"),
             cargo_nombre: edge.data("cargo_nombre"),
+            periodo_id: edge.data("periodo_id"),
+            periodo_nombre: edge.data("periodo_nombre"),
+            periodo_tipo: edge.data("periodo_tipo"),
+            periodo_nivel: edge.data("periodo_nivel"),
             fecha_inicio: edge.data("fecha_inicio"),
             fecha_fin: edge.data("fecha_fin"),
             notas: edge.data("notas")
