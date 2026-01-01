@@ -80,7 +80,8 @@
 
   function stablePartyColor(partyName, fallbackKey) {
     if (!partyName) {
-      return { fill: "#9AA0A6", stroke: "#374151" };
+      const fill = randomColorFromName(fallbackKey || "sin-partido");
+      return { fill, stroke: "#111827" };
     }
     const canonical = normalizePartyName(partyName);
     if (canonical && PARTY_COLORS[canonical]) return PARTY_COLORS[canonical];

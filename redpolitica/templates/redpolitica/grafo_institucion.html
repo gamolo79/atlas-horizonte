@@ -102,6 +102,10 @@
               <span>3 niveles</span>
             </label>
           </div>
+          <div class="panel-subtitle" style="margin-top: 10px;">Periodo</div>
+          <select id="periodo-filter" class="select-input" style="width:100%;">
+            <option value="all">Todos</option>
+          </select>
         </div>
 
         <!-- Leyenda -->
@@ -205,6 +209,7 @@
     const peopleChips = document.getElementById("people-chips");
     const topicsChipsSection = document.getElementById("topics-chips-section");
     const topicsChips = document.getElementById("topics-chips");
+    const periodoFilterEl = document.getElementById("periodo-filter");
 
     let personasMap = {};
     let institucionesMap = {};
@@ -238,7 +243,10 @@
         p.partido_siglas,
         p.partidoActual,
         p.party,
-        p.party_name
+        p.party_name,
+        p.partido_principal,
+        p.militancia_actual,
+        (p.militancias && p.militancias.length ? p.militancias[0].partido_nombre : null)
       ].filter(Boolean);
 
       if (!candidates.length) return null;
@@ -284,6 +292,18 @@
         html += `<p>${p.bio_corta}</p>`;
       }
 
+      if (p.periodos_en_institucion && p.periodos_en_institucion.length) {
+        html += `<p><strong>Periodos en esta institución:</strong></p><ul>`;
+        p.periodos_en_institucion.forEach(periodo => {
+          const nombre = periodo.periodo_nombre || "Sin periodo";
+          const fechas = periodo.fecha_inicio || periodo.fecha_fin
+            ? ` (${periodo.fecha_inicio || "¿?"} – ${periodo.fecha_fin || "actual"})`
+            : "";
+          html += `<li>${nombre}${fechas}</li>`;
+        });
+        html += `</ul>`;
+      }
+
       panelContent.innerHTML =
         html || "<p>Selecciona una institución o un cargo para ver más detalles.</p>";
     }
@@ -312,6 +332,14 @@
         html += `<p><strong>Periodo:</strong> ${
           cargo.fecha_inicio || "¿?"
         } – ${cargo.fecha_fin || "actual o sin registro"}</p>`;
+      }
+
+      if (cargo.periodo_nombre || cargo.periodo_tipo) {
+        const partes = [];
+        if (cargo.periodo_nombre) partes.push(cargo.periodo_nombre);
+        if (cargo.periodo_tipo) partes.push(cargo.periodo_tipo);
+        if (cargo.periodo_nivel) partes.push(cargo.periodo_nivel);
+        html += `<p><strong>Periodo administrativo:</strong> ${partes.join(" · ")}</p>`;
       }
 
       if (cargo.notas) {
@@ -388,7 +416,7 @@
 
           // Detecta partido (si viene) y asigna colores
           const partido = extractPartyFromPerson(p);
-          const style = partyStyleFor(partido, p.nombre_completo || String(p.id));
+          const style = partyStyleFor(partido, p.id || p.nombre_completo || String(p.id));
 
           p.__partido = partido || null;
           p.__party_fill = style.fill;
@@ -521,7 +549,7 @@
 
           elements.push({
             data: {
-              id: `cargo-${c.id}`,
+              id: c.edge_id || `cargo-${c.persona_id}-${c.institucion_id}-${c.periodo_id || "sin-periodo"}-${c.id}`,
               source: personaNodeId,
               target: instNodeId,
               tipo: "cargo",
@@ -529,6 +557,10 @@
               nombre_cargo: c.nombre_cargo,
               persona_id: c.persona_id,
               institucion_id: c.institucion_id,
+              periodo_id: c.periodo_id || null,
+              periodo_nombre: c.periodo_nombre || null,
+              periodo_tipo: c.periodo_tipo || null,
+              periodo_nivel: c.periodo_nivel || null,
               fecha_inicio: c.fecha_inicio || null,
               fecha_fin: c.fecha_fin || null,
               notas: c.notas || ""
@@ -824,20 +856,47 @@
           topicsChipsSection.style.display = "none";
         }
 
-        // --- Toggle de personas / cargos ---
-        function applyPersonasVisibility(show) {
-          const displayVal = show ? "element" : "none";
+        let nivelOrganigrama = 2;
+
+        function applyCargoFilter() {
+          const showPersonas = togglePersonas ? togglePersonas.checked : true;
+          const selected = periodoFilterEl ? periodoFilterEl.value : "all";
+
           cy.batch(() => {
-            cy.nodes("[tipo = 'persona']").style("display", displayVal);
-            cy.edges("[tipo = 'cargo']").style("display", displayVal);
+            cy.edges("[tipo = 'cargo']").forEach(edge => {
+              let matchesPeriodo = true;
+              const edgePeriodo = edge.data("periodo_id");
+              if (selected && selected !== "all") {
+                if (selected === "sin-periodo") {
+                  matchesPeriodo = edgePeriodo == null;
+                } else {
+                  matchesPeriodo = String(edgePeriodo) === selected;
+                }
+              }
+
+              const mostrar = showPersonas && matchesPeriodo;
+              edge.style("display", mostrar ? "element" : "none");
+            });
+
+            cy.nodes("[tipo = 'persona']").forEach(node => {
+              if (!showPersonas) {
+                node.style("display", "none");
+                return;
+              }
+              const hasVisibleCargo = node.connectedEdges("[tipo = 'cargo']")
+                .some(edge => edge.style("display") !== "none");
+              node.style("display", hasVisibleCargo ? "element" : "none");
+            });
           });
+
+          cy.layout(buildRadialLayout(nivelOrganigrama)).run();
         }
 
-        applyPersonasVisibility(togglePersonas ? togglePersonas.checked : true);
+        applyCargoFilter();
 
         if (togglePersonas) {
-          togglePersonas.addEventListener("change", (e) => {
-            applyPersonasVisibility(e.target.checked);
+          togglePersonas.addEventListener("change", () => {
+            applyCargoFilter();
           });
         }
 
@@ -856,6 +915,34 @@
           toggleTemas.addEventListener("change", (e) => {
             applyTemasVisibility(e.target.checked);
           });
+        }
+
+        if (periodoFilterEl) {
+          const periodosUnicos = new Map();
+          cargos.forEach(c => {
+            const key = c.periodo_id == null ? "sin-periodo" : String(c.periodo_id);
+            if (periodosUnicos.has(key)) return;
+            periodosUnicos.set(key, {
+              id: c.periodo_id,
+              nombre: c.periodo_nombre || "Sin periodo"
+            });
+          });
+
+          const orden = Array.from(periodosUnicos.entries());
+          orden.sort((a, b) => {
+            if (a[0] === "sin-periodo") return 1;
+            if (b[0] === "sin-periodo") return -1;
+            return Number(a[0]) - Number(b[0]);
+          });
+
+          orden.forEach(([key, periodo]) => {
+            const option = document.createElement("option");
+            option.value = key;
+            option.textContent = periodo.nombre;
+            periodoFilterEl.appendChild(option);
+          });
+
+          periodoFilterEl.addEventListener("change", applyCargoFilter);
         }
 
         // --- Toggle de niveles del organigrama ---
@@ -879,7 +966,6 @@
           cy.layout(buildRadialLayout(nivelVisible)).run();
         }
 
-        let nivelOrganigrama = 2;
         applyOrganigramaLevel(nivelOrganigrama);
 
         nivelToggles.forEach(toggle => {
