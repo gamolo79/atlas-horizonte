@@ -1,4 +1,5 @@
 from collections import Counter
+from datetime import date
 from typing import Dict, Optional, Tuple, List
 from django.db.models import Q
 
@@ -17,6 +18,34 @@ def partido_vigente_en_periodo(persona_id: int, periodo: PeriodoAdministrativo) 
     )
     m = qs.first()
     return m.partido if m else None
+
+
+def partido_vigente_en_fecha(
+    persona_id: int,
+    fecha: date,
+    fallback_latest: bool = True,
+) -> Optional[Institucion]:
+    qs = (
+        MilitanciaPartidista.objects.filter(
+            persona_id=persona_id,
+            fecha_inicio__lte=fecha,
+        )
+        .filter(Q(fecha_fin__isnull=True) | Q(fecha_fin__gte=fecha))
+        .select_related("partido")
+        .order_by("-fecha_inicio", "-id")
+    )
+    m = qs.first()
+    if m:
+        return m.partido
+    if not fallback_latest:
+        return None
+    latest = (
+        MilitanciaPartidista.objects.filter(persona_id=persona_id)
+        .select_related("partido")
+        .order_by("-fecha_inicio", "-id")
+        .first()
+    )
+    return latest.partido if latest else None
 
 
 def conteo_por_partido_en_periodo(periodo_id: int, cargo_clases: List[str]) -> Dict[str, int]:
