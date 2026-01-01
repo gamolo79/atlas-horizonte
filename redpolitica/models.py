@@ -2,6 +2,7 @@ from django.db import models
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.utils.text import slugify
+from django.core.exceptions import ValidationError
 
 from atlas_core.text_utils import normalize_name
 
@@ -160,6 +161,33 @@ class Cargo(models.Model):
         ),
     )
     nombre_cargo = models.CharField(max_length=255)
+
+    # === NUEVO: campos canónicos para agrupar/filtrar sin depender del texto editorial ===
+    cargo_clase = models.CharField(
+        max_length=50,
+        blank=True,
+        null=True,
+        db_index=True,
+        help_text=(
+            "Clase canónica para agrupamiento (ej. 'diputacion_local', "
+            "'diputacion_federal', 'senaduria', 'presidencia_municipal', 'secretaria')."
+        ),
+    )
+    cargo_titulo = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True,
+        help_text="Título canónico para UI (ej. 'Diputación local', 'Senaduría').",
+    )
+    cargo_codigo = models.SlugField(
+        max_length=60,
+        blank=True,
+        null=True,
+        db_index=True,
+        help_text="Código/slug estable derivado de cargo_clase (opcional).",
+    )
+    # ================================================================================
+
     fecha_inicio = models.DateField(null=True, blank=True)
     fecha_fin = models.DateField(null=True, blank=True)
     es_actual = models.BooleanField(default=False)
@@ -167,9 +195,80 @@ class Cargo(models.Model):
 
     class Meta:
         ordering = ["-fecha_inicio", "persona"]
+        indexes = [
+            models.Index(fields=["periodo"]),
+            models.Index(fields=["persona", "periodo"]),
+            models.Index(fields=["institucion", "periodo"]),
+            models.Index(fields=["cargo_clase"]),
+            models.Index(fields=["cargo_codigo"]),
+        ]
+
+    def save(self, *args, **kwargs):
+        # Si capturas cargo_clase, generamos automáticamente un código estable si está vacío
+        if self.cargo_clase and not self.cargo_codigo:
+            self.cargo_codigo = slugify(self.cargo_clase)[:60] or None
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.nombre_cargo} – {self.persona.nombre_completo}"
+
+
+class MilitanciaPartidista(models.Model):
+    """
+    Militancia partidista (temporal). Una persona puede tener múltiples militancias
+    a lo largo del tiempo (cambios de partido).
+
+    partido -> Institucion con tipo='partido'
+    """
+
+    TIPO_CHOICES = [
+        ("militante", "Militante"),
+        ("dirigente", "Dirigente"),
+        ("candidato", "Candidato"),
+        ("externo", "Externo"),
+    ]
+
+    persona = models.ForeignKey(
+        Persona,
+        on_delete=models.CASCADE,
+        related_name="militancias",
+    )
+    partido = models.ForeignKey(
+        Institucion,
+        on_delete=models.PROTECT,
+        related_name="militancias_recibidas",
+        limit_choices_to={"tipo": "partido"},
+        help_text="Selecciona una Institución cuyo tipo sea 'Partido político'.",
+    )
+    fecha_inicio = models.DateField()
+    fecha_fin = models.DateField(null=True, blank=True)
+    tipo = models.CharField(max_length=20, choices=TIPO_CHOICES, null=True, blank=True)
+    notas = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ["persona_id", "fecha_inicio"]
+        indexes = [
+            models.Index(fields=["persona", "fecha_inicio"]),
+            models.Index(fields=["partido", "fecha_inicio"]),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["persona", "partido", "fecha_inicio"],
+                name="uniq_militancia_persona_partido_inicio",
+            )
+        ]
+
+    def clean(self):
+        if self.fecha_fin and self.fecha_fin < self.fecha_inicio:
+            raise ValidationError("fecha_fin no puede ser menor que fecha_inicio.")
+
+        # Refuerzo (además de limit_choices_to) para evitar inconsistencias por imports
+        if self.partido and getattr(self.partido, "tipo", None) != "partido":
+            raise ValidationError("La institución seleccionada no es un partido (tipo != 'partido').")
+
+    def __str__(self):
+        fin = self.fecha_fin.isoformat() if self.fecha_fin else "actual"
+        return f"{self.persona} · {self.partido} ({self.fecha_inicio.isoformat()} - {fin})"
 
 
 class Relacion(models.Model):
