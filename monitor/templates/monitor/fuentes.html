@@ -226,23 +226,23 @@
       <div class="kpis">
         <div class="kpi">
           <div class="l">Fuentes activas</div>
-          <div class="v">48</div>
-          <div class="d">Última hora: <b>+6</b> nuevas notas</div>
+          <div class="v" id="kpi-active">—</div>
+          <div class="d">Estado actual</div>
         </div>
         <div class="kpi">
           <div class="l">Con error</div>
-          <div class="v" style="color:var(--neg)">2</div>
-          <div class="d">Principal causa: <b>timeout</b></div>
+          <div class="v" id="kpi-error" style="color:var(--neg)">—</div>
+          <div class="d">Último error registrado</div>
         </div>
         <div class="kpi">
           <div class="l">Nuevas hoy</div>
-          <div class="v">124</div>
-          <div class="d">Promedio: <b>17</b> por fuente</div>
+          <div class="v" id="kpi-new">—</div>
+          <div class="d">Notas recientes</div>
         </div>
         <div class="kpi">
           <div class="l">Latencia promedio</div>
-          <div class="v">3.4 min</div>
-          <div class="d">Mejor: <b>RSS</b> · Peor: <b>scrape</b></div>
+          <div class="v" id="kpi-latency">—</div>
+          <div class="d">Promedio reportado</div>
         </div>
       </div>
     </section>
@@ -259,42 +259,39 @@
         <div class="filters">
           <div>
             <label>Buscar</label>
-            <input placeholder="Nombre del medio o URL…">
+            <input id="sourceSearch" placeholder="Nombre del medio o URL…">
           </div>
           <div>
             <label>Tipo</label>
-            <select>
-              <option selected>Todos</option>
-              <option>RSS</option>
-              <option>Sitemap</option>
-              <option>Scrape</option>
+            <select id="typeFilter">
+              <option value="">Todos</option>
+              <option value="rss">RSS</option>
+              <option value="sitemap">Sitemap</option>
+              <option value="scrape">Scrape</option>
             </select>
           </div>
           <div>
             <label>Estado</label>
-            <select>
-              <option selected>Todos</option>
-              <option>OK</option>
-              <option>Error</option>
-              <option>Inactiva</option>
+            <select id="statusFilter">
+              <option value="">Todos</option>
+              <option value="ok">OK</option>
+              <option value="error">Error</option>
+              <option value="inactive">Inactiva</option>
             </select>
           </div>
           <div>
             <label>Frecuencia</label>
-            <select>
-              <option selected>Cualquiera</option>
-              <option>1–5 min</option>
-              <option>10–15 min</option>
-              <option>30–60 min</option>
+            <select id="frequencyFilter">
+              <option value="">Cualquiera</option>
+              <option value="5">1–5 min</option>
+              <option value="15">10–15 min</option>
+              <option value="60">30–60 min</option>
             </select>
           </div>
         </div>
 
         <div class="row">
-          <button class="btn">+ Agregar fuente</button>
-          <button class="btn ghost">Importar (CSV)</button>
-          <button class="btn ghost">Exportar</button>
-          <button class="btn ghost">Probar seleccionadas</button>
+          <button class="btn ghost" id="refreshSources">Actualizar listado</button>
         </div>
 
         <!-- TABLE -->
@@ -308,53 +305,7 @@
             <div style="text-align:right">Acciones</div>
           </div>
 
-          <div class="trow">
-            <div>
-              <div class="name">El Queretano</div>
-              <div class="mini">Activa · 34 notas / 7 días</div>
-            </div>
-            <div class="url">https://elqueretano.info/feed/</div>
-            <div><span class="pill pos"><span class="dot" style="background:var(--g)"></span>RSS</span></div>
-            <div class="mini">cada 5 min</div>
-            <div class="mini">hace 2 min · <span class="pill pos">OK</span></div>
-            <div class="actions">
-              <button class="iconbtn ok">Probar</button>
-              <button class="iconbtn">Editar</button>
-              <button class="iconbtn">Pausar</button>
-            </div>
-          </div>
-
-          <div class="trow">
-            <div>
-              <div class="name">Update Me</div>
-              <div class="mini">Activa · 28 notas / 7 días</div>
-            </div>
-            <div class="url">https://updateme.news/feed/</div>
-            <div><span class="pill pos"><span class="dot" style="background:var(--g)"></span>RSS</span></div>
-            <div class="mini">cada 5 min</div>
-            <div class="mini">hace 1 min · <span class="pill pos">OK</span></div>
-            <div class="actions">
-              <button class="iconbtn ok">Probar</button>
-              <button class="iconbtn">Editar</button>
-              <button class="iconbtn">Pausar</button>
-            </div>
-          </div>
-
-          <div class="trow">
-            <div>
-              <div class="name">Periodismo.media</div>
-              <div class="mini">Activa · 12 notas / 7 días</div>
-            </div>
-            <div class="url">https://periodismo.media/sitemap.xml</div>
-            <div><span class="pill neu"><span class="dot" style="background:var(--neu)"></span>Sitemap</span></div>
-            <div class="mini">cada 15 min</div>
-            <div class="mini">hace 18 min · <span class="pill neu">OK</span></div>
-            <div class="actions">
-              <button class="iconbtn ok">Probar</button>
-              <button class="iconbtn">Editar</button>
-              <button class="iconbtn">Pausar</button>
-            </div>
-          </div>
+          <div id="sourcesTable"></div>
 
           <div class="trow">
             <div>
@@ -382,115 +333,44 @@
       <aside class="grid">
 
         <div class="card">
-          <h2>Agregar / editar fuente</h2>
-          <div class="muted">Configura el método. Monitor intentará extraer título, texto y metadatos.</div>
-
-          <label>Nombre del medio</label>
-          <input placeholder="Ej: Diario de Querétaro">
-
-          <label>Tipo</label>
-          <select id="sourceType">
-            <option selected>RSS</option>
-            <option>Sitemap</option>
-            <option>Scrape</option>
-          </select>
-
-          <label>URL</label>
-          <input placeholder="https://sitio.com/feed/">
-
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-            <div>
-              <label>Frecuencia</label>
-              <select>
-                <option>1 min</option>
-                <option selected>5 min</option>
-                <option>15 min</option>
-                <option>30 min</option>
-                <option>60 min</option>
-              </select>
-            </div>
-            <div>
-              <label>Estado</label>
-              <select>
-                <option selected>Activa</option>
-                <option>Inactiva</option>
-              </select>
-            </div>
-          </div>
-
-          <label>Notas</label>
-          <div class="box">
-            <div class="kv"><span class="muted">Último OK</span><b>hace 2 min</b></div>
+          <h2>Administración de fuentes</h2>
+          <div class="muted">El alta/edición se gestiona desde el admin de Django para evitar duplicidad de CRUD.</div>
+          <div class="box" style="margin-top:10px">
+            <div class="kv"><span class="muted">Atajo</span><b>/admin/monitor/source/</b></div>
             <div style="height:6px"></div>
-            <div class="kv"><span class="muted">Último error</span><b style="color:var(--neg)">—</b></div>
-            <div style="height:6px"></div>
-            <div class="kv"><span class="muted">Nuevas hoy</span><b>6</b></div>
-          </div>
-
-          <div class="row">
-            <button class="btn">Guardar</button>
-            <button class="btn ghost">Probar ahora</button>
-            <button class="btn danger">Eliminar</button>
+            <div class="kv"><span class="muted">Acción sugerida</span><b>Revisar estado y probar fuentes</b></div>
           </div>
         </div>
 
         <div class="card">
           <h2>Prueba rápida (preview)</h2>
-          <div class="muted">
-            Antes de activar, muestra qué detecta Monitor: título, fecha, texto y metadescripción.
+          <div class="muted">Selecciona una fuente en el listado y usa “Probar” para ver el preview.</div>
+
+          <div class="box" style="margin-top:10px" id="previewBox">
+            <div style="font-weight:900">Resultado</div>
+            <div class="muted" style="margin-top:6px" id="previewText">Sin pruebas ejecutadas.</div>
           </div>
 
-          <div class="box" style="margin-top:10px">
-            <div style="font-weight:900">Resultado esperado</div>
-            <div class="muted" style="margin-top:6px">
-              • Items detectados: <b>10</b><br/>
-              • Texto extraído: <b>sí</b> (readability)<br/>
-              • Meta description: <b>sí</b><br/>
-              • Keywords/tags: <b>parcial</b>
-            </div>
-          </div>
-
-          <div class="log">
-[13:20] GET feed: OK (200)
-[13:20] Items: 10
-[13:20] Item #1: título OK · fecha OK · link OK
-[13:20] Extract: readability OK · texto 3,214 chars
-[13:20] Meta: description OK · keywords n/a
-          </div>
-
-          <div class="row">
-            <button class="btn ghost">Ver items</button>
-            <button class="btn ghost">Enviar a ingesta</button>
-          </div>
+          <div class="log" id="previewLog">Esperando selección de fuente...</div>
         </div>
 
         <div class="card">
           <h2>Salud y alertas</h2>
-          <div class="muted">Sugerencias automáticas para mantener estable el monitoreo.</div>
+          <div class="muted">Alertas basadas en el estado real de las fuentes.</div>
 
-          <div class="box" style="margin-top:10px">
+          <div class="box" style="margin-top:10px" id="alertsBox">
             <div style="display:flex;justify-content:space-between;gap:10px">
               <div>
-                <div style="font-weight:900">2 fuentes con error (timeout)</div>
-                <div class="muted">Recomendación: subir timeout o bajar frecuencia.</div>
+                <div style="font-weight:900">Sin alertas críticas</div>
+                <div class="muted">Revisa las fuentes con error para más detalle.</div>
               </div>
-              <span class="pill neg">Atención</span>
-            </div>
-          </div>
-
-          <div class="box">
-            <div style="display:flex;justify-content:space-between;gap:10px">
-              <div>
-                <div style="font-weight:900">Scraping: 1 fuente inestable</div>
-                <div class="muted">Recomendación: buscar sitemap o RSS alterno.</div>
-              </div>
-              <span class="pill neu">Sugerencia</span>
+              <span class="pill neu">OK</span>
             </div>
           </div>
 
           <div class="row">
-            <button class="btn">Reintentar fallas</button>
-            <button class="btn ghost">Abrir Procesos</button>
+            <button class="btn ghost" id="retrySources">Reintentar fallas</button>
+            <a class="btn ghost" href="{% url 'monitor:procesos' %}">Abrir Procesos</a>
           </div>
         </div>
 
@@ -499,18 +379,130 @@
   </div>
 
   <script>
-    // Mock dynamic behavior (optional): cambiar placeholders según tipo de fuente
-    const typeSel = document.getElementById("sourceType");
-    const urlInput = document.querySelector('input[placeholder^="https://sitio.com"]');
-    if(typeSel && urlInput){
-      typeSel.addEventListener("change", ()=>{
-        const v = typeSel.value;
-        if(v==="RSS") urlInput.placeholder = "https://sitio.com/feed/";
-        if(v==="Sitemap") urlInput.placeholder = "https://sitio.com/sitemap.xml";
-        if(v==="Scrape") urlInput.placeholder = "https://sitio.com/seccion/noticias/";
+    const sourcesTable = document.getElementById("sourcesTable");
+    const sourceSearch = document.getElementById("sourceSearch");
+    const typeFilter = document.getElementById("typeFilter");
+    const statusFilter = document.getElementById("statusFilter");
+    const frequencyFilter = document.getElementById("frequencyFilter");
+    const previewText = document.getElementById("previewText");
+    const previewLog = document.getElementById("previewLog");
+
+    function renderSources(items) {
+      sourcesTable.innerHTML = "";
+      if (!items.length) {
+        sourcesTable.innerHTML = "<div class='trow'><div class='mini'>No hay fuentes para estos filtros.</div></div>";
+        return;
+      }
+      items.forEach(source => {
+        const row = document.createElement("div");
+        row.className = "trow";
+        const statusLabel = source.last_status === "error" ? "Error" : "OK";
+        const statusClass = source.last_status === "error" ? "neg" : "pos";
+        row.innerHTML = `
+          <div>
+            <div class="name">${source.name}</div>
+            <div class="mini">${source.is_active ? "Activa" : "Inactiva"}</div>
+          </div>
+          <div class="url">${source.url}</div>
+          <div><span class="pill ${statusClass}"><span class="dot" style="background:var(--g)"></span>${source.type}</span></div>
+          <div class="mini">cada ${source.frequency_minutes} min</div>
+          <div class="mini">${source.last_run_at || "—"} · <span class="pill ${statusClass}">${statusLabel}</span></div>
+          <div class="actions">
+            <button class="iconbtn ok" data-source-id="${source.id}">Probar</button>
+          </div>
+        `;
+        sourcesTable.appendChild(row);
       });
     }
+
+    function applyFilters(items) {
+      const search = sourceSearch.value.toLowerCase();
+      return items.filter(source => {
+        if (search && !(`${source.name} ${source.url}`.toLowerCase().includes(search))) return false;
+        if (typeFilter.value && source.type !== typeFilter.value) return false;
+        if (statusFilter.value === "inactive" && source.is_active) return false;
+        if (statusFilter.value === "error" && source.last_status !== "error") return false;
+        if (statusFilter.value === "ok" && source.last_status !== "ok") return false;
+        if (frequencyFilter.value && source.frequency_minutes > Number(frequencyFilter.value)) return false;
+        return true;
+      });
+    }
+
+    async function loadSources() {
+      try {
+        const res = await fetch("{% url 'monitor:api_sources' %}");
+        const data = await res.json();
+        const filtered = applyFilters(data.items || []);
+        renderSources(filtered);
+        const active = data.items.filter(item => item.is_active).length;
+        const errors = data.items.filter(item => item.last_status === "error").length;
+        document.getElementById("kpi-active").textContent = active;
+        document.getElementById("kpi-error").textContent = errors;
+        document.getElementById("kpi-new").textContent = data.items.reduce((sum, item) => sum + (item.last_new_count || 0), 0);
+        document.getElementById("kpi-latency").textContent = "—";
+        if (errors > 0) {
+          document.getElementById("alertsBox").innerHTML = `
+            <div style="display:flex;justify-content:space-between;gap:10px">
+              <div>
+                <div style="font-weight:900">${errors} fuentes con error</div>
+                <div class="muted">Revisa el detalle y reintenta fallas.</div>
+              </div>
+              <span class="pill neg">Atención</span>
+            </div>
+          `;
+        }
+      } catch (err) {
+        console.error("Error cargando fuentes", err);
+      }
+    }
+
+    function getCookie(name) {
+      const value = `; ${document.cookie}`;
+      const parts = value.split(`; ${name}=`);
+      if (parts.length === 2) return parts.pop().split(";").shift();
+      return null;
+    }
+
+    async function testSource(sourceId) {
+      previewText.textContent = "Ejecutando prueba...";
+      previewLog.textContent = "Procesando...";
+      try {
+        const res = await fetch(`/monitor/api/sources/test/${sourceId}`, {
+          method: "POST",
+          headers: {
+            "X-CSRFToken": getCookie("csrftoken")
+          }
+        });
+        const data = await res.json();
+        if (data.error) {
+          previewText.textContent = "Error en prueba.";
+          previewLog.textContent = data.error;
+          return;
+        }
+        previewText.innerHTML = `
+          • Items detectados: <b>${data.items_detected}</b><br/>
+          • Texto extraído: <b>${data.has_text ? "sí" : "no"}</b><br/>
+          • Meta description: <b>${data.has_meta ? "sí" : "no"}</b><br/>
+          • Keywords/tags: <b>${data.has_keywords ? "sí" : "no"}</b>
+        `;
+        previewLog.textContent = "Prueba completada.";
+      } catch (err) {
+        console.error("Error en prueba", err);
+        previewText.textContent = "Error en prueba.";
+        previewLog.textContent = "Revisa consola.";
+      }
+    }
+
+    sourcesTable.addEventListener("click", (event) => {
+      const target = event.target;
+      if (target.matches("button[data-source-id]")) {
+        testSource(target.dataset.sourceId);
+      }
+    });
+    document.getElementById("refreshSources").addEventListener("click", loadSources);
+    document.getElementById("retrySources").addEventListener("click", loadSources);
+    [sourceSearch, typeFilter, statusFilter, frequencyFilter].forEach(el => el.addEventListener("input", loadSources));
+    loadSources();
   </script>
 </body>
 </html>
-

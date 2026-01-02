@@ -8,6 +8,8 @@
 
   <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/luxon@3"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon@1"></script>
 
   <style>
     :root{
@@ -82,42 +84,58 @@
       <div class="filters">
         <div>
           <label>Tipo (A)</label>
-          <select><option selected>Persona</option><option>Institución</option><option>Tema</option></select>
+          <select id="aType">
+            <option value="persona" selected>Persona</option>
+            <option value="institucion">Institución</option>
+            <option value="tema">Tema</option>
+          </select>
         </div>
         <div>
           <label>Buscar (A)</label>
-          <input placeholder="Escribe para filtrar…">
+          <input id="aSearch" placeholder="Escribe para filtrar…">
         </div>
         <div>
           <label>Entidad (A)</label>
-          <select><option selected>Mauricio Kuri</option><option>Congreso de Querétaro</option></select>
+          <select id="aEntity"><option value="">Selecciona entidad</option></select>
         </div>
         <div>
           <label>Tipo (B)</label>
-          <select><option>Persona</option><option selected>Institución</option><option>Tema</option></select>
+          <select id="bType">
+            <option value="persona">Persona</option>
+            <option value="institucion" selected>Institución</option>
+            <option value="tema">Tema</option>
+          </select>
         </div>
 
         <div>
           <label>Buscar (B)</label>
-          <input placeholder="Escribe para filtrar…">
+          <input id="bSearch" placeholder="Escribe para filtrar…">
         </div>
         <div>
           <label>Entidad (B)</label>
-          <select><option selected>Municipio de Corregidora</option><option>Gobierno estatal</option></select>
+          <select id="bEntity"><option value="">Selecciona entidad</option></select>
         </div>
         <div>
           <label>Rango</label>
-          <select><option selected>Últimos 30 días</option><option>Últimos 90 días</option><option>Este año</option></select>
+          <select id="rangeSelect">
+            <option value="30" selected>Últimos 30 días</option>
+            <option value="90">Últimos 90 días</option>
+            <option value="year">Este año</option>
+          </select>
         </div>
         <div>
           <label>Granularidad</label>
-          <select><option>Día</option><option selected>Semana</option><option>Mes</option></select>
+          <select id="grainSelect">
+            <option value="day">Día</option>
+            <option value="week" selected>Semana</option>
+            <option value="month">Mes</option>
+          </select>
         </div>
       </div>
 
       <div class="row">
-        <button class="btn">Comparar</button>
-        <button class="btn ghost">Intercambiar A ↔ B</button>
+        <button class="btn" id="compareBtn">Comparar</button>
+        <button class="btn ghost" id="swapBtn">Intercambiar A ↔ B</button>
         <button class="btn ghost">Guardar benchmark</button>
       </div>
     </section>
@@ -135,8 +153,8 @@
         <div class="box">
           <div style="display:flex;justify-content:space-between;gap:10px">
             <div>
-              <div style="font-weight:800">A: Mauricio Kuri</div>
-              <div class="muted">Notas: 86 · Opinión: 18%</div>
+              <div style="font-weight:800" id="aSummary">A: —</div>
+              <div class="muted" id="aSummaryMeta">Notas: — · Opinión: —</div>
             </div>
             <span class="pill neu">Tono: neutro</span>
           </div>
@@ -145,8 +163,8 @@
         <div class="box">
           <div style="display:flex;justify-content:space-between;gap:10px">
             <div>
-              <div style="font-weight:800">B: Corregidora</div>
-              <div class="muted">Notas: 64 · Opinión: 9%</div>
+              <div style="font-weight:800" id="bSummary">B: —</div>
+              <div class="muted" id="bSummaryMeta">Notas: — · Opinión: —</div>
             </div>
             <span class="pill pos">Tono: positivo</span>
           </div>
@@ -189,31 +207,24 @@
         <div style="height:10px"></div>
         <div class="box">
           <div style="font-weight:800">Compartidas</div>
-          <div class="tags">
-            <span class="tag shared">seguridad</span>
-            <span class="tag shared">prevención</span>
-            <span class="tag shared">talleres</span>
-            <span class="tag shared">denuncias</span>
+          <div class="tags" id="sharedLabels">
+            <span class="tag shared">Sin datos</span>
           </div>
         </div>
 
         <div style="height:10px"></div>
         <div class="box">
           <div style="font-weight:800">Distintivas A</div>
-          <div class="tags">
-            <span class="tag a">gobernabilidad</span>
-            <span class="tag a">crítica</span>
-            <span class="tag a">debate público</span>
+          <div class="tags" id="distinctLabelsA">
+            <span class="tag a">—</span>
           </div>
         </div>
 
         <div style="height:10px"></div>
         <div class="box">
           <div style="font-weight:800">Distintivas B</div>
-          <div class="tags">
-            <span class="tag b">policía cibernética</span>
-            <span class="tag b">ciberfraude</span>
-            <span class="tag b">comercio seguro</span>
+          <div class="tags" id="distinctLabelsB">
+            <span class="tag b">—</span>
           </div>
         </div>
 
@@ -228,35 +239,15 @@
         <div class="muted">Ranking de medios por volumen y sesgo aparente (según sentimiento hacia A/B).</div>
 
         <div style="height:10px"></div>
-        <div class="box">
-          <div style="display:flex;justify-content:space-between;gap:10px">
-            <div>
-              <div style="font-weight:800">Periodismo.media</div>
-              <div class="muted">A: 18 notas · B: 5 notas</div>
+        <div id="toneSources">
+          <div class="box">
+            <div style="display:flex;justify-content:space-between;gap:10px">
+              <div>
+                <div style="font-weight:800">Sin datos</div>
+                <div class="muted">Corre procesos para poblar.</div>
+              </div>
+              <span class="pill neu">—</span>
             </div>
-            <span class="pill neg">más negativo en A</span>
-          </div>
-        </div>
-
-        <div style="height:10px"></div>
-        <div class="box">
-          <div style="display:flex;justify-content:space-between;gap:10px">
-            <div>
-              <div style="font-weight:800">Update Me</div>
-              <div class="muted">A: 14 notas · B: 16 notas</div>
-            </div>
-            <span class="pill pos">más positivo en B</span>
-          </div>
-        </div>
-
-        <div style="height:10px"></div>
-        <div class="box">
-          <div style="display:flex;justify-content:space-between;gap:10px">
-            <div>
-              <div style="font-weight:800">El Queretano</div>
-              <div class="muted">A: 22 notas · B: 18 notas</div>
-            </div>
-            <span class="pill neu">neutro</span>
           </div>
         </div>
 
@@ -271,80 +262,248 @@
   </div>
 
   <script>
-    // Mock charts
-    new Chart(document.getElementById("lineCompare"),{
-      type:"line",
-      data:{
-        labels:["Sem 1","Sem 2","Sem 3","Sem 4","Sem 5"],
-        datasets:[
-          {label:"A", data:[12,18,14,22,20], tension:.35},
-          {label:"B", data:[10,11,16,13,14], tension:.35},
-        ]
-      },
-      options:{
-        responsive:true,
-        plugins:{legend:{labels:{color:"rgba(231,238,245,.70)"}}},
-        scales:{
-          x:{ticks:{color:"rgba(231,238,245,.70)"},grid:{color:"rgba(166,190,200,.10)"}},
-          y:{beginAtZero:true,ticks:{color:"rgba(231,238,245,.70)"},grid:{color:"rgba(166,190,200,.10)"}}
+    let compareChart;
+    let donutA;
+    let donutB;
+    let scatterA;
+    let scatterB;
+
+    const aType = document.getElementById("aType");
+    const bType = document.getElementById("bType");
+    const aSearch = document.getElementById("aSearch");
+    const bSearch = document.getElementById("bSearch");
+    const aEntity = document.getElementById("aEntity");
+    const bEntity = document.getElementById("bEntity");
+    const rangeSelect = document.getElementById("rangeSelect");
+    const grainSelect = document.getElementById("grainSelect");
+
+    async function loadEntities(targetSelect, type, query) {
+      if (!query) return;
+      try {
+        const res = await fetch(`{% url 'monitor:api_entities' %}?type=${type}&q=${encodeURIComponent(query)}`);
+        const data = await res.json();
+        targetSelect.innerHTML = "<option value=''>Selecciona entidad</option>";
+        data.results.forEach(item => {
+          const option = document.createElement("option");
+          option.value = item.id;
+          option.textContent = item.name;
+          targetSelect.appendChild(option);
+        });
+      } catch (err) {
+        console.error("Error cargando entidades", err);
+      }
+    }
+
+    function buildParams() {
+      const params = new URLSearchParams();
+      params.set("a_type", aType.value);
+      params.set("b_type", bType.value);
+      if (aEntity.value) params.set("a_id", aEntity.value);
+      if (bEntity.value) params.set("b_id", bEntity.value);
+      if (rangeSelect.value) params.set("range", rangeSelect.value);
+      if (grainSelect.value) params.set("grain", grainSelect.value);
+      return params;
+    }
+
+    function renderLineCompare(data) {
+      if (compareChart) compareChart.destroy();
+      const labels = data.a.timeline.map(item => item.period);
+      const seriesA = data.a.timeline.map(item => item.total);
+      const seriesB = data.b.timeline.map(item => item.total);
+      compareChart = new Chart(document.getElementById("lineCompare"), {
+        type: "line",
+        data: {
+          labels,
+          datasets: [
+            { label: "A", data: seriesA, tension: 0.35 },
+            { label: "B", data: seriesB, tension: 0.35 }
+          ]
+        },
+        options: {
+          responsive: true,
+          plugins: { legend: { labels: { color: "rgba(231,238,245,.70)" } } },
+          scales: {
+            x: { ticks: { color: "rgba(231,238,245,.70)" }, grid: { color: "rgba(166,190,200,.10)" } },
+            y: { beginAtZero: true, ticks: { color: "rgba(231,238,245,.70)" }, grid: { color: "rgba(166,190,200,.10)" } }
+          }
         }
+      });
+    }
+
+    function renderDonuts(data) {
+      if (donutA) donutA.destroy();
+      if (donutB) donutB.destroy();
+      donutA = new Chart(document.getElementById("donutA"), {
+        type: "doughnut",
+        data: {
+          labels: ["Pos", "Neu", "Neg"],
+          datasets: [{
+            data: [
+              data.a.sentiment_donut.positivo || 0,
+              data.a.sentiment_donut.neutro || 0,
+              data.a.sentiment_donut.negativo || 0
+            ]
+          }]
+        },
+        options: { plugins: { legend: { position: "bottom", labels: { color: "rgba(231,238,245,.70)" } } } }
+      });
+      donutB = new Chart(document.getElementById("donutB"), {
+        type: "doughnut",
+        data: {
+          labels: ["Pos", "Neu", "Neg"],
+          datasets: [{
+            data: [
+              data.b.sentiment_donut.positivo || 0,
+              data.b.sentiment_donut.neutro || 0,
+              data.b.sentiment_donut.negativo || 0
+            ]
+          }]
+        },
+        options: { plugins: { legend: { position: "bottom", labels: { color: "rgba(231,238,245,.70)" } } } }
+      });
+    }
+
+    function renderScatters(data) {
+      if (scatterA) scatterA.destroy();
+      if (scatterB) scatterB.destroy();
+      const groupPoints = (points) => {
+        const grouped = { positivo: [], neutro: [], negativo: [] };
+        points.forEach(point => {
+          grouped[point.sentiment]?.push(point);
+        });
+        return grouped;
+      };
+
+      const aGrouped = groupPoints(data.a.scatter_points);
+      const bGrouped = groupPoints(data.b.scatter_points);
+
+      scatterA = new Chart(document.getElementById("scatterA"), {
+        type: "scatter",
+        data: {
+          datasets: [
+            { label: "Pos", data: aGrouped.positivo, pointRadius: 5 },
+            { label: "Neu", data: aGrouped.neutro, pointRadius: 5 },
+            { label: "Neg", data: aGrouped.negativo, pointRadius: 5 }
+          ]
+        },
+        options: {
+          parsing: false,
+          plugins: { legend: { labels: { color: "rgba(231,238,245,.70)" } } },
+          scales: {
+            x: { type: "time", time: { unit: "day" } },
+            y: { beginAtZero: true }
+          }
+        }
+      });
+
+      scatterB = new Chart(document.getElementById("scatterB"), {
+        type: "scatter",
+        data: {
+          datasets: [
+            { label: "Pos", data: bGrouped.positivo, pointRadius: 5 },
+            { label: "Neu", data: bGrouped.neutro, pointRadius: 5 },
+            { label: "Neg", data: bGrouped.negativo, pointRadius: 5 }
+          ]
+        },
+        options: {
+          parsing: false,
+          plugins: { legend: { labels: { color: "rgba(231,238,245,.70)" } } },
+          scales: {
+            x: { type: "time", time: { unit: "day" } },
+            y: { beginAtZero: true }
+          }
+        }
+      });
+    }
+
+    function renderLabels(data) {
+      const shared = document.getElementById("sharedLabels");
+      const distinctA = document.getElementById("distinctLabelsA");
+      const distinctB = document.getElementById("distinctLabelsB");
+      shared.innerHTML = data.shared_labels.map(label => `<span class="tag shared">${label}</span>`).join("") || "<span class='tag shared'>Sin datos</span>";
+      distinctA.innerHTML = data.distinct_labels.a.map(label => `<span class="tag a">${label}</span>`).join("") || "<span class='tag a'>—</span>";
+      distinctB.innerHTML = data.distinct_labels.b.map(label => `<span class="tag b">${label}</span>`).join("") || "<span class='tag b'>—</span>";
+    }
+
+    function renderToneSources(data) {
+      const container = document.getElementById("toneSources");
+      container.innerHTML = "";
+      const sources = [...data.tone_sources.a, ...data.tone_sources.b].slice(0, 5);
+      if (!sources.length) {
+        container.innerHTML = "<div class='box'><div style='display:flex;justify-content:space-between;gap:10px'><div><div style='font-weight:800'>Sin datos</div><div class='muted'>Corre procesos para poblar.</div></div><span class='pill neu'>—</span></div></div>";
+        return;
+      }
+      sources.forEach(source => {
+        const box = document.createElement("div");
+        box.className = "box";
+        box.style.marginBottom = "10px";
+        box.innerHTML = `
+          <div style="display:flex;justify-content:space-between;gap:10px">
+            <div>
+              <div style="font-weight:800">${source.source}</div>
+              <div class="muted">${source.count} notas</div>
+            </div>
+            <span class="pill neu">neutro</span>
+          </div>
+        `;
+        container.appendChild(box);
+      });
+    }
+
+    function updateSummary(data) {
+      const aTotal = data.a.scatter_points.length;
+      const bTotal = data.b.scatter_points.length;
+      document.getElementById("aSummary").textContent = `A: ${aEntity.options[aEntity.selectedIndex]?.textContent || "—"}`;
+      document.getElementById("bSummary").textContent = `B: ${bEntity.options[bEntity.selectedIndex]?.textContent || "—"}`;
+      document.getElementById("aSummaryMeta").textContent = `Notas: ${aTotal}`;
+      document.getElementById("bSummaryMeta").textContent = `Notas: ${bTotal}`;
+    }
+
+    async function loadBenchmark() {
+      try {
+        if (!aEntity.value || !bEntity.value) {
+          return;
+        }
+        const params = buildParams();
+        const res = await fetch(`{% url 'monitor:api_benchmark' %}?${params.toString()}`);
+        const data = await res.json();
+        if (data.error) {
+          console.error(data.error);
+          return;
+        }
+        renderLineCompare(data);
+        renderDonuts(data);
+        renderScatters(data);
+        renderLabels(data);
+        renderToneSources(data);
+        updateSummary(data);
+      } catch (err) {
+        console.error("Error cargando benchmark", err);
+      }
+    }
+
+    document.getElementById("compareBtn").addEventListener("click", loadBenchmark);
+    document.getElementById("swapBtn").addEventListener("click", () => {
+      const tempType = aType.value;
+      const tempEntity = aEntity.value;
+      aType.value = bType.value;
+      bType.value = tempType;
+      aEntity.value = bEntity.value;
+      bEntity.value = tempEntity;
+      loadBenchmark();
+    });
+    aSearch.addEventListener("input", () => {
+      if (aSearch.value.length >= 2) {
+        loadEntities(aEntity, aType.value, aSearch.value);
+      }
+    });
+    bSearch.addEventListener("input", () => {
+      if (bSearch.value.length >= 2) {
+        loadEntities(bEntity, bType.value, bSearch.value);
       }
     });
 
-    new Chart(document.getElementById("donutA"),{
-      type:"doughnut",
-      data:{labels:["Pos","Neu","Neg"],datasets:[{data:[28,48,24]}]},
-      options:{plugins:{legend:{position:"bottom",labels:{color:"rgba(231,238,245,.70)"}}}}
-    });
-    new Chart(document.getElementById("donutB"),{
-      type:"doughnut",
-      data:{labels:["Pos","Neu","Neg"],datasets:[{data:[44,41,15]}]},
-      options:{plugins:{legend:{position:"bottom",labels:{color:"rgba(231,238,245,.70)"}}}}
-    });
-
-    // Dispersión A/B (mock simple; en prod el eje X será time con adapter)
-    const now = Date.now(), day=24*60*60*1000;
-
-    const mk = (label)=>({
-      label,
-      datasets:[
-        {label:"Pos", data:[{x:1,y:1,title:"Pos 1",url:"#",outlet:"Update Me"},{x:2,y:1,title:"Pos 2",url:"#",outlet:"El Q"}], pointRadius:5},
-        {label:"Neu", data:[{x:1,y:2,title:"Neu 1",url:"#",outlet:"El Q"},{x:3,y:2,title:"Neu 2",url:"#",outlet:"PM"}], pointRadius:5},
-        {label:"Neg", data:[{x:2,y:3,title:"Neg 1",url:"#",outlet:"PM"},{x:4,y:3,title:"Neg 2",url:"#",outlet:"PM"}], pointRadius:5},
-      ]
-    });
-
-    const tooltipLabel = (ctx)=>{
-      const r=ctx.raw||{};
-      return `${ctx.dataset.label}: ${r.title||"Nota"}\n${r.outlet||""}\n${r.url||""}`;
-    };
-
-    new Chart(document.getElementById("scatterA"),{
-      type:"scatter",
-      data:{datasets: mk("A").datasets},
-      options:{
-        parsing:false,
-        plugins:{legend:{labels:{color:"rgba(231,238,245,.70)"}},tooltip:{callbacks:{label:tooltipLabel}}},
-        scales:{
-          x:{ticks:{color:"rgba(231,238,245,.70)"},grid:{color:"rgba(166,190,200,.10)"},title:{display:true,text:"Tiempo (bucket)",color:"rgba(231,238,245,.70)"}},
-          y:{beginAtZero:true,ticks:{color:"rgba(231,238,245,.70)"},grid:{color:"rgba(166,190,200,.10)"},title:{display:true,text:"Apilado por periodo",color:"rgba(231,238,245,.70)"}}
-        }
-      }
-    });
-
-    new Chart(document.getElementById("scatterB"),{
-      type:"scatter",
-      data:{datasets: mk("B").datasets},
-      options:{
-        parsing:false,
-        plugins:{legend:{labels:{color:"rgba(231,238,245,.70)"}},tooltip:{callbacks:{label:tooltipLabel}}},
-        scales:{
-          x:{ticks:{color:"rgba(231,238,245,.70)"},grid:{color:"rgba(166,190,200,.10)"},title:{display:true,text:"Tiempo (bucket)",color:"rgba(231,238,245,.70)"}},
-          y:{beginAtZero:true,ticks:{color:"rgba(231,238,245,.70)"},grid:{color:"rgba(166,190,200,.10)"},title:{display:true,text:"Apilado por periodo",color:"rgba(231,238,245,.70)"}}
-        }
-      }
-    });
+    loadBenchmark();
   </script>
 </body>
 </html>
-

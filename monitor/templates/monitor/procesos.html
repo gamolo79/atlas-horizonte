@@ -61,7 +61,7 @@
         <div class="muted">Corre ingesta, clasificación y fichas de forma manual (por fechas), además del modo automático.</div>
       </div>
       <nav class="nav">
-        <a class="chip" href="home.html">Home</a>
+        <a class="chip" href="{% url 'monitor:home' %}">Home</a>
         <a class="chip" href="{% url 'monitor:feed' %}">Monitor</a>
         <a class="chip" href="{% url 'monitor:dashboards' %}">Dashboards</a>
         <a class="chip" href="{% url 'monitor:benchmarks' %}">Benchmarks</a>
@@ -80,19 +80,16 @@
         <label>Modo</label>
         <select>
           <option selected>Por rango de fechas</option>
-          <option>Hoy</option>
-          <option>Últimos 7 días</option>
-          <option>Reprocesar solo notas sin clasificación</option>
         </select>
 
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
           <div>
             <label>Desde</label>
-            <input type="date" value="2025-12-01">
+            <input type="date" id="dateFrom">
           </div>
           <div>
             <label>Hasta</label>
-            <input type="date" value="2025-12-31">
+            <input type="date" id="dateTo">
           </div>
         </div>
 
@@ -101,15 +98,11 @@
           <option selected>Todo: ingesta + clasificación + ficha editorial</option>
           <option>Solo ingesta</option>
           <option>Solo clasificación IA</option>
-          <option>Solo ficha editorial (si faltó)</option>
         </select>
 
         <label>Fuentes</label>
         <select>
           <option selected>Todas las fuentes activas</option>
-          <option>Solo RSS</option>
-          <option>Solo sitemap</option>
-          <option>Seleccionar manualmente…</option>
         </select>
 
         <label>Opciones avanzadas</label>
@@ -144,33 +137,26 @@
       <aside class="card">
         <h2>Estado y bitácora</h2>
         <div class="row">
-          <span class="pill pos">Automático: activo</span>
-          <span class="pill neu">Cola: 7 pendientes</span>
-          <span class="pill neg">2 fuentes con error</span>
+          <span class="pill neu" id="autoStatus">Automático: —</span>
+          <span class="pill neu" id="queueStatus">Cola: —</span>
+          <span class="pill neu" id="sourceErrors">Fuentes con error: —</span>
         </div>
 
         <div style="height:12px"></div>
         <h2>Última ejecución</h2>
-        <div class="box">
+        <div class="box" id="lastRunBox">
           <div style="display:flex;justify-content:space-between;gap:10px">
             <div>
-              <div style="font-weight:800">Rango: 2025-12-01 → 2025-12-31</div>
-              <div class="muted">Resultado: 1,240 notas · 1,110 clasificadas · 130 pendientes</div>
+              <div style="font-weight:800">Sin ejecuciones registradas</div>
+              <div class="muted">Corre un proceso para iniciar la bitácora.</div>
             </div>
-            <span class="pill pos">OK</span>
+            <span class="pill neu">—</span>
           </div>
         </div>
 
         <div style="height:12px"></div>
         <h2>Log</h2>
-        <div class="log">
-[13:41] Ingesta: 48 fuentes activas
-[13:42] RSS: vistos 220 · nuevos 34 · errores 0
-[13:43] Sitemap: vistos 180 · nuevos 22 · errores 1 (timeout)
-[13:44] Clasificación IA: procesados 56 · ok 49 · fallas 7 (reintento programado)
-[13:45] Ficha editorial: ok 49
-[13:45] Terminado
-        </div>
+        <div class="log" id="processLog">Sin logs por ahora.</div>
 
         <div class="row">
           <button class="btn ghost">Ver detalles</button>
@@ -179,6 +165,43 @@
       </aside>
     </div>
   </div>
+
+  <script>
+    async function loadSummary() {
+      try {
+        const res = await fetch("{% url 'monitor:api_summary' %}");
+        const data = await res.json();
+        document.getElementById("sourceErrors").textContent = `Fuentes con error: ${data.sources_error ?? 0}`;
+      } catch (err) {
+        console.error("Error cargando resumen", err);
+      }
+    }
+
+    async function loadProcessRuns() {
+      try {
+        const res = await fetch("{% url 'monitor:api_processes' %}");
+        const data = await res.json();
+        if (!data.items.length) {
+          return;
+        }
+        const run = data.items[0];
+        document.getElementById("lastRunBox").innerHTML = `
+          <div style="display:flex;justify-content:space-between;gap:10px">
+            <div>
+              <div style="font-weight:800">Rango: ${run.date_from || "—"} → ${run.date_to || "—"}</div>
+              <div class="muted">Tipo: ${run.run_type} · Estado: ${run.status}</div>
+            </div>
+            <span class="pill ${run.status === "ok" ? "pos" : run.status === "error" ? "neg" : "neu"}">${run.status}</span>
+          </div>
+        `;
+        document.getElementById("processLog").textContent = run.log_text || "Sin log disponible.";
+      } catch (err) {
+        console.error("Error cargando procesos", err);
+      }
+    }
+
+    loadSummary();
+    loadProcessRuns();
+  </script>
 </body>
 </html>
-

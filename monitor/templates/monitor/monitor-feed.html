@@ -70,83 +70,46 @@
       </div>
 
       <div class="filters">
-        <input class="input" placeholder="Buscar: título o texto" />
-        <select class="select">
-          <option>Hoy</option><option>Ayer</option><option>Últimos 7 días</option>
+        <input class="input" id="qInput" placeholder="Buscar: título o texto" />
+        <input class="input" id="dateFrom" type="date" />
+        <input class="input" id="dateTo" type="date" />
+        <select class="select" id="entityType">
+          <option value="">Entidad</option>
+          <option value="persona">Persona</option>
+          <option value="institucion">Institución</option>
+          <option value="tema">Tema</option>
         </select>
-        <select class="select">
-          <option>Persona / Institución</option>
-          <option>Mauricio Kuri</option>
-          <option>Congreso de Qro</option>
-          <option>Municipio de Corregidora</option>
+        <input class="input" id="entitySearch" placeholder="Buscar entidad" />
+        <select class="select" id="entitySelect">
+          <option value="">Selecciona entidad</option>
         </select>
-        <select class="select">
-          <option>Tema</option><option>Seguridad</option><option>Economía</option><option>Gobierno</option>
+        <select class="select" id="sentimentSelect">
+          <option value="">Sentimiento</option>
+          <option value="positivo">Positivo</option>
+          <option value="neutro">Neutro</option>
+          <option value="negativo">Negativo</option>
         </select>
-        <select class="select">
-          <option>Sentimiento</option><option>Positivo</option><option>Neutro</option><option>Negativo</option>
-        </select>
-        <select class="select">
-          <option>Tipo</option><option>Informativo</option><option>Opinión</option>
+        <select class="select" id="typeSelect">
+          <option value="">Tipo</option>
+          <option value="informativo">Informativo</option>
+          <option value="opinion">Opinión</option>
         </select>
       </div>
     </div>
 
     <div class="grid">
       <div class="card">
-        <div class="list">
-          <article class="note">
-            <h3>Corregidora reporta alza de fraudes y robo de información en 2025</h3>
-            <div class="meta">
-              <span>Fuente: El Queretano</span>
-              <span>13:20</span>
-              <span>Tipo: Informativo</span>
-              <span>Idea central: “La Policía Cibernética atendió 1,809 reportes; predominan robo de datos y fraudes.”</span>
-            </div>
-            <div class="chips">
-              <span class="chip pos">Corregidora · Positivo</span>
-              <span class="chip neu">Seguridad · Neutro</span>
-              <span class="chip neu">Ciberdelito</span>
-              <span class="chip neu">Prevención</span>
-              <span class="chip neu">Talleres</span>
-            </div>
-            <div class="actions">
-              <a class="btn" href="#" target="_blank" rel="noopener">Abrir nota original</a>
-              <a class="btn ghost" href="{% url 'monitor:revision' %}">Revisar / corregir</a>
-              <a class="btn ghost" href="{% url 'monitor:dashboards' %}">Ver en dashboards</a>
-            </div>
-          </article>
-
-          <article class="note">
-            <h3>Opinión: el arranque de 2026 y la disputa por el “sentido común” en Qro</h3>
-            <div class="meta">
-              <span>Fuente: Periodismo.media</span>
-              <span>12:05</span>
-              <span>Tipo: Opinión</span>
-              <span>Idea central: “La narrativa política define adversarios y víctimas; quien la fija, compite con ventaja.”</span>
-            </div>
-            <div class="chips">
-              <span class="chip neg">Congreso de Qro · Negativo</span>
-              <span class="chip neu">Elección 2027</span>
-              <span class="chip neu">Narrativas</span>
-              <span class="chip neu">Polarización</span>
-              <span class="chip neu">Opinión pública</span>
-            </div>
-            <div class="actions">
-              <a class="btn" href="#" target="_blank" rel="noopener">Abrir nota original</a>
-              <a class="btn ghost" href="{% url 'monitor:revision' %}">Revisar / corregir</a>
-            </div>
-          </article>
+        <div class="list" id="feedList">
+          <div class="note">Cargando notas...</div>
         </div>
       </div>
 
       <aside class="card side">
         <h4>Estado del sistema</h4>
-        <div class="kv"><span>Fuentes activas</span><b>48</b></div>
-        <div class="kv"><span>Última actualización</span><b>hace 1 min</b></div>
-        <div class="kv"><span>Fuentes con error</span><b style="color:var(--neg)">2</b></div>
-        <div class="kv"><span>Notas pendientes de IA</span><b>7</b></div>
-        <div class="kv"><span>Notas pendientes de revisión</span><b>19</b></div>
+        <div class="kv"><span>Fuentes activas</span><b id="kpi-sources">—</b></div>
+        <div class="kv"><span>Fuentes con error</span><b id="kpi-source-errors" style="color:var(--neg)">—</b></div>
+        <div class="kv"><span>Notas pendientes de IA</span><b id="kpi-pending">—</b></div>
+        <div class="kv"><span>Notas pendientes de revisión</span><b id="kpi-review">—</b></div>
 
         <h4 style="margin-top:14px">Atajos</h4>
         <div class="actions">
@@ -156,6 +119,132 @@
       </aside>
     </div>
   </div>
+
+  <script>
+    const feedList = document.getElementById("feedList");
+    const entityType = document.getElementById("entityType");
+    const entitySearch = document.getElementById("entitySearch");
+    const entitySelect = document.getElementById("entitySelect");
+
+    function formatDate(value) {
+      if (!value) return "—";
+      const date = new Date(value);
+      return new Intl.DateTimeFormat("es-MX", { dateStyle: "medium", timeStyle: "short" }).format(date);
+    }
+
+    async function loadSummary() {
+      try {
+        const res = await fetch("{% url 'monitor:api_summary' %}");
+        const data = await res.json();
+        document.getElementById("kpi-pending").textContent = data.pending_classification ?? "—";
+        document.getElementById("kpi-review").textContent = data.pending_review ?? "—";
+        document.getElementById("kpi-source-errors").textContent = data.sources_error ?? "—";
+      } catch (err) {
+        console.error("Error cargando resumen", err);
+      }
+      try {
+        const res = await fetch("{% url 'monitor:api_sources' %}");
+        const data = await res.json();
+        document.getElementById("kpi-sources").textContent = data.items?.length ?? "—";
+      } catch (err) {
+        console.error("Error cargando fuentes", err);
+      }
+    }
+
+    async function loadEntities() {
+      const type = entityType.value;
+      const query = entitySearch.value.trim();
+      if (!type || !query) return;
+      try {
+        const res = await fetch(`{% url 'monitor:api_entities' %}?type=${type}&q=${encodeURIComponent(query)}`);
+        const data = await res.json();
+        entitySelect.innerHTML = "<option value=''>Selecciona entidad</option>";
+        data.results.forEach(item => {
+          const option = document.createElement("option");
+          option.value = item.id;
+          option.textContent = item.name;
+          entitySelect.appendChild(option);
+        });
+      } catch (err) {
+        console.error("Error cargando entidades", err);
+      }
+    }
+
+    async function loadFeed() {
+      const params = new URLSearchParams();
+      const q = document.getElementById("qInput").value.trim();
+      const dateFrom = document.getElementById("dateFrom").value;
+      const dateTo = document.getElementById("dateTo").value;
+      const sentiment = document.getElementById("sentimentSelect").value;
+      const type = document.getElementById("typeSelect").value;
+      const entityId = entitySelect.value;
+      if (q) params.set("q", q);
+      if (dateFrom) params.set("date_from", dateFrom);
+      if (dateTo) params.set("date_to", dateTo);
+      if (sentiment) params.set("sentiment", sentiment);
+      if (type) params.set("type", type);
+      if (entityType.value && entityId) {
+        params.set("entity_type", entityType.value);
+        params.set("entity_id", entityId);
+      }
+
+      feedList.innerHTML = "<div class='note'>Cargando notas...</div>";
+      try {
+        const res = await fetch(`{% url 'monitor:api_feed' %}?${params.toString()}`);
+        const data = await res.json();
+        if (!data.items.length) {
+          feedList.innerHTML = "<div class='note'>Aún no hay artículos para los filtros seleccionados.</div>";
+          return;
+        }
+        feedList.innerHTML = "";
+        data.items.forEach(item => {
+          const note = document.createElement("article");
+          note.className = "note";
+          const mentionsChips = item.mentions.map(m => {
+            const sentimentClass = m.sentiment === "positivo" ? "pos" : m.sentiment === "negativo" ? "neg" : "neu";
+            return `<span class="chip ${sentimentClass}">${m.target_name} · ${m.sentiment}</span>`;
+          }).join("");
+          const labels = (item.labels || []).map(label => `<span class="chip neu">${label}</span>`).join("");
+          const idea = item.central_idea ? `Idea central: “${item.central_idea}”` : "Sin clasificar";
+          const typeLabel = item.article_type ? item.article_type : "Sin clasificar";
+          note.innerHTML = `
+            <h3>${item.title}</h3>
+            <div class="meta">
+              <span>Fuente: ${item.source_name}</span>
+              <span>${formatDate(item.published_at)}</span>
+              <span>Tipo: ${typeLabel}</span>
+              <span>${idea}</span>
+            </div>
+            <div class="chips">
+              ${mentionsChips || ""}
+              ${labels || ""}
+            </div>
+            <div class="actions">
+              <a class="btn" href="${item.url}" target="_blank" rel="noopener">Abrir nota original</a>
+              <a class="btn ghost" href="/monitor/revision/${item.id}/">Revisar / corregir</a>
+              <a class="btn ghost" href="{% url 'monitor:dashboards' %}?entity_type=${entityType.value}&entity_id=${entityId}">Ver en dashboards</a>
+            </div>
+          `;
+          feedList.appendChild(note);
+        });
+      } catch (err) {
+        console.error("Error cargando feed", err);
+        feedList.innerHTML = "<div class='note'>Error al cargar notas. Revisa consola.</div>";
+      }
+    }
+
+    entitySearch.addEventListener("input", () => {
+      if (entitySearch.value.length >= 2) {
+        loadEntities();
+      }
+    });
+
+    [document.getElementById("qInput"), document.getElementById("dateFrom"), document.getElementById("dateTo"),
+     document.getElementById("sentimentSelect"), document.getElementById("typeSelect"), entitySelect, entityType]
+      .forEach(el => el.addEventListener("change", loadFeed));
+
+    loadSummary();
+    loadFeed();
+  </script>
 </body>
 </html>
-

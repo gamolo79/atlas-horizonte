@@ -159,27 +159,27 @@
 
     <!-- HERO SUMMARY -->
     <section class="card" style="margin-top:14px">
-      <h2>Hoy (1 ene 2026)</h2>
+      <h2>Hoy (<span id="todayLabel">—</span>)</h2>
       <div class="kpis">
         <div class="kpi">
           <div class="label">Notas ingresadas</div>
-          <div class="value">124</div>
-          <div class="delta">vs ayer: <b>+18</b></div>
+          <div class="value" id="kpi-total">—</div>
+          <div class="delta">Últimos 7 días</div>
         </div>
         <div class="kpi">
           <div class="label">Pendientes de IA</div>
-          <div class="value">7</div>
-          <div class="delta">reintentos: <b>2</b></div>
+          <div class="value" id="kpi-pending">—</div>
+          <div class="delta">Artículos sin clasificar</div>
         </div>
         <div class="kpi">
           <div class="label">Pendientes de revisión</div>
-          <div class="value">19</div>
-          <div class="delta">alta prioridad: <b>6</b></div>
+          <div class="value" id="kpi-review">—</div>
+          <div class="delta">Sin bloqueo editorial</div>
         </div>
         <div class="kpi">
           <div class="label">Fuentes con error</div>
-          <div class="value">2</div>
-          <div class="delta">último fallo: <b>timeout</b></div>
+          <div class="value" id="kpi-errors">—</div>
+          <div class="delta">Estado reciente</div>
         </div>
       </div>
 
@@ -292,27 +292,13 @@
 
         <div class="card">
           <h2>Actores más mencionados hoy</h2>
-          <div class="list">
+          <div class="list" id="topActorsList">
             <div class="item">
               <div>
-                <div class="title">Mauricio Kuri</div>
-                <div class="meta">38 menciones · 9 fuentes · 5 opinión</div>
+                <div class="title">Aún no hay datos</div>
+                <div class="meta">Corre procesos para poblar el monitor.</div>
               </div>
-              <span class="pill neu">Neutro</span>
-            </div>
-            <div class="item">
-              <div>
-                <div class="title">Municipio de Corregidora</div>
-                <div class="meta">26 menciones · 7 fuentes</div>
-              </div>
-              <span class="pill pos">Positivo</span>
-            </div>
-            <div class="item">
-              <div>
-                <div class="title">Congreso de Qro</div>
-                <div class="meta">21 menciones · 8 fuentes</div>
-              </div>
-              <span class="pill neg">Negativo</span>
+              <span class="pill neu">—</span>
             </div>
           </div>
 
@@ -329,29 +315,54 @@
   </div>
 
   <script>
-    // Home charts demo (mockup)
-    new Chart(document.getElementById("chartVolume"),{
-      type:"line",
-      data:{
-        labels:["Vie","Sáb","Dom","Lun","Mar","Mié","Jue"],
-        datasets:[{label:"Notas", data:[88,95,71,102,110,106,124], tension:.35}]
-      },
-      options:{
-        responsive:true,
-        plugins:{legend:{display:false}},
-        scales:{y:{beginAtZero:true}}
-      }
-    });
+    const today = new Date();
+    const formatter = new Intl.DateTimeFormat("es-MX", { day: "2-digit", month: "short", year: "numeric" });
+    document.getElementById("todayLabel").textContent = formatter.format(today);
 
-    new Chart(document.getElementById("chartSent"),{
-      type:"doughnut",
-      data:{
-        labels:["Positivo","Neutro","Negativo"],
-        datasets:[{data:[33,45,22]}]
-      },
-      options:{responsive:true, plugins:{legend:{position:"bottom"}}}
-    });
+    async function loadSummary() {
+      try {
+        const res = await fetch("{% url 'monitor:api_summary' %}");
+        const data = await res.json();
+        document.getElementById("kpi-total").textContent = data.total_articles ?? "—";
+        document.getElementById("kpi-pending").textContent = data.pending_classification ?? "—";
+        document.getElementById("kpi-review").textContent = data.pending_review ?? "—";
+        document.getElementById("kpi-errors").textContent = data.sources_error ?? "—";
+      } catch (err) {
+        console.error("Error cargando resumen", err);
+      }
+    }
+
+    async function loadCharts() {
+      try {
+        const res = await fetch("{% url 'monitor:api_dashboard' %}?range=7");
+        const data = await res.json();
+        const labels = data.timeline.map(item => item.period);
+        const totals = data.timeline.map(item => item.total);
+        new Chart(document.getElementById("chartVolume"),{
+          type:"line",
+          data:{ labels, datasets:[{label:"Notas", data:totals, tension:.35}] },
+          options:{ responsive:true, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true}} }
+        });
+
+        new Chart(document.getElementById("chartSent"),{
+          type:"doughnut",
+          data:{
+            labels:["Positivo","Neutro","Negativo"],
+            datasets:[{data:[
+              data.sentiment_donut.positivo || 0,
+              data.sentiment_donut.neutro || 0,
+              data.sentiment_donut.negativo || 0
+            ]}]
+          },
+          options:{responsive:true, plugins:{legend:{position:"bottom"}}}
+        });
+      } catch (err) {
+        console.error("Error cargando gráficas", err);
+      }
+    }
+
+    loadSummary();
+    loadCharts();
   </script>
 </body>
 </html>
-

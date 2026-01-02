@@ -180,89 +180,82 @@
         <div>
           <label>Entidad</label>
           <select id="entitySelect">
-            <option>Mauricio Kuri</option>
-            <option>Municipio de Corregidora</option>
-            <option>Congreso de Querétaro</option>
-            <option>Seguridad</option>
+            <option value="">Selecciona entidad</option>
           </select>
         </div>
 
         <div>
           <label>Rango</label>
           <select id="rangeSelect">
-            <option selected>Últimos 7 días</option>
-            <option>Últimos 30 días</option>
-            <option>Últimos 90 días</option>
-            <option>Este año</option>
-            <option>Personalizado…</option>
+            <option value="7" selected>Últimos 7 días</option>
+            <option value="30">Últimos 30 días</option>
+            <option value="90">Últimos 90 días</option>
+            <option value="year">Este año</option>
           </select>
         </div>
 
         <div>
           <label>Granularidad</label>
           <select id="grainSelect">
-            <option value="dia">Día</option>
-            <option value="semana" selected>Semana</option>
-            <option value="mes">Mes</option>
+            <option value="day">Día</option>
+            <option value="week" selected>Semana</option>
+            <option value="month">Mes</option>
           </select>
         </div>
 
         <div>
           <label>Fuente</label>
-          <select>
-            <option selected>Todas</option>
-            <option>Update Me</option>
-            <option>El Queretano</option>
-            <option>Periodismo.media</option>
+          <select id="sourceSelect">
+            <option value="">Todas</option>
           </select>
         </div>
 
         <div>
           <label>Tipo de nota</label>
-          <select>
-            <option selected>Todas</option>
-            <option>Informativo</option>
-            <option>Opinión</option>
+          <select id="typeSelect">
+            <option value="">Todas</option>
+            <option value="informativo">Informativo</option>
+            <option value="opinion">Opinión</option>
           </select>
         </div>
 
         <div>
           <label>Sentimiento</label>
-          <select>
-            <option selected>Todos</option>
-            <option>Positivo</option>
-            <option>Neutro</option>
-            <option>Negativo</option>
+          <select id="sentimentSelect">
+            <option value="">Todos</option>
+            <option value="positivo">Positivo</option>
+            <option value="neutro">Neutro</option>
+            <option value="negativo">Negativo</option>
           </select>
         </div>
       </div>
 
       <div class="row">
-        <button class="btn">Aplicar</button>
-        <button class="btn ghost">Limpiar</button>
+        <button class="btn" id="applyFilters">Aplicar</button>
+        <button class="btn ghost" id="clearFilters">Limpiar</button>
         <button class="btn ghost">Guardar vista</button>
       </div>
 
       <div class="kpis">
         <div class="kpi">
           <div class="l">Notas en rango</div>
-          <div class="v">124</div>
-          <div class="d">Promedio semanal: <b>+9</b></div>
+          <div class="v" id="kpi-total">—</div>
+          <div class="d">Promedio semanal: <b>—</b></div>
         </div>
         <div class="kpi">
           <div class="l">Negativas</div>
-          <div class="v">22%</div>
-          <div class="d">Tendencia: <b>↑</b></div>
+          <div class="v" id="kpi-negative">—</div>
+          <div class="d">Tendencia: <b>—</b></div>
         </div>
         <div class="kpi">
           <div class="l">Opinión</div>
-          <div class="v">15%</div>
-          <div class="d">Tendencia: <b>↔</b></div>
+          <div class="v" id="kpi-opinion">—</div>
+          <div class="d">Tendencia: <b>—</b></div>
         </div>
         <div class="kpi">
           <div class="l">Etiquetas únicas</div>
-          <div class="v">68</div>
-          <div class="d">Top 5 concentran: <b>31%</b></div>
+          <div class="v" id="kpi-labels">—</div>
+          <div class="d">Top 5 concentran: <b>—</b></div>
         </div>
       </div>
     </section>
@@ -299,32 +292,14 @@
 
         <div style="height:12px"></div>
         <h2>Top fuentes</h2>
-        <div class="clusters">
+        <div class="clusters" id="topSources">
           <div class="cluster">
             <div class="head">
               <div>
-                <div class="name">El Queretano</div>
-                <div class="muted">34 notas · 7 días</div>
+                <div class="name">Aún no hay datos</div>
+                <div class="muted">Ejecuta el pipeline para poblar.</div>
               </div>
-              <span class="pill neu">Tono: neutro</span>
-            </div>
-          </div>
-          <div class="cluster">
-            <div class="head">
-              <div>
-                <div class="name">Update Me</div>
-                <div class="muted">28 notas · 7 días</div>
-              </div>
-              <span class="pill pos">Tono: positivo</span>
-            </div>
-          </div>
-          <div class="cluster">
-            <div class="head">
-              <div>
-                <div class="name">Periodismo.media</div>
-                <div class="muted">12 notas · 7 días</div>
-              </div>
-              <span class="pill neg">Tono: negativo</span>
+              <span class="pill neu">—</span>
             </div>
           </div>
         </div>
@@ -336,19 +311,8 @@
       <div class="card">
         <h2>Etiquetas IA (nube)</h2>
         <div class="muted">Tamaño = repetición en el rango. Color = sentimiento dominante en notas que usan esa etiqueta.</div>
-        <div class="tag-cloud">
-          <span class="tag big pos">seguridad digital</span>
-          <span class="tag big neu">fraude</span>
-          <span class="tag big neg">crítica</span>
-          <span class="tag pos">prevención</span>
-          <span class="tag neu">talleres</span>
-          <span class="tag neg">denuncias</span>
-          <span class="tag neu">ciberdelito</span>
-          <span class="tag neu">policía cibernética</span>
-          <span class="tag pos">capacitación</span>
-          <span class="tag neu">empresas</span>
-          <span class="tag neu">escuelas</span>
-          <span class="tag neg">extorsión</span>
+        <div class="tag-cloud" id="labelsCloud">
+          <span class="tag neu">Aún no hay etiquetas</span>
         </div>
 
         <div class="row">
@@ -363,59 +327,14 @@
           Agrupa etiquetas que aparecen juntas con frecuencia. Esto ayuda a identificar “historias” sin reescribir nada.
         </div>
 
-        <div class="clusters">
+        <div class="clusters" id="labelClusters">
           <div class="cluster">
             <div class="head">
               <div>
-                <div class="name">Historia: ciberfraude y robo de datos</div>
-                <div class="muted">31 notas · 8 etiquetas principales</div>
+                <div class="name">Sin clusters</div>
+                <div class="muted">Se mostrarán al contar con datos.</div>
               </div>
-              <span class="pill neu">Tono: neutro</span>
-            </div>
-            <div class="mini">
-              <span class="tag neu">robo de datos</span>
-              <span class="tag neu">fraude</span>
-              <span class="tag neu">ciberdelito</span>
-              <span class="tag neu">suplantación</span>
-              <span class="tag neg">extorsión</span>
-              <span class="tag pos">prevención</span>
-              <span class="tag neu">reportes</span>
-              <span class="tag neu">seguridad digital</span>
-            </div>
-          </div>
-
-          <div class="cluster">
-            <div class="head">
-              <div>
-                <div class="name">Historia: talleres y cultura de prevención</div>
-                <div class="muted">18 notas · 6 etiquetas principales</div>
-              </div>
-              <span class="pill pos">Tono: positivo</span>
-            </div>
-            <div class="mini">
-              <span class="tag pos">capacitación</span>
-              <span class="tag pos">talleres</span>
-              <span class="tag neu">empresas</span>
-              <span class="tag neu">escuelas</span>
-              <span class="tag neu">comercio seguro</span>
-              <span class="tag pos">prevención</span>
-            </div>
-          </div>
-
-          <div class="cluster">
-            <div class="head">
-              <div>
-                <div class="name">Historia: debate público y críticas</div>
-                <div class="muted">12 notas · 5 etiquetas principales</div>
-              </div>
-              <span class="pill neg">Tono: negativo</span>
-            </div>
-            <div class="mini">
-              <span class="tag neg">crítica</span>
-              <span class="tag neg">señalamientos</span>
-              <span class="tag neu">oposición</span>
-              <span class="tag neu">narrativas</span>
-              <span class="tag neg">controversia</span>
+              <span class="pill neu">—</span>
             </div>
           </div>
         </div>
@@ -430,99 +349,232 @@
   </div>
 
   <script>
-    // --- Helpers demo para tooltips con link ---
-    const noteLink = (ctx) => {
-      const r = ctx.raw || {};
-      return r.url ? `\nFuente: ${r.outlet}\n${r.url}` : "";
-    };
+    let scatterChart;
+    let sentChart;
+    let typeChart;
 
-    // Dispersión: cada punto = 1 nota.
-    // Eje X: fecha (timestamp). Eje Y: "altura" por apilado dentro de su bucket temporal.
-    // Colores: pos/neu/neg. Orden de apilado: pos (abajo), neu (medio), neg (arriba) -> se logra por asignación de y.
-    const now = Date.now();
-    const day = 24*60*60*1000;
+    const entityType = document.getElementById("entityType");
+    const searchBox = document.getElementById("searchBox");
+    const entitySelect = document.getElementById("entitySelect");
+    const rangeSelect = document.getElementById("rangeSelect");
+    const grainSelect = document.getElementById("grainSelect");
+    const sourceSelect = document.getElementById("sourceSelect");
+    const typeSelect = document.getElementById("typeSelect");
+    const sentimentSelect = document.getElementById("sentimentSelect");
 
-    // Demo dataset: cada punto incluye metadatos para el tooltip
-    const pointsPos = [
-      {x: now-6*day, y: 1, title:"Nota positiva 1", url:"#", outlet:"Update Me"},
-      {x: now-6*day, y: 2, title:"Nota positiva 2", url:"#", outlet:"El Queretano"},
-      {x: now-3*day, y: 1, title:"Nota positiva 3", url:"#", outlet:"Update Me"},
-      {x: now-1*day, y: 2, title:"Nota positiva 4", url:"#", outlet:"Update Me"},
-    ];
-    const pointsNeu = [
-      {x: now-6*day, y: 3, title:"Nota neutra 1", url:"#", outlet:"El Queretano"},
-      {x: now-3*day, y: 2, title:"Nota neutra 2", url:"#", outlet:"Periodismo.media"},
-      {x: now-1*day, y: 3, title:"Nota neutra 3", url:"#", outlet:"El Queretano"},
-    ];
-    const pointsNeg = [
-      {x: now-6*day, y: 4, title:"Nota negativa 1", url:"#", outlet:"Periodismo.media"},
-      {x: now-3*day, y: 3, title:"Nota negativa 2", url:"#", outlet:"Periodismo.media"},
-      {x: now-1*day, y: 4, title:"Nota negativa 3", url:"#", outlet:"El Queretano"},
-    ];
+    async function loadSources() {
+      try {
+        const res = await fetch("{% url 'monitor:api_sources' %}");
+        const data = await res.json();
+        data.items.forEach(source => {
+          const option = document.createElement("option");
+          option.value = source.id;
+          option.textContent = source.name;
+          sourceSelect.appendChild(option);
+        });
+      } catch (err) {
+        console.error("Error cargando fuentes", err);
+      }
+    }
 
-    // Scatter
-    const scatter = new Chart(document.getElementById("scatterNotes"),{
-      type:"scatter",
-      data:{
-        datasets:[
-          {label:"Positivo", data:pointsPos, pointRadius:5},
-          {label:"Neutro", data:pointsNeu, pointRadius:5},
-          {label:"Negativo", data:pointsNeg, pointRadius:5},
-        ]
-      },
-      options:{
-        parsing:false,
-        responsive:true,
-        scales:{
-          x:{
-            type:"time",
-            time:{unit:"day"},
-            ticks:{color:"rgba(231,238,245,.70)"},
-            grid:{color:"rgba(166,190,200,.10)"}
-          },
-          y:{
-            beginAtZero:true,
-            ticks:{color:"rgba(231,238,245,.70)"},
-            grid:{color:"rgba(166,190,200,.10)"},
-            title:{display:true,text:"Acumulación (apilado por periodo)",color:"rgba(231,238,245,.70)"}
-          }
+    async function loadEntities() {
+      const query = searchBox.value.trim();
+      if (!query) return;
+      try {
+        const res = await fetch(`{% url 'monitor:api_entities' %}?type=${entityType.value}&q=${encodeURIComponent(query)}`);
+        const data = await res.json();
+        entitySelect.innerHTML = "<option value=''>Selecciona entidad</option>";
+        data.results.forEach(item => {
+          const option = document.createElement("option");
+          option.value = item.id;
+          option.textContent = item.name;
+          entitySelect.appendChild(option);
+        });
+      } catch (err) {
+        console.error("Error cargando entidades", err);
+      }
+    }
+
+    function buildParams() {
+      const params = new URLSearchParams();
+      if (entitySelect.value) {
+        params.set("entity_type", entityType.value);
+        params.set("entity_id", entitySelect.value);
+      }
+      if (rangeSelect.value) params.set("range", rangeSelect.value);
+      if (grainSelect.value) params.set("grain", grainSelect.value);
+      if (sourceSelect.value) params.set("source_id", sourceSelect.value);
+      if (typeSelect.value) params.set("type", typeSelect.value);
+      if (sentimentSelect.value) params.set("sentiment", sentimentSelect.value);
+      return params;
+    }
+
+    function renderCharts(data) {
+      if (scatterChart) scatterChart.destroy();
+      if (sentChart) sentChart.destroy();
+      if (typeChart) typeChart.destroy();
+
+      const grouped = { positivo: [], neutro: [], negativo: [] };
+      data.scatter_points.forEach(point => {
+        grouped[point.sentiment]?.push(point);
+      });
+
+      scatterChart = new Chart(document.getElementById("scatterNotes"), {
+        type: "scatter",
+        data: {
+          datasets: [
+            { label: "Positivo", data: grouped.positivo, pointRadius: 5 },
+            { label: "Neutro", data: grouped.neutro, pointRadius: 5 },
+            { label: "Negativo", data: grouped.negativo, pointRadius: 5 }
+          ]
         },
-        plugins:{
-          legend:{labels:{color:"rgba(231,238,245,.70)"}},
-          tooltip:{
-            callbacks:{
-              label:(ctx)=>{
-                const r = ctx.raw || {};
-                return `${ctx.dataset.label}: ${r.title || "Nota"}${noteLink(ctx)}`;
-              }
-            }
+        options: {
+          parsing: false,
+          responsive: true,
+          scales: { x: { type: "time", time: { unit: "day" } }, y: { beginAtZero: true } },
+          plugins: {
+            legend: { labels: { color: "rgba(231,238,245,.70)" } },
+            tooltip: { callbacks: { label: (ctx) => ctx.raw?.title || "Nota" } }
           }
         }
+      });
+
+      sentChart = new Chart(document.getElementById("donutSent"), {
+        type: "doughnut",
+        data: {
+          labels: ["Positivo", "Neutro", "Negativo"],
+          datasets: [{
+            data: [
+              data.sentiment_donut.positivo || 0,
+              data.sentiment_donut.neutro || 0,
+              data.sentiment_donut.negativo || 0
+            ]
+          }]
+        },
+        options: { plugins: { legend: { position: "bottom", labels: { color: "rgba(231,238,245,.70)" } } } }
+      });
+
+      typeChart = new Chart(document.getElementById("donutType"), {
+        type: "doughnut",
+        data: {
+          labels: ["Informativo", "Opinión"],
+          datasets: [{
+            data: [
+              data.type_donut.informativo || 0,
+              data.type_donut.opinion || 0
+            ]
+          }]
+        },
+        options: { plugins: { legend: { position: "bottom", labels: { color: "rgba(231,238,245,.70)" } } } }
+      });
+    }
+
+    function renderLabels(data) {
+      const labelsCloud = document.getElementById("labelsCloud");
+      labelsCloud.innerHTML = "";
+      if (!data.labels_cloud.length) {
+        labelsCloud.innerHTML = "<span class='tag neu'>Aún no hay etiquetas</span>";
+        return;
+      }
+      data.labels_cloud.forEach(label => {
+        const span = document.createElement("span");
+        const sentimentClass = label.dominant_sentiment === "positivo" ? "pos" : label.dominant_sentiment === "negativo" ? "neg" : "neu";
+        span.className = `tag ${label.count > 5 ? "big" : ""} ${sentimentClass}`;
+        span.textContent = label.label;
+        labelsCloud.appendChild(span);
+      });
+    }
+
+    function renderClusters(data) {
+      const clusters = document.getElementById("labelClusters");
+      clusters.innerHTML = "";
+      if (!data.clusters.length) {
+        clusters.innerHTML = "<div class='cluster'><div class='head'><div><div class='name'>Sin clusters</div><div class='muted'>Se mostrarán al contar con datos.</div></div><span class='pill neu'>—</span></div></div>";
+        return;
+      }
+      data.clusters.forEach(cluster => {
+        const wrapper = document.createElement("div");
+        wrapper.className = "cluster";
+        const labels = (cluster.labels || []).map(label => `<span class="tag neu">${label}</span>`).join("");
+        wrapper.innerHTML = `
+          <div class="head">
+            <div>
+              <div class="name">${cluster.name}</div>
+              <div class="muted">${cluster.count} notas</div>
+            </div>
+            <span class="pill neu">Tono: neutro</span>
+          </div>
+          <div class="mini">${labels}</div>
+        `;
+        clusters.appendChild(wrapper);
+      });
+    }
+
+    function renderTopSources(data) {
+      const container = document.getElementById("topSources");
+      container.innerHTML = "";
+      if (!data.top_sources.length) {
+        container.innerHTML = "<div class='cluster'><div class='head'><div><div class='name'>Aún no hay datos</div><div class='muted'>Ejecuta el pipeline para poblar.</div></div><span class='pill neu'>—</span></div></div>";
+        return;
+      }
+      data.top_sources.forEach(source => {
+        const wrapper = document.createElement("div");
+        wrapper.className = "cluster";
+        wrapper.innerHTML = `
+          <div class="head">
+            <div>
+              <div class="name">${source.source}</div>
+              <div class="muted">${source.count} notas</div>
+            </div>
+            <span class="pill neu">Tono: neutro</span>
+          </div>
+        `;
+        container.appendChild(wrapper);
+      });
+    }
+
+    function updateKpis(data) {
+      const total = data.scatter_points.length;
+      document.getElementById("kpi-total").textContent = total;
+      const negative = data.sentiment_donut.negativo || 0;
+      document.getElementById("kpi-negative").textContent = total ? `${Math.round((negative / total) * 100)}%` : "0%";
+      const opinion = data.type_donut.opinion || 0;
+      document.getElementById("kpi-opinion").textContent = total ? `${Math.round((opinion / total) * 100)}%` : "0%";
+      document.getElementById("kpi-labels").textContent = data.labels_cloud.length;
+    }
+
+    async function loadDashboard() {
+      try {
+        const params = buildParams();
+        const res = await fetch(`{% url 'monitor:api_dashboard' %}?${params.toString()}`);
+        const data = await res.json();
+        renderCharts(data);
+        renderLabels(data);
+        renderClusters(data);
+        renderTopSources(data);
+        updateKpis(data);
+      } catch (err) {
+        console.error("Error cargando dashboard", err);
+      }
+    }
+
+    document.getElementById("applyFilters").addEventListener("click", loadDashboard);
+    document.getElementById("clearFilters").addEventListener("click", () => {
+      searchBox.value = "";
+      entitySelect.value = "";
+      sourceSelect.value = "";
+      typeSelect.value = "";
+      sentimentSelect.value = "";
+      loadDashboard();
+    });
+    searchBox.addEventListener("input", () => {
+      if (searchBox.value.length >= 2) {
+        loadEntities();
       }
     });
 
-    // Donas
-    new Chart(document.getElementById("donutSent"),{
-      type:"doughnut",
-      data:{labels:["Positivo","Neutro","Negativo"],datasets:[{data:[33,45,22]}]},
-      options:{plugins:{legend:{position:"bottom",labels:{color:"rgba(231,238,245,.70)"}}}}
-    });
-
-    new Chart(document.getElementById("donutType"),{
-      type:"doughnut",
-      data:{labels:["Informativo","Opinión"],datasets:[{data:[85,15]}]},
-      options:{plugins:{legend:{position:"bottom",labels:{color:"rgba(231,238,245,.70)"}}}}
-    });
-
-    // Nota: Chart.js time scale requiere adaptador de fechas; en implementación real,
-    // integren date-fns adapter o moment adapter.
-    // Aquí es mockup visual: en prod incluir el adaptador.
+    loadSources();
+    loadDashboard();
   </script>
-
-  <!-- En implementación real, incluir el adaptador time:
-  <script src="https://cdn.jsdelivr.net/npm/luxon@3"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon@1"></script>
-  -->
 </body>
 </html>
-

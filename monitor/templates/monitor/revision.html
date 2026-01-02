@@ -51,109 +51,178 @@
         <div class="muted">Corrige etiquetas, idea central, tipo y sentimiento. Se guardan cambios y puedes aplicarlos por lotes.</div>
       </div>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-        <span class="pill">Pendientes: 19</span>
-        <span class="pill warn">Alta prioridad: 6</span>
+        <span class="pill" id="review-pending">Pendientes: —</span>
         <a class="pill" href="{% url 'monitor:feed' %}">← Volver al monitor</a>
       </div>
     </div>
 
     <div class="grid">
-      <section class="card">
+      <section class="card" data-article-id="{{ article_id|default:'' }}">
         <h3>Nota seleccionada</h3>
         <div class="box">
-          <div style="font-weight:800">Corregidora reporta alza de fraudes y robo de información en 2025</div>
-          <div class="muted" style="margin-top:6px">Fuente: El Queretano · 13:20 · Link: <u>Abrir original</u></div>
-          <div class="muted" style="margin-top:10px">
-            Texto (extracto): “…entre enero y noviembre atendieron 1,809 reportes…”
-          </div>
+          <div style="font-weight:800" id="article-title">Selecciona una nota desde el feed</div>
+          <div class="muted" style="margin-top:6px" id="article-meta">Fuente: — · —</div>
+          <div class="muted" style="margin-top:10px" id="article-extract">Texto (extracto): —</div>
         </div>
 
         <div class="field">
           <label>Idea central (máximo 30 palabras)</label>
-          <textarea>La Policía Cibernética atendió 1,809 reportes en 2025; predominan robo de datos y fraudes, y reforzaron prevención con talleres para empresas, escuelas y comercios.</textarea>
+          <textarea id="centralIdeaInput" placeholder="Escribe idea central"></textarea>
         </div>
 
         <div class="row">
           <div class="field">
             <label>Tipo</label>
-            <select>
-              <option selected>Informativo</option>
-              <option>Opinión</option>
+            <select id="typeSelect">
+              <option value="informativo">Informativo</option>
+              <option value="opinion">Opinión</option>
             </select>
           </div>
           <div class="field">
-            <label>Sentimiento principal hacia actor</label>
-            <select>
-              <option>Positivo</option>
-              <option selected>Neutro</option>
-              <option>Negativo</option>
-            </select>
+            <label>Menciones (sentimiento)</label>
+            <div id="mentionsList" class="box muted">Sin menciones</div>
           </div>
         </div>
 
         <div class="field">
           <label>Etiquetas (mínimo 5; separa con comas)</label>
-          <input value="ciberdelito, robo de datos, fraude, prevención, talleres, seguridad digital"/>
+          <input id="labelsInput" placeholder="Etiqueta 1, etiqueta 2, etiqueta 3, etiqueta 4, etiqueta 5"/>
         </div>
 
         <div class="field">
           <label>¿Por qué la IA estuvo mal / qué faltó? (obligatorio)</label>
-          <textarea placeholder="Ej: No es positivo; el tono es informativo. Faltó etiquetar 'extorsión' y 'policía cibernética'."></textarea>
+          <textarea id="reasonInput" placeholder="Ej: No es positivo; el tono es informativo. Faltó etiquetar 'extorsión' y 'policía cibernética'."></textarea>
         </div>
 
         <div class="actions">
-          <button class="btn">Guardar corrección</button>
-          <button class="btn ghost">Marcar como revisada</button>
-          <button class="btn ghost">Abrir original</button>
+          <button class="btn" id="saveReview">Guardar corrección</button>
+          <button class="btn ghost" id="openOriginal">Abrir original</button>
         </div>
       </section>
 
       <aside class="card">
         <h3>Aplicar por lotes (sugerencias)</h3>
-        <div class="muted">Monitor detectó notas “parecidas” donde podría aplicar esta corrección. Tú decides.</div>
-
-        <div style="height:10px"></div>
-
-        <div class="box">
-          <div style="display:flex;justify-content:space-between;gap:10px;align-items:center">
-            <div>
-              <div style="font-weight:800">Candidatas: 8 notas</div>
-              <div class="muted">Criterio: misma fuente + mismo actor + etiquetas sugeridas similares + 7 días</div>
-            </div>
-            <input type="checkbox" checked style="width:18px;height:18px"/>
-          </div>
-        </div>
-
-        <div style="height:10px"></div>
-
-        <div class="box">
-          <div style="font-weight:800">Qué se aplicará</div>
-          <div class="muted" style="margin-top:6px">• Tipo: Informativo<br/>• Sentimiento: Neutro<br/>• Etiquetas: actualizar lista<br/>• Idea central: NO (se mantiene por nota)</div>
-        </div>
-
-        <div class="field">
-          <label>Acción</label>
-          <select>
-            <option selected>Aplicar cambios seleccionados</option>
-            <option>Solo agregar etiquetas faltantes</option>
-            <option>Solo ajustar sentimiento</option>
-          </select>
-        </div>
-
-        <div class="actions">
-          <button class="btn">Aplicar a 8 notas</button>
-          <button class="btn ghost">Ver lista</button>
-        </div>
+        <div class="muted">MVP: las sugerencias de lote aparecerán cuando haya suficientes coincidencias.</div>
 
         <div style="height:14px"></div>
 
         <h3>Historial de cambios</h3>
-        <div class="box">
-          <div class="muted">Hoy 13:42 · Gabriel ajustó sentimiento Neutro → Positivo (no aplicado por lotes)</div>
+        <div class="box" id="review-history">
+          <div class="muted">Sin historial disponible.</div>
         </div>
       </aside>
     </div>
   </div>
+
+  <script>
+    const articleId = document.querySelector("[data-article-id]")?.dataset.articleId;
+    const titleEl = document.getElementById("article-title");
+    const metaEl = document.getElementById("article-meta");
+    const extractEl = document.getElementById("article-extract");
+    const labelsInput = document.getElementById("labelsInput");
+    const centralIdeaInput = document.getElementById("centralIdeaInput");
+    const typeSelect = document.getElementById("typeSelect");
+    const mentionsList = document.getElementById("mentionsList");
+    const reasonInput = document.getElementById("reasonInput");
+    const openOriginal = document.getElementById("openOriginal");
+
+    function getCookie(name) {
+      const value = `; ${document.cookie}`;
+      const parts = value.split(`; ${name}=`);
+      if (parts.length === 2) return parts.pop().split(";").shift();
+      return null;
+    }
+
+    async function loadReviewSummary() {
+      try {
+        const res = await fetch("{% url 'monitor:api_summary' %}");
+        const data = await res.json();
+        document.getElementById("review-pending").textContent = `Pendientes: ${data.pending_review ?? 0}`;
+      } catch (err) {
+        console.error("Error cargando resumen", err);
+      }
+    }
+
+    async function loadArticle() {
+      if (!articleId) return;
+      try {
+        const res = await fetch(`/monitor/api/article/${articleId}/`);
+        const data = await res.json();
+        titleEl.textContent = data.title;
+        metaEl.textContent = `Fuente: ${data.source_name} · ${data.published_at || "—"}`;
+        extractEl.textContent = `Texto (extracto): ${data.text_excerpt || "Sin extracto."}`;
+        labelsInput.value = (data.labels || []).join(", ");
+        centralIdeaInput.value = data.central_idea || "";
+        typeSelect.value = data.article_type || "informativo";
+        if (data.mentions && data.mentions.length) {
+          mentionsList.innerHTML = "";
+          data.mentions.forEach((mention, idx) => {
+            const row = document.createElement("div");
+            row.style.marginBottom = "8px";
+            row.innerHTML = `
+              <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                <span>${mention.target_name}</span>
+                <select data-mention-index="${idx}" data-target-type="${mention.target_type}" data-target-id="${mention.target_id}" data-target-name="${mention.target_name}">
+                  <option value="positivo">Positivo</option>
+                  <option value="neutro">Neutro</option>
+                  <option value="negativo">Negativo</option>
+                </select>
+              </div>
+            `;
+            row.querySelector("select").value = mention.sentiment || "neutro";
+            mentionsList.appendChild(row);
+          });
+        } else {
+          mentionsList.textContent = "Sin menciones";
+        }
+        openOriginal.onclick = () => window.open(data.url, "_blank");
+      } catch (err) {
+        console.error("Error cargando artículo", err);
+      }
+    }
+
+    document.getElementById("saveReview").addEventListener("click", async () => {
+      if (!articleId) return;
+      const mentions = [];
+      mentionsList.querySelectorAll("select").forEach((selectEl) => {
+        const label = selectEl.dataset.targetName;
+        if (!label) return;
+        mentions.push({
+          target_type: selectEl.dataset.targetType,
+          target_id: Number(selectEl.dataset.targetId),
+          target_name: label,
+          sentiment: selectEl.value
+        });
+      });
+      const payload = {
+        central_idea: centralIdeaInput.value,
+        article_type: typeSelect.value,
+        labels: labelsInput.value.split(",").map(item => item.trim()).filter(Boolean),
+        mentions: mentions,
+        reason_text: reasonInput.value
+      };
+      try {
+        const res = await fetch(`/monitor/api/article/${articleId}/review`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": getCookie("csrftoken")
+          },
+          body: JSON.stringify(payload)
+        });
+        if (!res.ok) {
+          const err = await res.json();
+          alert(err.error || "Error guardando revisión");
+          return;
+        }
+        alert("Corrección guardada.");
+      } catch (err) {
+        console.error("Error guardando revisión", err);
+      }
+    });
+
+    loadReviewSummary();
+    loadArticle();
+  </script>
 </body>
 </html>
-
