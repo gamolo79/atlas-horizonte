@@ -1,0 +1,349 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Monitor · Benchmarks</title>
+
+  <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    :root{
+      --bg:#0b0f14; --stroke:rgba(166,190,200,.16);
+      --text:#e7eef5; --muted:rgba(231,238,245,.70);
+      --g:#19c37d; --shadow:0 14px 40px rgba(0,0,0,.45);
+      --neg:#ff4d4d; --neu:#9fb2be; --pos:#19c37d;
+      --r:18px; --max:1160px;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:Lexend,system-ui;background:var(--bg);color:var(--text)}
+    a{color:inherit;text-decoration:none}
+    .wrap{max-width:var(--max);margin:0 auto;padding:18px}
+    .topbar{
+      display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
+      padding:14px 16px;border:1px solid var(--stroke);border-radius:var(--r);
+      background:rgba(255,255,255,.02);box-shadow:var(--shadow);
+    }
+    .nav{display:flex;gap:8px;flex-wrap:wrap}
+    .chip{padding:10px 12px;border-radius:999px;border:1px solid var(--stroke);background:rgba(255,255,255,.02);font-size:13px;color:var(--muted)}
+    .chip.active{color:var(--text);border-color:rgba(25,195,125,.35);background:rgba(25,195,125,.10)}
+    .card{border:1px solid var(--stroke);border-radius:var(--r);background:rgba(255,255,255,.02);box-shadow:var(--shadow);padding:14px}
+    h2{margin:0 0 10px 0;font-size:16px}
+    .muted{color:var(--muted);font-size:12px;line-height:1.5}
+    label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}
+    input,select{
+      width:100%;border:1px solid var(--stroke);border-radius:14px;background:rgba(0,0,0,.20);
+      color:var(--text);padding:10px 12px;font-size:13px;outline:none;
+    }
+    .filters{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;margin-top:12px}
+    @media(max-width:980px){.filters{grid-template-columns:1fr 1fr}}
+    @media(max-width:520px){.filters{grid-template-columns:1fr}}
+    .row{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+    .btn{padding:10px 12px;border-radius:14px;border:1px solid var(--stroke);background:rgba(25,195,125,.12);font-weight:800;font-size:13px}
+    .btn.ghost{background:rgba(255,255,255,.02);color:var(--muted);font-weight:500}
+    .grid{display:grid;grid-template-columns:1.35fr .65fr;gap:14px;margin-top:14px}
+    @media(max-width:980px){.grid{grid-template-columns:1fr}}
+    .split{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px}
+    @media(max-width:980px){.split{grid-template-columns:1fr}}
+    canvas{width:100% !important;height:300px !important}
+    .pill{padding:6px 10px;border-radius:999px;border:1px solid var(--stroke);background:rgba(255,255,255,.02);color:var(--muted);font-size:12px;white-space:nowrap}
+    .pill.pos{border-color:rgba(25,195,125,.35);background:rgba(25,195,125,.10);color:var(--text)}
+    .pill.neg{border-color:rgba(255,77,77,.35);background:rgba(255,77,77,.08);color:var(--text)}
+    .pill.neu{border-color:rgba(159,178,190,.35);background:rgba(159,178,190,.08);color:var(--text)}
+    .box{padding:12px;border-radius:14px;border:1px solid var(--stroke);background:rgba(0,0,0,.16)}
+    .tags{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+    .tag{border:1px solid var(--stroke);border-radius:999px;padding:6px 10px;background:rgba(0,0,0,.16);font-size:12px;color:var(--muted)}
+    .tag.a{border-color:rgba(25,195,125,.35);background:rgba(25,195,125,.08);color:var(--text)}
+    .tag.b{border-color:rgba(159,178,190,.35);background:rgba(159,178,190,.08);color:var(--text)}
+    .tag.shared{border-color:rgba(255,255,255,.22);background:rgba(255,255,255,.05);color:var(--text)}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="topbar">
+      <div>
+        <div style="font-weight:800">Benchmarks</div>
+        <div class="muted">Compara dos actores o temas: volumen, tono, tipo, etiquetas y fuentes</div>
+      </div>
+      <nav class="nav">
+        <a class="chip" href="monitor-home.html">Home</a>
+        <a class="chip" href="monitor-feed.html">Monitor</a>
+        <a class="chip" href="dashboards.html">Dashboards</a>
+        <a class="chip active" href="#">Benchmarks</a>
+        <a class="chip" href="revision.html">Revisión</a>
+        <a class="chip" href="procesos.html">Procesos</a>
+      </nav>
+    </header>
+
+    <section class="card" style="margin-top:14px">
+      <h2>Selecciona A y B</h2>
+      <div class="filters">
+        <div>
+          <label>Tipo (A)</label>
+          <select><option selected>Persona</option><option>Institución</option><option>Tema</option></select>
+        </div>
+        <div>
+          <label>Buscar (A)</label>
+          <input placeholder="Escribe para filtrar…">
+        </div>
+        <div>
+          <label>Entidad (A)</label>
+          <select><option selected>Mauricio Kuri</option><option>Congreso de Querétaro</option></select>
+        </div>
+        <div>
+          <label>Tipo (B)</label>
+          <select><option>Persona</option><option selected>Institución</option><option>Tema</option></select>
+        </div>
+
+        <div>
+          <label>Buscar (B)</label>
+          <input placeholder="Escribe para filtrar…">
+        </div>
+        <div>
+          <label>Entidad (B)</label>
+          <select><option selected>Municipio de Corregidora</option><option>Gobierno estatal</option></select>
+        </div>
+        <div>
+          <label>Rango</label>
+          <select><option selected>Últimos 30 días</option><option>Últimos 90 días</option><option>Este año</option></select>
+        </div>
+        <div>
+          <label>Granularidad</label>
+          <select><option>Día</option><option selected>Semana</option><option>Mes</option></select>
+        </div>
+      </div>
+
+      <div class="row">
+        <button class="btn">Comparar</button>
+        <button class="btn ghost">Intercambiar A ↔ B</button>
+        <button class="btn ghost">Guardar benchmark</button>
+      </div>
+    </section>
+
+    <section class="grid">
+      <div class="card">
+        <h2>Volumen comparado (A vs B)</h2>
+        <div class="muted">Serie temporal por semana/mes. Útil para ver quién “sube” y cuándo.</div>
+        <div style="height:10px"></div>
+        <canvas id="lineCompare"></canvas>
+      </div>
+
+      <aside class="card">
+        <h2>Lectura rápida</h2>
+        <div class="box">
+          <div style="display:flex;justify-content:space-between;gap:10px">
+            <div>
+              <div style="font-weight:800">A: Mauricio Kuri</div>
+              <div class="muted">Notas: 86 · Opinión: 18%</div>
+            </div>
+            <span class="pill neu">Tono: neutro</span>
+          </div>
+        </div>
+        <div style="height:10px"></div>
+        <div class="box">
+          <div style="display:flex;justify-content:space-between;gap:10px">
+            <div>
+              <div style="font-weight:800">B: Corregidora</div>
+              <div class="muted">Notas: 64 · Opinión: 9%</div>
+            </div>
+            <span class="pill pos">Tono: positivo</span>
+          </div>
+        </div>
+
+        <div class="split">
+          <div>
+            <div class="muted" style="margin-top:12px">Sentimiento A</div>
+            <canvas id="donutA"></canvas>
+          </div>
+          <div>
+            <div class="muted" style="margin-top:12px">Sentimiento B</div>
+            <canvas id="donutB"></canvas>
+          </div>
+        </div>
+      </aside>
+    </section>
+
+    <section class="split">
+      <div class="card">
+        <h2>Dispersión por nota (A)</h2>
+        <div class="muted">Cada punto es una nota con tooltip (título + enlace). Color por sentimiento.</div>
+        <div style="height:10px"></div>
+        <canvas id="scatterA"></canvas>
+      </div>
+
+      <div class="card">
+        <h2>Dispersión por nota (B)</h2>
+        <div class="muted">Mismo enfoque para comparar “ritmo” y picos.</div>
+        <div style="height:10px"></div>
+        <canvas id="scatterB"></canvas>
+      </div>
+    </section>
+
+    <section class="split">
+      <div class="card">
+        <h2>Etiquetas: compartidas vs distintivas</h2>
+        <div class="muted">Compartidas ayudan a entender el terreno común; distintivas muestran dónde se separan narrativas.</div>
+
+        <div style="height:10px"></div>
+        <div class="box">
+          <div style="font-weight:800">Compartidas</div>
+          <div class="tags">
+            <span class="tag shared">seguridad</span>
+            <span class="tag shared">prevención</span>
+            <span class="tag shared">talleres</span>
+            <span class="tag shared">denuncias</span>
+          </div>
+        </div>
+
+        <div style="height:10px"></div>
+        <div class="box">
+          <div style="font-weight:800">Distintivas A</div>
+          <div class="tags">
+            <span class="tag a">gobernabilidad</span>
+            <span class="tag a">crítica</span>
+            <span class="tag a">debate público</span>
+          </div>
+        </div>
+
+        <div style="height:10px"></div>
+        <div class="box">
+          <div style="font-weight:800">Distintivas B</div>
+          <div class="tags">
+            <span class="tag b">policía cibernética</span>
+            <span class="tag b">ciberfraude</span>
+            <span class="tag b">comercio seguro</span>
+          </div>
+        </div>
+
+        <div class="row">
+          <button class="btn ghost">Ver “historias” del rango</button>
+          <button class="btn ghost">Exportar</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Fuentes que empujan el tono</h2>
+        <div class="muted">Ranking de medios por volumen y sesgo aparente (según sentimiento hacia A/B).</div>
+
+        <div style="height:10px"></div>
+        <div class="box">
+          <div style="display:flex;justify-content:space-between;gap:10px">
+            <div>
+              <div style="font-weight:800">Periodismo.media</div>
+              <div class="muted">A: 18 notas · B: 5 notas</div>
+            </div>
+            <span class="pill neg">más negativo en A</span>
+          </div>
+        </div>
+
+        <div style="height:10px"></div>
+        <div class="box">
+          <div style="display:flex;justify-content:space-between;gap:10px">
+            <div>
+              <div style="font-weight:800">Update Me</div>
+              <div class="muted">A: 14 notas · B: 16 notas</div>
+            </div>
+            <span class="pill pos">más positivo en B</span>
+          </div>
+        </div>
+
+        <div style="height:10px"></div>
+        <div class="box">
+          <div style="display:flex;justify-content:space-between;gap:10px">
+            <div>
+              <div style="font-weight:800">El Queretano</div>
+              <div class="muted">A: 22 notas · B: 18 notas</div>
+            </div>
+            <span class="pill neu">neutro</span>
+          </div>
+        </div>
+
+        <div class="row">
+          <button class="btn">Abrir lista de notas</button>
+          <button class="btn ghost">Abrir dashboards de A</button>
+          <button class="btn ghost">Abrir dashboards de B</button>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <script>
+    // Mock charts
+    new Chart(document.getElementById("lineCompare"),{
+      type:"line",
+      data:{
+        labels:["Sem 1","Sem 2","Sem 3","Sem 4","Sem 5"],
+        datasets:[
+          {label:"A", data:[12,18,14,22,20], tension:.35},
+          {label:"B", data:[10,11,16,13,14], tension:.35},
+        ]
+      },
+      options:{
+        responsive:true,
+        plugins:{legend:{labels:{color:"rgba(231,238,245,.70)"}}},
+        scales:{
+          x:{ticks:{color:"rgba(231,238,245,.70)"},grid:{color:"rgba(166,190,200,.10)"}},
+          y:{beginAtZero:true,ticks:{color:"rgba(231,238,245,.70)"},grid:{color:"rgba(166,190,200,.10)"}}
+        }
+      }
+    });
+
+    new Chart(document.getElementById("donutA"),{
+      type:"doughnut",
+      data:{labels:["Pos","Neu","Neg"],datasets:[{data:[28,48,24]}]},
+      options:{plugins:{legend:{position:"bottom",labels:{color:"rgba(231,238,245,.70)"}}}}
+    });
+    new Chart(document.getElementById("donutB"),{
+      type:"doughnut",
+      data:{labels:["Pos","Neu","Neg"],datasets:[{data:[44,41,15]}]},
+      options:{plugins:{legend:{position:"bottom",labels:{color:"rgba(231,238,245,.70)"}}}}
+    });
+
+    // Dispersión A/B (mock simple; en prod el eje X será time con adapter)
+    const now = Date.now(), day=24*60*60*1000;
+
+    const mk = (label)=>({
+      label,
+      datasets:[
+        {label:"Pos", data:[{x:1,y:1,title:"Pos 1",url:"#",outlet:"Update Me"},{x:2,y:1,title:"Pos 2",url:"#",outlet:"El Q"}], pointRadius:5},
+        {label:"Neu", data:[{x:1,y:2,title:"Neu 1",url:"#",outlet:"El Q"},{x:3,y:2,title:"Neu 2",url:"#",outlet:"PM"}], pointRadius:5},
+        {label:"Neg", data:[{x:2,y:3,title:"Neg 1",url:"#",outlet:"PM"},{x:4,y:3,title:"Neg 2",url:"#",outlet:"PM"}], pointRadius:5},
+      ]
+    });
+
+    const tooltipLabel = (ctx)=>{
+      const r=ctx.raw||{};
+      return `${ctx.dataset.label}: ${r.title||"Nota"}\n${r.outlet||""}\n${r.url||""}`;
+    };
+
+    new Chart(document.getElementById("scatterA"),{
+      type:"scatter",
+      data:{datasets: mk("A").datasets},
+      options:{
+        parsing:false,
+        plugins:{legend:{labels:{color:"rgba(231,238,245,.70)"}},tooltip:{callbacks:{label:tooltipLabel}}},
+        scales:{
+          x:{ticks:{color:"rgba(231,238,245,.70)"},grid:{color:"rgba(166,190,200,.10)"},title:{display:true,text:"Tiempo (bucket)",color:"rgba(231,238,245,.70)"}},
+          y:{beginAtZero:true,ticks:{color:"rgba(231,238,245,.70)"},grid:{color:"rgba(166,190,200,.10)"},title:{display:true,text:"Apilado por periodo",color:"rgba(231,238,245,.70)"}}
+        }
+      }
+    });
+
+    new Chart(document.getElementById("scatterB"),{
+      type:"scatter",
+      data:{datasets: mk("B").datasets},
+      options:{
+        parsing:false,
+        plugins:{legend:{labels:{color:"rgba(231,238,245,.70)"}},tooltip:{callbacks:{label:tooltipLabel}}},
+        scales:{
+          x:{ticks:{color:"rgba(231,238,245,.70)"},grid:{color:"rgba(166,190,200,.10)"},title:{display:true,text:"Tiempo (bucket)",color:"rgba(231,238,245,.70)"}},
+          y:{beginAtZero:true,ticks:{color:"rgba(231,238,245,.70)"},grid:{color:"rgba(166,190,200,.10)"},title:{display:true,text:"Apilado por periodo",color:"rgba(231,238,245,.70)"}}
+        }
+      }
+    });
+  </script>
+</body>
+</html>
+

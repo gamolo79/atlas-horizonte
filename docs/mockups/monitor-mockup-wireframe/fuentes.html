@@ -1,0 +1,515 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Monitor · Fuentes</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <style>
+    :root{
+      --bg:#0b0f14;
+      --stroke:rgba(166,190,200,.16);
+      --text:#e7eef5;
+      --muted:rgba(231,238,245,.70);
+
+      --g:#19c37d;
+      --g2:#0fb36f;
+
+      --neg:#ff4d4d;
+      --neu:#9fb2be;
+      --pos:#19c37d;
+
+      --r:18px;
+      --shadow:0 14px 40px rgba(0,0,0,.45);
+      --max:1160px;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family:Lexend,system-ui,-apple-system,Segoe UI,Roboto,Arial;
+      background:
+        radial-gradient(1100px 600px at 15% 0%, rgba(25,195,125,.10), transparent 55%),
+        radial-gradient(900px 500px at 85% 15%, rgba(15,179,111,.10), transparent 60%),
+        var(--bg);
+      color:var(--text);
+    }
+    a{color:inherit;text-decoration:none}
+    .wrap{max-width:var(--max);margin:0 auto;padding:18px}
+
+    /* Topbar */
+    .topbar{
+      display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
+      padding:14px 16px;border:1px solid var(--stroke);border-radius:var(--r);
+      background:linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.01));
+      box-shadow:var(--shadow);
+    }
+    .brand{display:flex;align-items:center;gap:12px}
+    .brand img{height:34px;width:auto;display:block}
+    .brand .t{font-weight:900;font-size:14px;letter-spacing:.2px}
+    .brand .s{font-size:12px;color:var(--muted);margin-top:2px}
+    .nav{display:flex;gap:8px;flex-wrap:wrap}
+    .chip{
+      padding:10px 12px;border-radius:999px;border:1px solid var(--stroke);
+      background:rgba(255,255,255,.02);
+      font-size:13px;color:var(--muted);
+    }
+    .chip.active{color:var(--text);border-color:rgba(25,195,125,.35);background:rgba(25,195,125,.10)}
+
+    /* Layout */
+    .grid{display:grid;gap:14px;margin-top:14px}
+    .grid.cols{grid-template-columns:1.35fr .65fr}
+    @media(max-width:980px){.grid.cols{grid-template-columns:1fr}}
+
+    .card{
+      border:1px solid var(--stroke);
+      background:linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.01));
+      border-radius:var(--r);
+      box-shadow:var(--shadow);
+      padding:14px;
+    }
+    h2{margin:0 0 10px 0;font-size:16px;letter-spacing:.2px}
+    .muted{color:var(--muted);font-size:12px;line-height:1.5}
+
+    /* Controls */
+    label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}
+    input, select{
+      width:100%;
+      border:1px solid var(--stroke);
+      border-radius:14px;
+      background:rgba(0,0,0,.20);
+      color:var(--text);
+      padding:10px 12px;
+      font-size:13px;
+      outline:none;
+    }
+    .filters{
+      display:grid;grid-template-columns:1.2fr .8fr .8fr .8fr;gap:10px;margin-top:10px;
+    }
+    @media(max-width:980px){.filters{grid-template-columns:1fr 1fr}}
+    @media(max-width:520px){.filters{grid-template-columns:1fr}}
+
+    .row{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+    .btn{
+      padding:10px 12px;border-radius:14px;border:1px solid var(--stroke);
+      background:rgba(25,195,125,.12);
+      color:var(--text);font-weight:800;font-size:13px;
+    }
+    .btn.ghost{background:rgba(255,255,255,.02);color:var(--muted);font-weight:500}
+    .btn.danger{background:rgba(255,77,77,.10);border-color:rgba(255,77,77,.22);color:var(--text)}
+
+    /* Stats */
+    .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:12px}
+    @media(max-width:980px){.kpis{grid-template-columns:repeat(2,1fr)}}
+    .kpi{padding:12px;border-radius:14px;background:rgba(0,0,0,.16);border:1px solid var(--stroke)}
+    .kpi .l{font-size:12px;color:var(--muted)}
+    .kpi .v{font-size:22px;font-weight:900;margin-top:4px}
+    .kpi .d{font-size:12px;color:var(--muted);margin-top:6px}
+    .kpi .d b{color:var(--g)}
+
+    /* Table-like list */
+    .table{
+      margin-top:12px;
+      border:1px solid var(--stroke);
+      border-radius:16px;
+      overflow:hidden;
+      background:rgba(0,0,0,.12);
+    }
+    .thead,.trow{
+      display:grid;
+      grid-template-columns: 1.2fr 1.4fr .6fr .6fr .8fr .8fr;
+      gap:10px;
+      align-items:center;
+      padding:10px 12px;
+    }
+    .thead{
+      background:rgba(255,255,255,.03);
+      border-bottom:1px solid var(--stroke);
+      font-size:12px;
+      color:var(--muted);
+    }
+    .trow{
+      border-bottom:1px solid rgba(166,190,200,.10);
+      font-size:13px;
+    }
+    .trow:last-child{border-bottom:none}
+    .name{font-weight:800}
+    .url{color:var(--muted);font-size:12px;word-break:break-all}
+    .mini{font-size:12px;color:var(--muted)}
+    .actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+    .iconbtn{
+      padding:8px 10px;border-radius:12px;border:1px solid var(--stroke);
+      background:rgba(255,255,255,.02);color:var(--muted);font-size:12px;
+    }
+    .iconbtn.ok{background:rgba(25,195,125,.10);border-color:rgba(25,195,125,.22);color:var(--text)}
+    .iconbtn.bad{background:rgba(255,77,77,.10);border-color:rgba(255,77,77,.22);color:var(--text)}
+
+    /* Pills */
+    .pill{
+      padding:6px 10px;border-radius:999px;font-size:12px;border:1px solid var(--stroke);
+      background:rgba(255,255,255,.02);color:var(--muted);white-space:nowrap;
+      display:inline-flex;align-items:center;gap:8px;
+    }
+    .dot{width:8px;height:8px;border-radius:50%}
+    .pill.pos{border-color:rgba(25,195,125,.35);background:rgba(25,195,125,.10);color:var(--text)}
+    .pill.neu{border-color:rgba(159,178,190,.35);background:rgba(159,178,190,.08);color:var(--text)}
+    .pill.neg{border-color:rgba(255,77,77,.35);background:rgba(255,77,77,.08);color:var(--text)}
+
+    /* Sidebar */
+    .box{
+      padding:12px;border-radius:14px;border:1px solid var(--stroke);
+      background:rgba(0,0,0,.16);
+    }
+    .box + .box{margin-top:10px}
+    .kv{display:flex;justify-content:space-between;gap:10px}
+    .kv b{font-weight:900}
+    .log{
+      margin-top:10px;
+      border:1px solid var(--stroke);
+      border-radius:14px;
+      background:rgba(0,0,0,.18);
+      padding:12px;
+      font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;
+      font-size:12px;
+      color:rgba(231,238,245,.85);
+      line-height:1.5;
+      white-space:pre-wrap;
+    }
+    .hint{margin-top:10px;color:var(--muted);font-size:12px;line-height:1.5}
+
+    /* Mobile table fallback */
+    @media(max-width:720px){
+      .thead{display:none}
+      .trow{
+        grid-template-columns:1fr;
+        gap:6px;
+      }
+      .actions{justify-content:flex-start}
+    }
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+
+    <!-- TOPBAR -->
+    <header class="topbar">
+      <div class="brand">
+        <img src="logo-horizonte-monitor.png" alt="Horizonte Digital Monitor">
+        <div>
+          <div class="t">Fuentes</div>
+          <div class="s">Administra RSS, sitemaps y scraping · Salud y desempeño</div>
+        </div>
+      </div>
+
+      <nav class="nav">
+        <a class="chip" href="monitor-home.html">Home</a>
+        <a class="chip" href="monitor-feed.html">Monitor</a>
+        <a class="chip" href="dashboards.html">Dashboards</a>
+        <a class="chip" href="benchmarks.html">Benchmarks</a>
+        <a class="chip" href="revision.html">Revisión</a>
+        <a class="chip" href="procesos.html">Procesos</a>
+        <a class="chip active" href="#">Fuentes</a>
+      </nav>
+    </header>
+
+    <!-- SUMMARY -->
+    <section class="card" style="margin-top:14px">
+      <h2>Resumen</h2>
+      <div class="muted">
+        Aquí decides qué medios se monitorean y con qué método. También ves su salud (errores, latencia, volumen).
+      </div>
+
+      <div class="kpis">
+        <div class="kpi">
+          <div class="l">Fuentes activas</div>
+          <div class="v">48</div>
+          <div class="d">Última hora: <b>+6</b> nuevas notas</div>
+        </div>
+        <div class="kpi">
+          <div class="l">Con error</div>
+          <div class="v" style="color:var(--neg)">2</div>
+          <div class="d">Principal causa: <b>timeout</b></div>
+        </div>
+        <div class="kpi">
+          <div class="l">Nuevas hoy</div>
+          <div class="v">124</div>
+          <div class="d">Promedio: <b>17</b> por fuente</div>
+        </div>
+        <div class="kpi">
+          <div class="l">Latencia promedio</div>
+          <div class="v">3.4 min</div>
+          <div class="d">Mejor: <b>RSS</b> · Peor: <b>scrape</b></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="grid cols">
+
+      <!-- LEFT: LIST + FILTERS -->
+      <div class="card">
+        <h2>Directorio de fuentes</h2>
+        <div class="muted">
+          Busca, filtra por tipo y estado, y ejecuta pruebas rápidas. Recomendación: prioriza RSS, luego sitemap, y usa scraping solo cuando no haya otra opción.
+        </div>
+
+        <div class="filters">
+          <div>
+            <label>Buscar</label>
+            <input placeholder="Nombre del medio o URL…">
+          </div>
+          <div>
+            <label>Tipo</label>
+            <select>
+              <option selected>Todos</option>
+              <option>RSS</option>
+              <option>Sitemap</option>
+              <option>Scrape</option>
+            </select>
+          </div>
+          <div>
+            <label>Estado</label>
+            <select>
+              <option selected>Todos</option>
+              <option>OK</option>
+              <option>Error</option>
+              <option>Inactiva</option>
+            </select>
+          </div>
+          <div>
+            <label>Frecuencia</label>
+            <select>
+              <option selected>Cualquiera</option>
+              <option>1–5 min</option>
+              <option>10–15 min</option>
+              <option>30–60 min</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="row">
+          <button class="btn">+ Agregar fuente</button>
+          <button class="btn ghost">Importar (CSV)</button>
+          <button class="btn ghost">Exportar</button>
+          <button class="btn ghost">Probar seleccionadas</button>
+        </div>
+
+        <!-- TABLE -->
+        <div class="table" aria-label="Tabla de fuentes">
+          <div class="thead">
+            <div>Medio</div>
+            <div>URL</div>
+            <div>Tipo</div>
+            <div>Frecuencia</div>
+            <div>Última ejecución</div>
+            <div style="text-align:right">Acciones</div>
+          </div>
+
+          <div class="trow">
+            <div>
+              <div class="name">El Queretano</div>
+              <div class="mini">Activa · 34 notas / 7 días</div>
+            </div>
+            <div class="url">https://elqueretano.info/feed/</div>
+            <div><span class="pill pos"><span class="dot" style="background:var(--g)"></span>RSS</span></div>
+            <div class="mini">cada 5 min</div>
+            <div class="mini">hace 2 min · <span class="pill pos">OK</span></div>
+            <div class="actions">
+              <button class="iconbtn ok">Probar</button>
+              <button class="iconbtn">Editar</button>
+              <button class="iconbtn">Pausar</button>
+            </div>
+          </div>
+
+          <div class="trow">
+            <div>
+              <div class="name">Update Me</div>
+              <div class="mini">Activa · 28 notas / 7 días</div>
+            </div>
+            <div class="url">https://updateme.news/feed/</div>
+            <div><span class="pill pos"><span class="dot" style="background:var(--g)"></span>RSS</span></div>
+            <div class="mini">cada 5 min</div>
+            <div class="mini">hace 1 min · <span class="pill pos">OK</span></div>
+            <div class="actions">
+              <button class="iconbtn ok">Probar</button>
+              <button class="iconbtn">Editar</button>
+              <button class="iconbtn">Pausar</button>
+            </div>
+          </div>
+
+          <div class="trow">
+            <div>
+              <div class="name">Periodismo.media</div>
+              <div class="mini">Activa · 12 notas / 7 días</div>
+            </div>
+            <div class="url">https://periodismo.media/sitemap.xml</div>
+            <div><span class="pill neu"><span class="dot" style="background:var(--neu)"></span>Sitemap</span></div>
+            <div class="mini">cada 15 min</div>
+            <div class="mini">hace 18 min · <span class="pill neu">OK</span></div>
+            <div class="actions">
+              <button class="iconbtn ok">Probar</button>
+              <button class="iconbtn">Editar</button>
+              <button class="iconbtn">Pausar</button>
+            </div>
+          </div>
+
+          <div class="trow">
+            <div>
+              <div class="name">Sitio sin RSS</div>
+              <div class="mini">Activa · 5 notas / 7 días</div>
+            </div>
+            <div class="url">https://ejemplo.com/noticias/</div>
+            <div><span class="pill neg"><span class="dot" style="background:var(--neg)"></span>Scrape</span></div>
+            <div class="mini">cada 30 min</div>
+            <div class="mini">hace 43 min · <span class="pill neg">Error</span></div>
+            <div class="actions">
+              <button class="iconbtn bad">Detalle</button>
+              <button class="iconbtn">Editar</button>
+              <button class="iconbtn danger">Desactivar</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="hint">
+          Nota: “Scrape” suele fallar más por cambios de diseño en los sitios. Si existe RSS o sitemap, úsalo primero.
+        </div>
+      </div>
+
+      <!-- RIGHT: ADD/EDIT + HEALTH + TEST -->
+      <aside class="grid">
+
+        <div class="card">
+          <h2>Agregar / editar fuente</h2>
+          <div class="muted">Configura el método. Monitor intentará extraer título, texto y metadatos.</div>
+
+          <label>Nombre del medio</label>
+          <input placeholder="Ej: Diario de Querétaro">
+
+          <label>Tipo</label>
+          <select id="sourceType">
+            <option selected>RSS</option>
+            <option>Sitemap</option>
+            <option>Scrape</option>
+          </select>
+
+          <label>URL</label>
+          <input placeholder="https://sitio.com/feed/">
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            <div>
+              <label>Frecuencia</label>
+              <select>
+                <option>1 min</option>
+                <option selected>5 min</option>
+                <option>15 min</option>
+                <option>30 min</option>
+                <option>60 min</option>
+              </select>
+            </div>
+            <div>
+              <label>Estado</label>
+              <select>
+                <option selected>Activa</option>
+                <option>Inactiva</option>
+              </select>
+            </div>
+          </div>
+
+          <label>Notas</label>
+          <div class="box">
+            <div class="kv"><span class="muted">Último OK</span><b>hace 2 min</b></div>
+            <div style="height:6px"></div>
+            <div class="kv"><span class="muted">Último error</span><b style="color:var(--neg)">—</b></div>
+            <div style="height:6px"></div>
+            <div class="kv"><span class="muted">Nuevas hoy</span><b>6</b></div>
+          </div>
+
+          <div class="row">
+            <button class="btn">Guardar</button>
+            <button class="btn ghost">Probar ahora</button>
+            <button class="btn danger">Eliminar</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>Prueba rápida (preview)</h2>
+          <div class="muted">
+            Antes de activar, muestra qué detecta Monitor: título, fecha, texto y metadescripción.
+          </div>
+
+          <div class="box" style="margin-top:10px">
+            <div style="font-weight:900">Resultado esperado</div>
+            <div class="muted" style="margin-top:6px">
+              • Items detectados: <b>10</b><br/>
+              • Texto extraído: <b>sí</b> (readability)<br/>
+              • Meta description: <b>sí</b><br/>
+              • Keywords/tags: <b>parcial</b>
+            </div>
+          </div>
+
+          <div class="log">
+[13:20] GET feed: OK (200)
+[13:20] Items: 10
+[13:20] Item #1: título OK · fecha OK · link OK
+[13:20] Extract: readability OK · texto 3,214 chars
+[13:20] Meta: description OK · keywords n/a
+          </div>
+
+          <div class="row">
+            <button class="btn ghost">Ver items</button>
+            <button class="btn ghost">Enviar a ingesta</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>Salud y alertas</h2>
+          <div class="muted">Sugerencias automáticas para mantener estable el monitoreo.</div>
+
+          <div class="box" style="margin-top:10px">
+            <div style="display:flex;justify-content:space-between;gap:10px">
+              <div>
+                <div style="font-weight:900">2 fuentes con error (timeout)</div>
+                <div class="muted">Recomendación: subir timeout o bajar frecuencia.</div>
+              </div>
+              <span class="pill neg">Atención</span>
+            </div>
+          </div>
+
+          <div class="box">
+            <div style="display:flex;justify-content:space-between;gap:10px">
+              <div>
+                <div style="font-weight:900">Scraping: 1 fuente inestable</div>
+                <div class="muted">Recomendación: buscar sitemap o RSS alterno.</div>
+              </div>
+              <span class="pill neu">Sugerencia</span>
+            </div>
+          </div>
+
+          <div class="row">
+            <button class="btn">Reintentar fallas</button>
+            <button class="btn ghost">Abrir Procesos</button>
+          </div>
+        </div>
+
+      </aside>
+    </section>
+  </div>
+
+  <script>
+    // Mock dynamic behavior (optional): cambiar placeholders según tipo de fuente
+    const typeSel = document.getElementById("sourceType");
+    const urlInput = document.querySelector('input[placeholder^="https://sitio.com"]');
+    if(typeSel && urlInput){
+      typeSel.addEventListener("change", ()=>{
+        const v = typeSel.value;
+        if(v==="RSS") urlInput.placeholder = "https://sitio.com/feed/";
+        if(v==="Sitemap") urlInput.placeholder = "https://sitio.com/sitemap.xml";
+        if(v==="Scrape") urlInput.placeholder = "https://sitio.com/seccion/noticias/";
+      });
+    }
+  </script>
+</body>
+</html>
+

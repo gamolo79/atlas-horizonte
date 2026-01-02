@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Monitor · Revisión editorial</title>
+  <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --bg:#0b0f14; --stroke:rgba(166,190,200,.16);
+      --text:#e7eef5; --muted:rgba(231,238,245,.70);
+      --g:#19c37d; --neg:#ff4d4d; --neu:#9fb2be; --pos:#19c37d;
+      --r:18px; --shadow:0 14px 40px rgba(0,0,0,.45); --max:1120px;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:Lexend,system-ui;background:var(--bg);color:var(--text)}
+    .wrap{max-width:var(--max);margin:0 auto;padding:18px}
+    .head{
+      display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
+      padding:14px 16px;border:1px solid var(--stroke);border-radius:var(--r);
+      background:rgba(255,255,255,.02);box-shadow:var(--shadow);
+    }
+    .title{font-weight:800}
+    .pill{padding:6px 10px;border-radius:999px;border:1px solid var(--stroke);font-size:12px;color:var(--muted)}
+    .pill.warn{border-color:rgba(255,77,77,.35);background:rgba(255,77,77,.08);color:var(--text)}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px}
+    @media(max-width:980px){.grid{grid-template-columns:1fr}}
+    .card{border:1px solid var(--stroke);border-radius:var(--r);background:rgba(255,255,255,.02);box-shadow:var(--shadow);padding:14px}
+    h3{margin:0 0 10px 0;font-size:15px}
+    .muted{color:var(--muted);font-size:12px;line-height:1.5}
+    .field{margin-top:10px}
+    label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}
+    input, textarea, select{
+      width:100%;border:1px solid var(--stroke);border-radius:14px;background:rgba(0,0,0,.20);
+      color:var(--text);padding:10px 12px;font-size:13px;outline:none;
+    }
+    textarea{min-height:92px;resize:vertical}
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+    .btn{padding:10px 12px;border-radius:14px;border:1px solid var(--stroke);background:rgba(25,195,125,.12);font-weight:800;font-size:13px}
+    .btn.ghost{background:rgba(255,255,255,.02);color:var(--muted);font-weight:500}
+    .box{padding:12px;border-radius:14px;border:1px solid var(--stroke);background:rgba(0,0,0,.18)}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="head">
+      <div>
+        <div class="title">Revisión editorial</div>
+        <div class="muted">Corrige etiquetas, idea central, tipo y sentimiento. Se guardan cambios y puedes aplicarlos por lotes.</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <span class="pill">Pendientes: 19</span>
+        <span class="pill warn">Alta prioridad: 6</span>
+        <a class="pill" href="monitor-feed.html">← Volver al monitor</a>
+      </div>
+    </div>
+
+    <div class="grid">
+      <section class="card">
+        <h3>Nota seleccionada</h3>
+        <div class="box">
+          <div style="font-weight:800">Corregidora reporta alza de fraudes y robo de información en 2025</div>
+          <div class="muted" style="margin-top:6px">Fuente: El Queretano · 13:20 · Link: <u>Abrir original</u></div>
+          <div class="muted" style="margin-top:10px">
+            Texto (extracto): “…entre enero y noviembre atendieron 1,809 reportes…”
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Idea central (máximo 30 palabras)</label>
+          <textarea>La Policía Cibernética atendió 1,809 reportes en 2025; predominan robo de datos y fraudes, y reforzaron prevención con talleres para empresas, escuelas y comercios.</textarea>
+        </div>
+
+        <div class="row">
+          <div class="field">
+            <label>Tipo</label>
+            <select>
+              <option selected>Informativo</option>
+              <option>Opinión</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Sentimiento principal hacia actor</label>
+            <select>
+              <option>Positivo</option>
+              <option selected>Neutro</option>
+              <option>Negativo</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Etiquetas (mínimo 5; separa con comas)</label>
+          <input value="ciberdelito, robo de datos, fraude, prevención, talleres, seguridad digital"/>
+        </div>
+
+        <div class="field">
+          <label>¿Por qué la IA estuvo mal / qué faltó? (obligatorio)</label>
+          <textarea placeholder="Ej: No es positivo; el tono es informativo. Faltó etiquetar 'extorsión' y 'policía cibernética'."></textarea>
+        </div>
+
+        <div class="actions">
+          <button class="btn">Guardar corrección</button>
+          <button class="btn ghost">Marcar como revisada</button>
+          <button class="btn ghost">Abrir original</button>
+        </div>
+      </section>
+
+      <aside class="card">
+        <h3>Aplicar por lotes (sugerencias)</h3>
+        <div class="muted">Monitor detectó notas “parecidas” donde podría aplicar esta corrección. Tú decides.</div>
+
+        <div style="height:10px"></div>
+
+        <div class="box">
+          <div style="display:flex;justify-content:space-between;gap:10px;align-items:center">
+            <div>
+              <div style="font-weight:800">Candidatas: 8 notas</div>
+              <div class="muted">Criterio: misma fuente + mismo actor + etiquetas sugeridas similares + 7 días</div>
+            </div>
+            <input type="checkbox" checked style="width:18px;height:18px"/>
+          </div>
+        </div>
+
+        <div style="height:10px"></div>
+
+        <div class="box">
+          <div style="font-weight:800">Qué se aplicará</div>
+          <div class="muted" style="margin-top:6px">• Tipo: Informativo<br/>• Sentimiento: Neutro<br/>• Etiquetas: actualizar lista<br/>• Idea central: NO (se mantiene por nota)</div>
+        </div>
+
+        <div class="field">
+          <label>Acción</label>
+          <select>
+            <option selected>Aplicar cambios seleccionados</option>
+            <option>Solo agregar etiquetas faltantes</option>
+            <option>Solo ajustar sentimiento</option>
+          </select>
+        </div>
+
+        <div class="actions">
+          <button class="btn">Aplicar a 8 notas</button>
+          <button class="btn ghost">Ver lista</button>
+        </div>
+
+        <div style="height:14px"></div>
+
+        <h3>Historial de cambios</h3>
+        <div class="box">
+          <div class="muted">Hoy 13:42 · Gabriel ajustó sentimiento Neutro → Positivo (no aplicado por lotes)</div>
+        </div>
+      </aside>
+    </div>
+  </div>
+</body>
+</html>
+

@@ -1,0 +1,356 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Monitor · Home</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    :root{
+      --bg:#0b0f14;
+      --panel:#0f1722;
+      --panel2:#0c1420;
+      --stroke:rgba(166,190,200,.16);
+      --text:#e7eef5;
+      --muted:rgba(231,238,245,.70);
+
+      --g:#19c37d;
+      --g2:#0fb36f;
+
+      --neg:#ff4d4d;
+      --neu:#9fb2be;
+      --pos:#19c37d;
+
+      --r:18px;
+      --shadow:0 14px 40px rgba(0,0,0,.45);
+      --max:1160px;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family:Lexend,system-ui,-apple-system,Segoe UI,Roboto,Arial;
+      background:
+        radial-gradient(1100px 600px at 15% 0%, rgba(25,195,125,.10), transparent 55%),
+        radial-gradient(900px 500px at 85% 15%, rgba(15,179,111,.10), transparent 60%),
+        var(--bg);
+      color:var(--text);
+    }
+    a{color:inherit;text-decoration:none}
+    .wrap{max-width:var(--max);margin:0 auto;padding:18px}
+
+    /* Topbar */
+    .topbar{
+      display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
+      padding:14px 16px;border:1px solid var(--stroke);border-radius:var(--r);
+      background:linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.01));
+      box-shadow:var(--shadow);
+    }
+    .brand{display:flex;align-items:center;gap:12px}
+    .brand img{height:34px;width:auto;display:block}
+    .brand .t{font-weight:900;font-size:14px;letter-spacing:.2px}
+    .brand .s{font-size:12px;color:var(--muted);margin-top:2px}
+    .nav{display:flex;gap:8px;flex-wrap:wrap}
+    .chip{
+      padding:10px 12px;border-radius:999px;border:1px solid var(--stroke);
+      background:rgba(255,255,255,.02);
+      font-size:13px;color:var(--muted);
+    }
+    .chip.active{color:var(--text);border-color:rgba(25,195,125,.35);background:rgba(25,195,125,.10)}
+
+    /* Layout */
+    .grid{display:grid;gap:14px;margin-top:14px}
+    .grid.cols{grid-template-columns:1.4fr .6fr}
+    @media(max-width:980px){.grid.cols{grid-template-columns:1fr}}
+
+    .card{
+      border:1px solid var(--stroke);
+      background:linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.01));
+      border-radius:var(--r);
+      box-shadow:var(--shadow);
+      padding:14px;
+    }
+    h2{margin:0 0 10px 0;font-size:16px;letter-spacing:.2px}
+    .muted{color:var(--muted);font-size:12px;line-height:1.5}
+
+    /* KPI */
+    .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+    @media(max-width:980px){.kpis{grid-template-columns:repeat(2,1fr)}}
+    .kpi{padding:12px;border-radius:14px;background:rgba(0,0,0,.16);border:1px solid var(--stroke)}
+    .kpi .label{font-size:12px;color:var(--muted)}
+    .kpi .value{font-size:24px;font-weight:900;margin-top:4px}
+    .kpi .delta{font-size:12px;margin-top:6px;color:var(--muted)}
+    .delta b{color:var(--g)}
+
+    /* Buttons */
+    .row{display:flex;gap:10px;flex-wrap:wrap}
+    .btn{
+      padding:10px 12px;border-radius:14px;border:1px solid var(--stroke);
+      background:rgba(25,195,125,.12);
+      color:var(--text);font-weight:800;font-size:13px;
+    }
+    .btn.ghost{background:rgba(255,255,255,.02);color:var(--muted);font-weight:500}
+
+    /* Lists */
+    .list{display:flex;flex-direction:column;gap:10px}
+    .item{
+      display:flex;justify-content:space-between;gap:10px;align-items:flex-start;
+      padding:12px;border-radius:14px;border:1px solid var(--stroke);
+      background:rgba(0,0,0,.14);
+    }
+    .title{font-weight:800;font-size:14px}
+    .meta{font-size:12px;color:var(--muted);margin-top:6px}
+    .pill{
+      padding:6px 10px;border-radius:999px;font-size:12px;border:1px solid var(--stroke);
+      background:rgba(255,255,255,.02);color:var(--muted);white-space:nowrap
+    }
+    .pill.pos{border-color:rgba(25,195,125,.4);background:rgba(25,195,125,.12);color:var(--text)}
+    .pill.neu{border-color:rgba(159,178,190,.35);background:rgba(159,178,190,.10);color:var(--text)}
+    .pill.neg{border-color:rgba(255,77,77,.35);background:rgba(255,77,77,.10);color:var(--text)}
+    .pill.warn{border-color:rgba(255,77,77,.35);background:rgba(255,77,77,.10);color:var(--text)}
+
+    /* Mini cards grid */
+    .quick{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+    @media(max-width:980px){.quick{grid-template-columns:1fr}}
+    .qcard{
+      border:1px solid var(--stroke);
+      background:rgba(0,0,0,.16);
+      border-radius:16px;
+      padding:12px;
+    }
+    .qcard .h{font-weight:900;font-size:13px}
+    .qcard .d{font-size:12px;color:var(--muted);margin-top:6px}
+    .qcard .go{margin-top:10px;display:flex;gap:8px;flex-wrap:wrap}
+
+    canvas{width:100% !important;height:260px !important}
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+
+    <!-- TOPBAR -->
+    <header class="topbar">
+      <div class="brand">
+        <img src="logo-horizonte-monitor.png" alt="Horizonte Digital Monitor">
+        <div>
+          <div class="t">Monitor</div>
+          <div class="s">Cobertura en tiempo real · Dashboards · Benchmarks · Revisión editorial</div>
+        </div>
+      </div>
+
+      <!-- NAV: todas las vistas generadas -->
+      <nav class="nav">
+        <a class="chip active" href="monitor-home.html">Home</a>
+        <a class="chip" href="monitor-feed.html">Monitor</a>
+        <a class="chip" href="dashboards.html">Dashboards</a>
+        <a class="chip" href="benchmarks.html">Benchmarks</a>
+        <a class="chip" href="revision.html">Revisión</a>
+        <a class="chip" href="procesos.html">Procesos</a>
+        <a class="chip" href="fuentes.html">Fuentes</a>
+      </nav>
+    </header>
+
+    <!-- HERO SUMMARY -->
+    <section class="card" style="margin-top:14px">
+      <h2>Hoy (1 ene 2026)</h2>
+      <div class="kpis">
+        <div class="kpi">
+          <div class="label">Notas ingresadas</div>
+          <div class="value">124</div>
+          <div class="delta">vs ayer: <b>+18</b></div>
+        </div>
+        <div class="kpi">
+          <div class="label">Pendientes de IA</div>
+          <div class="value">7</div>
+          <div class="delta">reintentos: <b>2</b></div>
+        </div>
+        <div class="kpi">
+          <div class="label">Pendientes de revisión</div>
+          <div class="value">19</div>
+          <div class="delta">alta prioridad: <b>6</b></div>
+        </div>
+        <div class="kpi">
+          <div class="label">Fuentes con error</div>
+          <div class="value">2</div>
+          <div class="delta">último fallo: <b>timeout</b></div>
+        </div>
+      </div>
+
+      <div style="height:12px"></div>
+
+      <div class="row">
+        <a class="btn" href="monitor-feed.html">Abrir monitor en tiempo real</a>
+        <a class="btn ghost" href="dashboards.html">Explorar dashboards</a>
+        <a class="btn ghost" href="benchmarks.html">Comparar (benchmarks)</a>
+        <a class="btn ghost" href="revision.html">Revisión editorial</a>
+        <a class="btn ghost" href="procesos.html">Correr procesos (manual)</a>
+      </div>
+
+      <div style="height:10px"></div>
+      <div class="muted">
+        Sugerencia: si hoy ves “huecos” de datos, usa <b>Procesos</b> para correr días anteriores y completar el histórico.
+      </div>
+    </section>
+
+    <!-- OVERVIEW + SIDEBAR -->
+    <section class="grid cols">
+
+      <!-- Left: overview charts + quick actions -->
+      <div class="grid">
+        <div class="card">
+          <h2>Volumen de notas (últimos 7 días)</h2>
+          <div class="muted">Vista rápida. Para ver puntos por nota (dispersión), entra a Dashboards.</div>
+          <div style="height:10px"></div>
+          <canvas id="chartVolume"></canvas>
+          <div class="row">
+            <a class="btn ghost" href="dashboards.html">Abrir dispersión por nota</a>
+            <a class="btn ghost" href="monitor-feed.html">Ver lista en tiempo real</a>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>Accesos rápidos (por objetivo)</h2>
+          <div class="quick">
+            <div class="qcard">
+              <div class="h">Ver cobertura hoy</div>
+              <div class="d">Lectura tipo RSS con filtros y acceso al original.</div>
+              <div class="go">
+                <a class="btn" href="monitor-feed.html">Ir a Monitor</a>
+                <a class="btn ghost" href="fuentes.html">Ver fuentes</a>
+              </div>
+            </div>
+            <div class="qcard">
+              <div class="h">Medir y explicar</div>
+              <div class="d">Dashboards por persona, institución o tema.</div>
+              <div class="go">
+                <a class="btn" href="dashboards.html">Ir a Dashboards</a>
+                <a class="btn ghost" href="benchmarks.html">Comparar A vs B</a>
+              </div>
+            </div>
+            <div class="qcard">
+              <div class="h">Control editorial</div>
+              <div class="d">Corrige IA, deja razones y aplica por lotes.</div>
+              <div class="go">
+                <a class="btn" href="revision.html">Ir a Revisión</a>
+                <a class="btn ghost" href="procesos.html">Reprocesar fechas</a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: status + top actors + sentiment -->
+      <aside class="grid">
+        <div class="card">
+          <h2>Estado del sistema</h2>
+          <div class="list">
+            <div class="item">
+              <div>
+                <div class="title">Automático</div>
+                <div class="meta">Ingesta + clasificación corriendo</div>
+              </div>
+              <span class="pill pos">Activo</span>
+            </div>
+
+            <div class="item">
+              <div>
+                <div class="title">Cola de clasificación</div>
+                <div class="meta">Artículos esperando IA</div>
+              </div>
+              <span class="pill neu">7</span>
+            </div>
+
+            <div class="item">
+              <div>
+                <div class="title">Fuentes con error</div>
+                <div class="meta">Revisar “Fuentes” para detalle</div>
+              </div>
+              <span class="pill warn">2</span>
+            </div>
+          </div>
+
+          <div style="height:12px"></div>
+          <div class="row">
+            <a class="btn ghost" href="fuentes.html">Abrir Fuentes</a>
+            <a class="btn ghost" href="procesos.html">Reintentar fallas</a>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>Sentimiento (hoy)</h2>
+          <div class="muted">Sobre menciones a personas/instituciones (no sobre “el hecho”).</div>
+          <div style="height:10px"></div>
+          <canvas id="chartSent"></canvas>
+        </div>
+
+        <div class="card">
+          <h2>Actores más mencionados hoy</h2>
+          <div class="list">
+            <div class="item">
+              <div>
+                <div class="title">Mauricio Kuri</div>
+                <div class="meta">38 menciones · 9 fuentes · 5 opinión</div>
+              </div>
+              <span class="pill neu">Neutro</span>
+            </div>
+            <div class="item">
+              <div>
+                <div class="title">Municipio de Corregidora</div>
+                <div class="meta">26 menciones · 7 fuentes</div>
+              </div>
+              <span class="pill pos">Positivo</span>
+            </div>
+            <div class="item">
+              <div>
+                <div class="title">Congreso de Qro</div>
+                <div class="meta">21 menciones · 8 fuentes</div>
+              </div>
+              <span class="pill neg">Negativo</span>
+            </div>
+          </div>
+
+          <div style="height:12px"></div>
+          <div class="row">
+            <a class="btn ghost" href="dashboards.html">Ver dashboards por actor</a>
+            <a class="btn ghost" href="benchmarks.html">Comparar dos actores</a>
+          </div>
+        </div>
+
+      </aside>
+    </section>
+
+  </div>
+
+  <script>
+    // Home charts demo (mockup)
+    new Chart(document.getElementById("chartVolume"),{
+      type:"line",
+      data:{
+        labels:["Vie","Sáb","Dom","Lun","Mar","Mié","Jue"],
+        datasets:[{label:"Notas", data:[88,95,71,102,110,106,124], tension:.35}]
+      },
+      options:{
+        responsive:true,
+        plugins:{legend:{display:false}},
+        scales:{y:{beginAtZero:true}}
+      }
+    });
+
+    new Chart(document.getElementById("chartSent"),{
+      type:"doughnut",
+      data:{
+        labels:["Positivo","Neutro","Negativo"],
+        datasets:[{data:[33,45,22]}]
+      },
+      options:{responsive:true, plugins:{legend:{position:"bottom"}}}
+    });
+  </script>
+</body>
+</html>
+

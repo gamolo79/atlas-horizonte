@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Monitor · Tiempo real</title>
+  <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --bg:#0b0f14; --panel:#0f1722; --stroke:rgba(166,190,200,.16);
+      --text:#e7eef5; --muted:rgba(231,238,245,.70);
+      --g:#19c37d; --neg:#ff4d4d; --neu:#9fb2be; --pos:#19c37d;
+      --r:18px; --shadow:0 14px 40px rgba(0,0,0,.45); --max:1120px;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:Lexend,system-ui;background:var(--bg);color:var(--text)}
+    .wrap{max-width:var(--max);margin:0 auto;padding:18px}
+    .bar{
+      display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
+      padding:14px 16px;border:1px solid var(--stroke);border-radius:var(--r);
+      background:rgba(255,255,255,.02);box-shadow:var(--shadow);
+    }
+    .left{display:flex;align-items:center;gap:12px}
+    .left img{height:32px}
+    .title{font-weight:800}
+    .filters{display:flex;gap:8px;flex-wrap:wrap}
+    .input, .select{
+      border:1px solid var(--stroke);border-radius:14px;background:rgba(0,0,0,.20);
+      color:var(--text);padding:10px 12px;font-size:13px;outline:none;
+    }
+    .select{padding-right:28px}
+    .grid{display:grid;grid-template-columns:1fr .42fr;gap:14px;margin-top:14px}
+    @media(max-width:980px){.grid{grid-template-columns:1fr}}
+    .card{
+      border:1px solid var(--stroke);border-radius:var(--r);
+      background:rgba(255,255,255,.02);box-shadow:var(--shadow);padding:14px;
+    }
+    .list{display:flex;flex-direction:column;gap:12px}
+    .note{
+      padding:14px;border-radius:16px;border:1px solid var(--stroke);
+      background:rgba(0,0,0,.18);
+    }
+    .note h3{margin:0 0 8px 0;font-size:15px}
+    .meta{font-size:12px;color:var(--muted);display:flex;gap:10px;flex-wrap:wrap}
+    .chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+    .chip{padding:6px 10px;border-radius:999px;font-size:12px;border:1px solid var(--stroke);color:var(--muted)}
+    .chip.pos{border-color:rgba(25,195,125,.4);background:rgba(25,195,125,.10);color:var(--text)}
+    .chip.neu{border-color:rgba(159,178,190,.35);background:rgba(159,178,190,.08);color:var(--text)}
+    .chip.neg{border-color:rgba(255,77,77,.35);background:rgba(255,77,77,.08);color:var(--text)}
+    .actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+    .btn{
+      padding:10px 12px;border-radius:14px;border:1px solid var(--stroke);
+      background:rgba(25,195,125,.12);font-weight:700;font-size:13px;
+    }
+    .btn.ghost{background:rgba(255,255,255,.02);color:var(--muted);font-weight:500}
+    .side h4{margin:0 0 10px 0;font-size:14px}
+    .kv{display:flex;justify-content:space-between;gap:10px;padding:10px;border-radius:14px;border:1px solid var(--stroke);background:rgba(0,0,0,.18);margin-bottom:10px}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="bar">
+      <div class="left">
+        <img src="logo-horizonte-monitor.png" alt="Monitor">
+        <div>
+          <div class="title">Monitor en tiempo real</div>
+          <div style="font-size:12px;color:var(--muted)">Entradas nuevas cada 2–5 min (según fuente)</div>
+        </div>
+      </div>
+
+      <div class="filters">
+        <input class="input" placeholder="Buscar: título o texto" />
+        <select class="select">
+          <option>Hoy</option><option>Ayer</option><option>Últimos 7 días</option>
+        </select>
+        <select class="select">
+          <option>Persona / Institución</option>
+          <option>Mauricio Kuri</option>
+          <option>Congreso de Qro</option>
+          <option>Municipio de Corregidora</option>
+        </select>
+        <select class="select">
+          <option>Tema</option><option>Seguridad</option><option>Economía</option><option>Gobierno</option>
+        </select>
+        <select class="select">
+          <option>Sentimiento</option><option>Positivo</option><option>Neutro</option><option>Negativo</option>
+        </select>
+        <select class="select">
+          <option>Tipo</option><option>Informativo</option><option>Opinión</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <div class="list">
+          <article class="note">
+            <h3>Corregidora reporta alza de fraudes y robo de información en 2025</h3>
+            <div class="meta">
+              <span>Fuente: El Queretano</span>
+              <span>13:20</span>
+              <span>Tipo: Informativo</span>
+              <span>Idea central: “La Policía Cibernética atendió 1,809 reportes; predominan robo de datos y fraudes.”</span>
+            </div>
+            <div class="chips">
+              <span class="chip pos">Corregidora · Positivo</span>
+              <span class="chip neu">Seguridad · Neutro</span>
+              <span class="chip neu">Ciberdelito</span>
+              <span class="chip neu">Prevención</span>
+              <span class="chip neu">Talleres</span>
+            </div>
+            <div class="actions">
+              <a class="btn" href="#" target="_blank" rel="noopener">Abrir nota original</a>
+              <a class="btn ghost" href="revision.html">Revisar / corregir</a>
+              <a class="btn ghost" href="dashboards.html">Ver en dashboards</a>
+            </div>
+          </article>
+
+          <article class="note">
+            <h3>Opinión: el arranque de 2026 y la disputa por el “sentido común” en Qro</h3>
+            <div class="meta">
+              <span>Fuente: Periodismo.media</span>
+              <span>12:05</span>
+              <span>Tipo: Opinión</span>
+              <span>Idea central: “La narrativa política define adversarios y víctimas; quien la fija, compite con ventaja.”</span>
+            </div>
+            <div class="chips">
+              <span class="chip neg">Congreso de Qro · Negativo</span>
+              <span class="chip neu">Elección 2027</span>
+              <span class="chip neu">Narrativas</span>
+              <span class="chip neu">Polarización</span>
+              <span class="chip neu">Opinión pública</span>
+            </div>
+            <div class="actions">
+              <a class="btn" href="#" target="_blank" rel="noopener">Abrir nota original</a>
+              <a class="btn ghost" href="revision.html">Revisar / corregir</a>
+            </div>
+          </article>
+        </div>
+      </div>
+
+      <aside class="card side">
+        <h4>Estado del sistema</h4>
+        <div class="kv"><span>Fuentes activas</span><b>48</b></div>
+        <div class="kv"><span>Última actualización</span><b>hace 1 min</b></div>
+        <div class="kv"><span>Fuentes con error</span><b style="color:var(--neg)">2</b></div>
+        <div class="kv"><span>Notas pendientes de IA</span><b>7</b></div>
+        <div class="kv"><span>Notas pendientes de revisión</span><b>19</b></div>
+
+        <h4 style="margin-top:14px">Atajos</h4>
+        <div class="actions">
+          <a class="btn ghost" href="fuentes.html">Ver fuentes</a>
+          <a class="btn ghost" href="benchmarks.html">Comparar actores</a>
+        </div>
+      </aside>
+    </div>
+  </div>
+</body>
+</html>
+
