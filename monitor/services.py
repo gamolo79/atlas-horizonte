@@ -9,6 +9,30 @@ from openai import OpenAI
 from atlas_core.text_utils import normalize_name
 
 
+NAME_FIELDS = ["nombre", "name", "title", "titulo", "label"]
+ALIASES_FIELDS = ["aliases", "alias", "aka", "apodos"]
+
+
+def get_display_name(obj) -> str:
+    for field in NAME_FIELDS:
+        value = getattr(obj, field, None)
+        if value:
+            return str(value).strip()
+    return str(obj).strip()
+
+
+def get_aliases(obj) -> List[str]:
+    for field in ALIASES_FIELDS:
+        value = getattr(obj, field, None)
+        if not value:
+            continue
+        if isinstance(value, str):
+            return [item.strip() for item in value.split(",") if item.strip()]
+        if isinstance(value, list):
+            return [str(item).strip() for item in value if str(item).strip()]
+    return []
+
+
 @dataclass(frozen=True)
 class CatalogEntry:
     target_type: str
@@ -20,32 +44,62 @@ class CatalogEntry:
 def build_catalog(personas, instituciones, temas) -> Dict[str, List[CatalogEntry]]:
     catalog: Dict[str, List[CatalogEntry]] = {"persona": [], "institucion": [], "tema": []}
     for persona in personas:
+        display_name = get_display_name(persona)
         catalog["persona"].append(
             CatalogEntry(
                 target_type="persona",
                 target_id=persona.id,
-                target_name=persona.nombre_completo,
-                normalized_name=normalize_name(persona.nombre_completo),
+                target_name=display_name,
+                normalized_name=normalize_name(display_name),
             )
         )
+        for alias in get_aliases(persona):
+            catalog["persona"].append(
+                CatalogEntry(
+                    target_type="persona",
+                    target_id=persona.id,
+                    target_name=display_name,
+                    normalized_name=normalize_name(alias),
+                )
+            )
     for institucion in instituciones:
+        display_name = get_display_name(institucion)
         catalog["institucion"].append(
             CatalogEntry(
                 target_type="institucion",
                 target_id=institucion.id,
-                target_name=institucion.nombre,
-                normalized_name=normalize_name(institucion.nombre),
+                target_name=display_name,
+                normalized_name=normalize_name(display_name),
             )
         )
+        for alias in get_aliases(institucion):
+            catalog["institucion"].append(
+                CatalogEntry(
+                    target_type="institucion",
+                    target_id=institucion.id,
+                    target_name=display_name,
+                    normalized_name=normalize_name(alias),
+                )
+            )
     for tema in temas:
+        display_name = get_display_name(tema)
         catalog["tema"].append(
             CatalogEntry(
                 target_type="tema",
                 target_id=tema.id,
-                target_name=tema.nombre,
-                normalized_name=normalize_name(tema.nombre),
+                target_name=display_name,
+                normalized_name=normalize_name(display_name),
             )
         )
+        for alias in get_aliases(tema):
+            catalog["tema"].append(
+                CatalogEntry(
+                    target_type="tema",
+                    target_id=tema.id,
+                    target_name=display_name,
+                    normalized_name=normalize_name(alias),
+                )
+            )
     return catalog
 
 
