@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 import re
 from dataclasses import dataclass
@@ -11,6 +12,7 @@ from atlas_core.text_utils import normalize_name
 
 NAME_FIELDS = ["nombre", "name", "title", "titulo", "label"]
 ALIASES_FIELDS = ["aliases", "alias", "aka", "apodos"]
+logger = logging.getLogger(__name__)
 
 
 def get_display_name(obj) -> str:
@@ -122,8 +124,21 @@ def parse_json_response(raw: str) -> Dict[str, Any]:
     return json.loads(cleaned)
 
 
+def _normalize_mentions(raw_mentions: Any) -> List[Dict[str, Any]]:
+    if raw_mentions is None:
+        return []
+    if isinstance(raw_mentions, list):
+        return raw_mentions
+    if isinstance(raw_mentions, dict):
+        return [raw_mentions]
+    if isinstance(raw_mentions, str):
+        logger.warning("mentions llegó como string; se normaliza a lista vacía.")
+        return []
+    return []
+
+
 def validate_payload(payload: Dict[str, Any]) -> Dict[str, Any]:
-    required_keys = {"central_idea", "article_type", "labels", "mentions"}
+    required_keys = {"central_idea", "article_type", "labels"}
     if not required_keys.issubset(payload.keys()):
         raise ValueError("Faltan campos obligatorios en el JSON.")
 
@@ -138,12 +153,11 @@ def validate_payload(payload: Dict[str, Any]) -> Dict[str, Any]:
         raise ValueError("article_type inválido.")
 
     labels = payload["labels"]
-    if not isinstance(labels, list) or len(labels) < 5:
+    if not isinstance(labels, list) or len(labels) < 5 or not all(isinstance(label, str) for label in labels):
         raise ValueError("labels debe ser lista con al menos 5 elementos.")
 
-    mentions = payload["mentions"]
-    if not isinstance(mentions, list):
-        raise ValueError("mentions debe ser lista.")
+    mentions = _normalize_mentions(payload.get("mentions"))
+    payload["mentions"] = mentions
     for mention in mentions:
         if not isinstance(mention, dict):
             raise ValueError("mention inválida.")
@@ -199,12 +213,26 @@ def classify_article(article, catalog: Dict[str, List[CatalogEntry]], retries: i
     prompt = f"""
 Eres un analista de cobertura mediática. Devuelve SOLO JSON estricto, sin texto extra.
 
+Responde EXACTAMENTE con este schema:
+{{
+  "central_idea": "string (<=30 palabras)",
+  "article_type": "informativo|opinion",
+  "labels": ["etiqueta 1", "etiqueta 2", "etiqueta 3", "etiqueta 4", "etiqueta 5"],
+  "mentions": [
+    {{
+      "target_type": "persona|institucion|tema",
+      "target_name": "string",
+      "sentiment": "positivo|neutro|negativo",
+      "confidence": 0.0
+    }}
+  ]
+}}
+
 Reglas:
-- central_idea: máximo 30 palabras.
-- labels: mínimo 5 etiquetas o frases cortas.
-- article_type: informativo | opinion.
-- sentimiento es hacia la Persona/Institución/tema mencionado.
-- Puedes devolver mentions vacías si no hay match.
+- mentions SIEMPRE debe ser un arreglo (puede estar vacío).
+- labels debe ser un arreglo de strings (mínimo 5).
+- central_idea debe ser string.
+- article_type debe ser informativo u opinion.
 
 Catálogo Atlas (para menciones):
 {catalog_prompt(catalog)}
