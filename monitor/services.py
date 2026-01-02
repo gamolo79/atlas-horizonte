@@ -188,7 +188,14 @@ def match_mentions(
 
 def classify_article(article, catalog: Dict[str, List[CatalogEntry]], retries: int = 2) -> Dict[str, Any]:
     model_name = os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
-    client = OpenAI()
+    api_key = os.getenv("OPENAI_API_KEY")
+    project_id = os.getenv("OPENAI_PROJECT_ID")
+    if api_key and api_key.startswith("sk-proj-") and not project_id:
+        raise RuntimeError("OPENAI_PROJECT_ID es requerido para claves sk-proj-*.")
+    client = OpenAI(
+        api_key=api_key,
+        project=project_id,
+    )
     prompt = f"""
 Eres un analista de cobertura mediática. Devuelve SOLO JSON estricto, sin texto extra.
 
