@@ -1,6 +1,7 @@
 from datetime import datetime
 from typing import Optional
 
+from django.core.exceptions import ObjectDoesNotExist
 from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.db.models import Q
@@ -42,7 +43,11 @@ class Command(BaseCommand):
         processed = 0
         errors = 0
         for article in queryset[:limit]:
-            if article.classification and article.classification.is_editor_locked:
+            try:
+                classification = article.classification
+            except ObjectDoesNotExist:
+                classification = None
+            if classification and classification.is_editor_locked:
                 continue
             try:
                 payload = classify_article(article, catalog)
