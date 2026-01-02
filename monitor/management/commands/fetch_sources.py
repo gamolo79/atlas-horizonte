@@ -4,7 +4,10 @@ from typing import Iterable, List, Optional, Tuple
 import feedparser
 import requests
 from bs4 import BeautifulSoup
-from dateutil import parser as date_parser
+try:
+    from dateutil import parser as date_parser
+except ImportError:  # pragma: no cover - fallback for missing dependency
+    date_parser = None
 from django.core.management.base import BaseCommand
 from django.db import IntegrityError
 from django.utils import timezone
@@ -21,6 +24,11 @@ MAX_SITEMAP_URLS = 200
 def parse_published(value: Optional[str]):
     if not value:
         return None
+    if date_parser is None:
+        try:
+            return timezone.datetime.fromisoformat(value)
+        except ValueError:
+            return None
     try:
         return date_parser.parse(value)
     except (ValueError, TypeError):
