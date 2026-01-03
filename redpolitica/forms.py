@@ -18,17 +18,18 @@ class AliasesFormMixin:
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         if self.instance and getattr(self.instance, "aliases", None):
-            self.initial.setdefault("aliases", ", ".join(self.instance.aliases))
+            self.initial.setdefault("aliases", self.instance.aliases)
 
     def clean_aliases(self):
         aliases_text = self.cleaned_data.get("aliases", "")
         if not aliases_text:
-            return []
-        return [
+            return ""
+        cleaned_aliases = [
             alias.strip()
             for alias in aliases_text.split(",")
             if alias.strip()
         ]
+        return ", ".join(cleaned_aliases)
 
 
 class PersonaForm(AliasesFormMixin, forms.ModelForm):

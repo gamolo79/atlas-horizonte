@@ -14,7 +14,7 @@ class Persona(models.Model):
     fecha_nacimiento = models.DateField(null=True, blank=True)
     lugar_nacimiento = models.CharField(max_length=255, blank=True)
     bio_corta = models.TextField(blank=True)
-    aliases = models.JSONField(default=list, blank=True)
+    aliases = models.TextField(blank=True, default="")
 
     class Meta:
         ordering = ["nombre_completo"]
@@ -53,7 +53,7 @@ class Institucion(models.Model):
     ciudad = models.CharField(max_length=100, blank=True)
     estado = models.CharField(max_length=100, blank=True)
     pais = models.CharField(max_length=100, default="México")
-    aliases = models.JSONField(default=list, blank=True)
+    aliases = models.TextField(blank=True, default="")
 
     # Institución padre (jerarquía)
     padre = models.ForeignKey(
@@ -369,7 +369,7 @@ class Topic(models.Model):
     name = models.CharField(max_length=150, unique=True)
     slug = models.SlugField(max_length=150, unique=True, blank=True)
     description = models.TextField(blank=True, null=True)
-    aliases = models.JSONField(default=list, blank=True)
+    aliases = models.TextField(blank=True, default="")
     parent = models.ForeignKey(
         "self",
         on_delete=models.SET_NULL,
