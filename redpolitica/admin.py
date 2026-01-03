@@ -1,5 +1,6 @@
 from django.contrib import admin
 
+from .forms import InstitucionForm, PersonaForm
 from .models import (
     Persona,
     Institucion,
@@ -31,6 +32,7 @@ class PersonaAdmin(admin.ModelAdmin):
     search_fields = ("nombre_completo",)
     prepopulated_fields = {"slug": ("nombre_completo",)}
     inlines = [PersonTopicManualInline]
+    form = PersonaForm
 
 
 @admin.register(Institucion)
@@ -39,6 +41,7 @@ class InstitucionAdmin(admin.ModelAdmin):
     list_filter = ("tipo", "ambito")
     prepopulated_fields = {"slug": ("nombre",)}
     inlines = [InstitutionTopicInline]
+    form = InstitucionForm
 
 
 @admin.register(PeriodoAdministrativo)
