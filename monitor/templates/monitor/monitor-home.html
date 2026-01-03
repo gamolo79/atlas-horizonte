@@ -1,0 +1,330 @@
+{% load static %}
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Monitor · Home</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/monitor-design-system.css' %}">
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    :root{
+      --bg:#0b0f14;
+      --panel:#0f1722;
+      --panel2:#0c1420;
+      --stroke:rgba(166,190,200,.16);
+      --text:#e7eef5;
+      --muted:rgba(231,238,245,.70);
+
+      --g:#19c37d;
+      --g2:#0fb36f;
+
+      --neg:#ff4d4d;
+      --neu:#9fb2be;
+      --pos:#19c37d;
+
+      --r:18px;
+      --shadow:0 14px 40px rgba(0,0,0,.45);
+      --max:1160px;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family:Lexend,system-ui,-apple-system,Segoe UI,Roboto,Arial;
+      background:
+        radial-gradient(1100px 600px at 15% 0%, rgba(25,195,125,.10), transparent 55%),
+        radial-gradient(900px 500px at 85% 15%, rgba(15,179,111,.10), transparent 60%),
+        var(--bg);
+      color:var(--text);
+    }
+    a{color:inherit;text-decoration:none}
+    .wrap{max-width:var(--max);margin:0 auto;padding:18px}
+
+    /* Layout */
+    .grid{display:grid;gap:14px;margin-top:14px}
+    .grid.cols{grid-template-columns:1.4fr .6fr}
+    @media(max-width:980px){.grid.cols{grid-template-columns:1fr}}
+
+    .card{
+      border:1px solid var(--stroke);
+      background:linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.01));
+      border-radius:var(--r);
+      box-shadow:var(--shadow);
+      padding:14px;
+    }
+    h2{margin:0 0 10px 0;font-size:16px;letter-spacing:.2px}
+    .muted{color:var(--muted);font-size:12px;line-height:1.5}
+
+    /* KPI */
+    .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+    @media(max-width:980px){.kpis{grid-template-columns:repeat(2,1fr)}}
+    .kpi{padding:12px;border-radius:14px;background:rgba(0,0,0,.16);border:1px solid var(--stroke)}
+    .kpi .label{font-size:12px;color:var(--muted)}
+    .kpi .value{font-size:24px;font-weight:900;margin-top:4px}
+    .kpi .delta{font-size:12px;margin-top:6px;color:var(--muted)}
+    .delta b{color:var(--g)}
+
+    /* Buttons */
+    .row{display:flex;gap:10px;flex-wrap:wrap}
+    .btn{
+      padding:10px 12px;border-radius:14px;border:1px solid var(--stroke);
+      background:rgba(25,195,125,.12);
+      color:var(--text);font-weight:800;font-size:13px;
+    }
+    .btn.ghost{background:rgba(255,255,255,.02);color:var(--muted);font-weight:500}
+
+    /* Lists */
+    .list{display:flex;flex-direction:column;gap:10px}
+    .item{
+      display:flex;justify-content:space-between;gap:10px;align-items:flex-start;
+      padding:12px;border-radius:14px;border:1px solid var(--stroke);
+      background:rgba(0,0,0,.14);
+    }
+    .title{font-weight:800;font-size:14px}
+    .meta{font-size:12px;color:var(--muted);margin-top:6px}
+    .pill{
+      padding:6px 10px;border-radius:999px;font-size:12px;border:1px solid var(--stroke);
+      background:rgba(255,255,255,.02);color:var(--muted);white-space:nowrap
+    }
+    .pill.pos{border-color:rgba(25,195,125,.4);background:rgba(25,195,125,.12);color:var(--text)}
+    .pill.neu{border-color:rgba(159,178,190,.35);background:rgba(159,178,190,.10);color:var(--text)}
+    .pill.neg{border-color:rgba(255,77,77,.35);background:rgba(255,77,77,.10);color:var(--text)}
+    .pill.warn{border-color:rgba(255,77,77,.35);background:rgba(255,77,77,.10);color:var(--text)}
+
+    /* Mini cards grid */
+    .quick{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+    @media(max-width:980px){.quick{grid-template-columns:1fr}}
+    .qcard{
+      border:1px solid var(--stroke);
+      background:rgba(0,0,0,.16);
+      border-radius:16px;
+      padding:12px;
+    }
+    .qcard .h{font-weight:900;font-size:13px}
+    .qcard .d{font-size:12px;color:var(--muted);margin-top:6px}
+    .qcard .go{margin-top:10px;display:flex;gap:8px;flex-wrap:wrap}
+
+    canvas{width:100% !important;height:260px !important}
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+
+    {% include "monitor/_header.html" %}
+
+    <!-- HERO SUMMARY -->
+    <section class="card" style="margin-top:14px">
+      <h2>Hoy (<span id="todayLabel">—</span>)</h2>
+      <div class="kpis">
+        <div class="kpi">
+          <div class="label">Notas ingresadas</div>
+          <div class="value" id="kpi-total">—</div>
+          <div class="delta">Últimos 7 días</div>
+        </div>
+        <div class="kpi">
+          <div class="label">Pendientes de IA</div>
+          <div class="value" id="kpi-pending">—</div>
+          <div class="delta">Artículos sin clasificar</div>
+        </div>
+        <div class="kpi">
+          <div class="label">Pendientes de revisión</div>
+          <div class="value" id="kpi-review">—</div>
+          <div class="delta">Sin bloqueo editorial</div>
+        </div>
+        <div class="kpi">
+          <div class="label">Fuentes con error</div>
+          <div class="value" id="kpi-errors">—</div>
+          <div class="delta">Estado reciente</div>
+        </div>
+      </div>
+
+      <div style="height:12px"></div>
+
+      <div class="row">
+        <a class="btn" href="{% url 'monitor:feed' %}">Abrir monitor en tiempo real</a>
+        <a class="btn ghost" href="{% url 'monitor:dashboards' %}">Explorar dashboards</a>
+        <a class="btn ghost" href="{% url 'monitor:benchmarks' %}">Comparar (benchmarks)</a>
+        <a class="btn ghost" href="{% url 'monitor:revision' %}">Revisión editorial</a>
+        <a class="btn ghost" href="{% url 'monitor:procesos' %}">Correr procesos (manual)</a>
+      </div>
+
+      <div style="height:10px"></div>
+      <div class="muted">
+        Sugerencia: si hoy ves “huecos” de datos, usa <b>Procesos</b> para correr días anteriores y completar el histórico.
+      </div>
+    </section>
+
+    <!-- OVERVIEW + SIDEBAR -->
+    <section class="grid cols">
+
+      <!-- Left: overview charts + quick actions -->
+      <div class="grid">
+        <div class="card">
+          <h2>Volumen de notas (últimos 7 días)</h2>
+          <div class="muted">Vista rápida. Para ver puntos por nota (dispersión), entra a Dashboards.</div>
+          <div style="height:10px"></div>
+          <canvas id="chartVolume"></canvas>
+          <div class="row">
+            <a class="btn ghost" href="{% url 'monitor:dashboards' %}">Abrir dispersión por nota</a>
+            <a class="btn ghost" href="{% url 'monitor:feed' %}">Ver lista en tiempo real</a>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>Accesos rápidos (por objetivo)</h2>
+          <div class="quick">
+            <div class="qcard">
+              <div class="h">Ver cobertura hoy</div>
+              <div class="d">Lectura tipo RSS con filtros y acceso al original.</div>
+              <div class="go">
+                <a class="btn" href="{% url 'monitor:feed' %}">Ir a Monitor</a>
+                <a class="btn ghost" href="{% url 'monitor:sources' %}">Ver fuentes</a>
+              </div>
+            </div>
+            <div class="qcard">
+              <div class="h">Medir y explicar</div>
+              <div class="d">Dashboards por persona, institución o tema.</div>
+              <div class="go">
+                <a class="btn" href="{% url 'monitor:dashboards' %}">Ir a Dashboards</a>
+                <a class="btn ghost" href="{% url 'monitor:benchmarks' %}">Comparar A vs B</a>
+              </div>
+            </div>
+            <div class="qcard">
+              <div class="h">Control editorial</div>
+              <div class="d">Corrige IA, deja razones y aplica por lotes.</div>
+              <div class="go">
+                <a class="btn" href="{% url 'monitor:revision' %}">Ir a Revisión</a>
+                <a class="btn ghost" href="{% url 'monitor:procesos' %}">Reprocesar fechas</a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: status + top actors + sentiment -->
+      <aside class="grid">
+        <div class="card">
+          <h2>Estado del sistema</h2>
+          <div class="list">
+            <div class="item">
+              <div>
+                <div class="title">Automático</div>
+                <div class="meta">Ingesta + clasificación corriendo</div>
+              </div>
+              <span class="pill pos">Activo</span>
+            </div>
+
+            <div class="item">
+              <div>
+                <div class="title">Cola de clasificación</div>
+                <div class="meta">Artículos esperando IA</div>
+              </div>
+              <span class="pill neu">7</span>
+            </div>
+
+            <div class="item">
+              <div>
+                <div class="title">Fuentes con error</div>
+                <div class="meta">Revisar “Fuentes” para detalle</div>
+              </div>
+              <span class="pill warn">2</span>
+            </div>
+          </div>
+
+          <div style="height:12px"></div>
+          <div class="row">
+            <a class="btn ghost" href="{% url 'monitor:sources' %}">Abrir Fuentes</a>
+            <a class="btn ghost" href="{% url 'monitor:procesos' %}">Reintentar fallas</a>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>Sentimiento (hoy)</h2>
+          <div class="muted">Sobre menciones a personas/instituciones (no sobre “el hecho”).</div>
+          <div style="height:10px"></div>
+          <canvas id="chartSent"></canvas>
+        </div>
+
+        <div class="card">
+          <h2>Actores más mencionados hoy</h2>
+          <div class="list" id="topActorsList">
+            <div class="item">
+              <div>
+                <div class="title">Aún no hay datos</div>
+                <div class="meta">Corre procesos para poblar el monitor.</div>
+              </div>
+              <span class="pill neu">—</span>
+            </div>
+          </div>
+
+          <div style="height:12px"></div>
+          <div class="row">
+            <a class="btn ghost" href="{% url 'monitor:dashboards' %}">Ver dashboards por actor</a>
+            <a class="btn ghost" href="{% url 'monitor:benchmarks' %}">Comparar dos actores</a>
+          </div>
+        </div>
+
+      </aside>
+    </section>
+
+  </div>
+
+  <script>
+    const today = new Date();
+    const formatter = new Intl.DateTimeFormat("es-MX", { day: "2-digit", month: "short", year: "numeric" });
+    document.getElementById("todayLabel").textContent = formatter.format(today);
+
+    async function loadSummary() {
+      try {
+        const res = await fetch("{% url 'monitor:api_summary' %}");
+        const data = await res.json();
+        document.getElementById("kpi-total").textContent = data.total_articles ?? "—";
+        document.getElementById("kpi-pending").textContent = data.pending_classification ?? "—";
+        document.getElementById("kpi-review").textContent = data.pending_review ?? "—";
+        document.getElementById("kpi-errors").textContent = data.sources_error ?? "—";
+      } catch (err) {
+        console.error("Error cargando resumen", err);
+      }
+    }
+
+    async function loadCharts() {
+      try {
+        const res = await fetch("{% url 'monitor:api_dashboard' %}?range=7");
+        const data = await res.json();
+        const labels = data.timeline.map(item => item.period);
+        const totals = data.timeline.map(item => item.total);
+        new Chart(document.getElementById("chartVolume"),{
+          type:"line",
+          data:{ labels, datasets:[{label:"Notas", data:totals, tension:.35}] },
+          options:{ responsive:true, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true}} }
+        });
+
+        new Chart(document.getElementById("chartSent"),{
+          type:"doughnut",
+          data:{
+            labels:["Positivo","Neutro","Negativo"],
+            datasets:[{data:[
+              data.sentiment_donut.positivo || 0,
+              data.sentiment_donut.neutro || 0,
+              data.sentiment_donut.negativo || 0
+            ]}]
+          },
+          options:{responsive:true, plugins:{legend:{position:"bottom"}}}
+        });
+      } catch (err) {
+        console.error("Error cargando gráficas", err);
+      }
+    }
+
+    loadSummary();
+    loadCharts();
+  </script>
+</body>
+</html>

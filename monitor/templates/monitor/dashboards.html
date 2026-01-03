@@ -1,0 +1,603 @@
+{% load static %}
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Monitor · Dashboards</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/luxon@3"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon@1"></script>
+  <link rel="stylesheet" href="{% static 'css/monitor-design-system.css' %}">
+
+  <style>
+    :root{
+      --bg:#0b0f14;
+      --panel:#0f1722;
+      --panel2:#0c1420;
+      --stroke:rgba(166,190,200,.16);
+      --text:#e7eef5;
+      --muted:rgba(231,238,245,.70);
+
+      --g:#19c37d;
+      --g2:#0fb36f;
+
+      --neg:#ff4d4d;
+      --neu:#9fb2be;
+      --pos:#19c37d;
+
+      --r:18px;
+      --shadow:0 14px 40px rgba(0,0,0,.45);
+      --max:1160px;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;font-family:Lexend,system-ui;
+      background:radial-gradient(1100px 600px at 15% 0%, rgba(25,195,125,.10), transparent 55%),
+                 radial-gradient(900px 500px at 85% 15%, rgba(15,179,111,.10), transparent 60%),
+                 var(--bg);
+      color:var(--text);
+    }
+    a{color:inherit;text-decoration:none}
+    .wrap{max-width:var(--max);margin:0 auto;padding:18px}
+    .grid{display:grid;gap:14px;margin-top:14px}
+    .grid.cols{grid-template-columns:1.55fr .75fr}
+    @media(max-width:980px){.grid.cols{grid-template-columns:1fr}}
+    .card{
+      border:1px solid var(--stroke);
+      background:linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.01));
+      border-radius:var(--r);
+      box-shadow:var(--shadow);
+      padding:14px;
+    }
+    h2{margin:0 0 10px 0;font-size:16px;letter-spacing:.2px}
+    .muted{color:var(--muted);font-size:12px;line-height:1.5}
+    .filters{
+      display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;
+      margin-top:12px;
+    }
+    @media(max-width:980px){.filters{grid-template-columns:1fr 1fr}}
+    @media(max-width:520px){.filters{grid-template-columns:1fr}}
+    label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}
+    input, select{
+      width:100%;
+      border:1px solid var(--stroke);
+      border-radius:14px;
+      background:rgba(0,0,0,.20);
+      color:var(--text);
+      padding:10px 12px;
+      font-size:13px;
+      outline:none;
+    }
+    .row{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+    .btn{
+      padding:10px 12px;border-radius:14px;border:1px solid var(--stroke);
+      background:rgba(25,195,125,.12);
+      font-weight:800;font-size:13px;
+    }
+    .btn.ghost{background:rgba(255,255,255,.02);color:var(--muted);font-weight:500}
+    .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:12px}
+    @media(max-width:980px){.kpis{grid-template-columns:repeat(2,1fr)}}
+    .kpi{padding:12px;border-radius:14px;background:rgba(0,0,0,.16);border:1px solid var(--stroke)}
+    .kpi .l{font-size:12px;color:var(--muted)}
+    .kpi .v{font-size:22px;font-weight:800;margin-top:4px}
+    .kpi .d{font-size:12px;color:var(--muted);margin-top:6px}
+    .kpi .d b{color:var(--g)}
+    .split{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px}
+    @media(max-width:980px){.split{grid-template-columns:1fr}}
+    canvas{width:100% !important;height:340px !important}
+    .tag-cloud{
+      display:flex;flex-wrap:wrap;gap:8px;margin-top:10px
+    }
+    .tag{
+      border:1px solid var(--stroke);border-radius:999px;
+      padding:6px 10px;background:rgba(0,0,0,.16);
+      font-size:12px;color:var(--muted);
+    }
+    .tag.big{font-size:14px;color:var(--text);border-color:rgba(25,195,125,.35);background:rgba(25,195,125,.10)}
+    .tag.pos{border-color:rgba(25,195,125,.35);color:var(--text);background:rgba(25,195,125,.08)}
+    .tag.neu{border-color:rgba(159,178,190,.35);color:var(--text);background:rgba(159,178,190,.08)}
+    .tag.neg{border-color:rgba(255,77,77,.35);color:var(--text);background:rgba(255,77,77,.08)}
+    .clusters{display:flex;flex-direction:column;gap:10px;margin-top:10px}
+    .cluster{
+      border:1px solid var(--stroke);border-radius:14px;background:rgba(0,0,0,.16);
+      padding:12px;
+    }
+    .cluster .head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+    .cluster .name{font-weight:800;font-size:13px}
+    .pill{
+      padding:6px 10px;border-radius:999px;border:1px solid var(--stroke);
+      background:rgba(255,255,255,.02);color:var(--muted);font-size:12px;white-space:nowrap
+    }
+    .pill.pos{border-color:rgba(25,195,125,.35);background:rgba(25,195,125,.10);color:var(--text)}
+    .pill.neu{border-color:rgba(159,178,190,.35);background:rgba(159,178,190,.08);color:var(--text)}
+    .pill.neg{border-color:rgba(255,77,77,.35);background:rgba(255,77,77,.08);color:var(--text)}
+    .cluster .mini{margin-top:8px;display:flex;flex-wrap:wrap;gap:6px}
+    .mini .tag{padding:5px 9px}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+
+    {% include "monitor/_header.html" %}
+
+    <!-- Encabezado + filtros -->
+    <section class="card">
+      <h2>Filtro principal</h2>
+      <div class="muted">
+        1) Elige el tipo de entidad → 2) busca y selecciona la entidad → 3) define el rango y la granularidad (día/semana/mes).
+      </div>
+
+      <div class="filters">
+        <div>
+          <label>Tipo de entidad</label>
+          <select id="entityType">
+            <option value="persona" selected>Persona</option>
+            <option value="institucion">Institución</option>
+            <option value="tema">Tema</option>
+          </select>
+        </div>
+
+        <div>
+          <label>Búsqueda</label>
+          <input id="searchBox" placeholder="Escribe para filtrar la lista…">
+        </div>
+
+        <div>
+          <label>Entidad</label>
+          <select id="entitySelect">
+            <option value="">Selecciona entidad</option>
+          </select>
+        </div>
+
+        <div>
+          <label>Rango</label>
+          <select id="rangeSelect">
+            <option value="7" selected>Últimos 7 días</option>
+            <option value="30">Últimos 30 días</option>
+            <option value="90">Últimos 90 días</option>
+            <option value="year">Este año</option>
+          </select>
+        </div>
+
+        <div>
+          <label>Granularidad</label>
+          <select id="grainSelect">
+            <option value="day">Día</option>
+            <option value="week" selected>Semana</option>
+            <option value="month">Mes</option>
+          </select>
+        </div>
+
+        <div>
+          <label>Fuente</label>
+          <select id="sourceSelect">
+            <option value="">Todas</option>
+          </select>
+        </div>
+
+        <div>
+          <label>Tipo de nota</label>
+          <select id="typeSelect">
+            <option value="">Todas</option>
+            <option value="informativo">Informativo</option>
+            <option value="opinion">Opinión</option>
+          </select>
+        </div>
+
+        <div>
+          <label>Sentimiento</label>
+          <select id="sentimentSelect">
+            <option value="">Todos</option>
+            <option value="positivo">Positivo</option>
+            <option value="neutro">Neutro</option>
+            <option value="negativo">Negativo</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="row">
+        <button class="btn" id="applyFilters">Aplicar</button>
+        <button class="btn ghost" id="clearFilters">Limpiar</button>
+        <button class="btn ghost">Guardar vista</button>
+      </div>
+
+      <div class="kpis">
+        <div class="kpi">
+          <div class="l">Notas en rango</div>
+          <div class="v" id="kpi-total">—</div>
+          <div class="d">Promedio semanal: <b>—</b></div>
+        </div>
+        <div class="kpi">
+          <div class="l">Negativas</div>
+          <div class="v" id="kpi-negative">—</div>
+          <div class="d">Tendencia: <b>—</b></div>
+        </div>
+        <div class="kpi">
+          <div class="l">Opinión</div>
+          <div class="v" id="kpi-opinion">—</div>
+          <div class="d">Tendencia: <b>—</b></div>
+        </div>
+        <div class="kpi">
+          <div class="l">Etiquetas únicas</div>
+          <div class="v" id="kpi-labels">—</div>
+          <div class="d">Top 5 concentran: <b>—</b></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Dispersión + Resumen -->
+    <section class="grid cols">
+      <div class="card">
+        <h2>Volumen como dispersión (cada punto = una nota)</h2>
+        <div class="muted">
+          Eje X: tiempo · Eje Y: “altura” por acumulación en el periodo (cuando hay más notas, suben).
+          Colores: verde/positivo, gris/neutro, rojo/negativo. Tooltip: título + enlace.
+        </div>
+        <div style="height:10px"></div>
+        <div class="muted" id="emptyState" style="display:none">Sin datos para estos filtros.</div>
+        <canvas id="scatterNotes"></canvas>
+
+        <div class="row">
+          <button class="btn ghost" id="openFeed">Ver lista de notas</button>
+          <button class="btn ghost" id="exportDashboard">Exportar</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Resumen del rango</h2>
+        <div class="split" style="margin-top:10px">
+          <div>
+            <div class="muted">Sentimiento (proporción)</div>
+            <canvas id="donutSent"></canvas>
+          </div>
+          <div>
+            <div class="muted">Tipo de nota</div>
+            <canvas id="donutType"></canvas>
+          </div>
+        </div>
+
+        <div style="height:12px"></div>
+        <h2>Top fuentes</h2>
+        <div class="clusters" id="topSources">
+          <div class="cluster">
+            <div class="head">
+              <div>
+                <div class="name">Aún no hay datos</div>
+                <div class="muted">Ejecuta el pipeline para poblar.</div>
+              </div>
+              <span class="pill neu">—</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Etiquetas IA: nube + clusters -->
+    <section class="grid cols">
+      <div class="card">
+        <h2>Etiquetas IA (nube)</h2>
+        <div class="muted">Tamaño = repetición en el rango. Color = sentimiento dominante en notas que usan esa etiqueta.</div>
+        <div class="tag-cloud" id="labelsCloud">
+          <span class="tag neu">Aún no hay etiquetas</span>
+        </div>
+
+        <div class="row">
+          <button class="btn ghost">Ver etiquetas completas</button>
+          <button class="btn ghost">Filtrar por etiqueta</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Agrupación de etiquetas (clusters de historia)</h2>
+        <div class="muted">
+          Agrupa etiquetas que aparecen juntas con frecuencia. Esto ayuda a identificar “historias” sin reescribir nada.
+        </div>
+
+        <div class="clusters" id="labelClusters">
+          <div class="cluster">
+            <div class="head">
+              <div>
+                <div class="name">Sin clusters</div>
+                <div class="muted">Se mostrarán al contar con datos.</div>
+              </div>
+              <span class="pill neu">—</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="row">
+          <button class="btn">Abrir vista “Historias”</button>
+          <button class="btn ghost" id="exportDashboardBottom">Exportar</button>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <script>
+    let scatterChart;
+    let sentChart;
+    let typeChart;
+
+    const entityType = document.getElementById("entityType");
+    const searchBox = document.getElementById("searchBox");
+    const entitySelect = document.getElementById("entitySelect");
+    const rangeSelect = document.getElementById("rangeSelect");
+    const grainSelect = document.getElementById("grainSelect");
+    const sourceSelect = document.getElementById("sourceSelect");
+    const typeSelect = document.getElementById("typeSelect");
+    const sentimentSelect = document.getElementById("sentimentSelect");
+    const urlParams = new URLSearchParams(window.location.search);
+    const presetEntityType = urlParams.get("entity_type");
+    const presetEntityId = urlParams.get("entity_id");
+
+    function getCookie(name) {
+      const value = `; ${document.cookie}`;
+      const parts = value.split(`; ${name}=`);
+      if (parts.length === 2) return parts.pop().split(";").shift();
+      return null;
+    }
+
+    async function loadSources() {
+      try {
+        const res = await fetch("{% url 'monitor:api_sources' %}");
+        const data = await res.json();
+        data.items.forEach(source => {
+          const option = document.createElement("option");
+          option.value = source.id;
+          option.textContent = source.name;
+          sourceSelect.appendChild(option);
+        });
+      } catch (err) {
+        console.error("Error cargando fuentes", err);
+      }
+    }
+
+    async function loadEntities() {
+      const query = searchBox.value.trim();
+      if (!query) return;
+      try {
+        const res = await fetch(`{% url 'monitor:api_entities' %}?type=${entityType.value}&q=${encodeURIComponent(query)}`);
+        const data = await res.json();
+        entitySelect.innerHTML = "<option value=''>Selecciona entidad</option>";
+        data.results.forEach(item => {
+          const option = document.createElement("option");
+          option.value = item.id;
+          option.textContent = item.name;
+          entitySelect.appendChild(option);
+        });
+      } catch (err) {
+        console.error("Error cargando entidades", err);
+      }
+    }
+
+    function buildParams() {
+      const params = new URLSearchParams();
+      const resolvedEntityType = entitySelect.value ? entityType.value : presetEntityType;
+      const resolvedEntityId = entitySelect.value || presetEntityId;
+      if (resolvedEntityType && resolvedEntityId) {
+        params.set("entity_type", resolvedEntityType);
+        params.set("entity_id", resolvedEntityId);
+      }
+      if (rangeSelect.value) params.set("range", rangeSelect.value);
+      if (grainSelect.value) params.set("grain", grainSelect.value);
+      if (sourceSelect.value) params.set("source_id", sourceSelect.value);
+      if (typeSelect.value) params.set("type", typeSelect.value);
+      if (sentimentSelect.value) params.set("sentiment", sentimentSelect.value);
+      return params;
+    }
+
+    function renderCharts(data) {
+      if (scatterChart) scatterChart.destroy();
+      if (sentChart) sentChart.destroy();
+      if (typeChart) typeChart.destroy();
+
+      const posColor = "#19c37d";
+      const neuColor = "#9fb2be";
+      const negColor = "#ff4d4d";
+      const grouped = { positivo: [], neutro: [], negativo: [] };
+      data.scatter_points.forEach(point => {
+        grouped[point.sentiment]?.push(point);
+      });
+
+      scatterChart = new Chart(document.getElementById("scatterNotes"), {
+        type: "scatter",
+        data: {
+          datasets: [
+            { label: "Positivo", data: grouped.positivo, pointRadius: 5, backgroundColor: posColor },
+            { label: "Neutro", data: grouped.neutro, pointRadius: 5, backgroundColor: neuColor },
+            { label: "Negativo", data: grouped.negativo, pointRadius: 5, backgroundColor: negColor }
+          ]
+        },
+        options: {
+          parsing: false,
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: { x: { type: "time", time: { unit: "day" } }, y: { beginAtZero: true } },
+          plugins: {
+            legend: { labels: { color: "rgba(231,238,245,.70)" } },
+            tooltip: { callbacks: { label: (ctx) => ctx.raw?.title || "Nota" } }
+          }
+        }
+      });
+
+      sentChart = new Chart(document.getElementById("donutSent"), {
+        type: "doughnut",
+        data: {
+          labels: ["Positivo", "Neutro", "Negativo"],
+          datasets: [{
+            data: [
+              data.sentiment_donut.positivo || 0,
+              data.sentiment_donut.neutro || 0,
+              data.sentiment_donut.negativo || 0
+            ],
+            backgroundColor: [posColor, neuColor, negColor]
+          }]
+        },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: "bottom", labels: { color: "rgba(231,238,245,.70)" } } } }
+      });
+
+      typeChart = new Chart(document.getElementById("donutType"), {
+        type: "doughnut",
+        data: {
+          labels: ["Informativo", "Opinión"],
+          datasets: [{
+            data: [
+              data.type_donut.informativo || 0,
+              data.type_donut.opinion || 0
+            ],
+            backgroundColor: [posColor, neuColor]
+          }]
+        },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: "bottom", labels: { color: "rgba(231,238,245,.70)" } } } }
+      });
+    }
+
+    function renderLabels(data) {
+      const labelsCloud = document.getElementById("labelsCloud");
+      labelsCloud.innerHTML = "";
+      if (!data.labels_cloud.length) {
+        labelsCloud.innerHTML = "<span class='tag neu'>Aún no hay etiquetas</span>";
+        return;
+      }
+      data.labels_cloud.forEach(label => {
+        const span = document.createElement("span");
+        const sentimentClass = label.dominant_sentiment === "positivo" ? "pos" : label.dominant_sentiment === "negativo" ? "neg" : "neu";
+        span.className = `tag ${label.count > 5 ? "big" : ""} ${sentimentClass}`;
+        span.textContent = label.label;
+        labelsCloud.appendChild(span);
+      });
+    }
+
+    function renderClusters(data) {
+      const clusters = document.getElementById("labelClusters");
+      clusters.innerHTML = "";
+      if (!data.clusters.length) {
+        clusters.innerHTML = "<div class='cluster'><div class='head'><div><div class='name'>Sin clusters</div><div class='muted'>Se mostrarán al contar con datos.</div></div><span class='pill neu'>—</span></div></div>";
+        return;
+      }
+      data.clusters.forEach(cluster => {
+        const wrapper = document.createElement("div");
+        wrapper.className = "cluster";
+        const labels = (cluster.labels || []).map(label => `<span class="tag neu">${label}</span>`).join("");
+        wrapper.innerHTML = `
+          <div class="head">
+            <div>
+              <div class="name">${cluster.name}</div>
+              <div class="muted">${cluster.count} notas</div>
+            </div>
+            <span class="pill neu">Tono: neutro</span>
+          </div>
+          <div class="mini">${labels}</div>
+        `;
+        clusters.appendChild(wrapper);
+      });
+    }
+
+    function renderTopSources(data) {
+      const container = document.getElementById("topSources");
+      container.innerHTML = "";
+      if (!data.top_sources.length) {
+        container.innerHTML = "<div class='cluster'><div class='head'><div><div class='name'>Aún no hay datos</div><div class='muted'>Ejecuta el pipeline para poblar.</div></div><span class='pill neu'>—</span></div></div>";
+        return;
+      }
+      data.top_sources.forEach(source => {
+        const wrapper = document.createElement("div");
+        wrapper.className = "cluster";
+        wrapper.innerHTML = `
+          <div class="head">
+            <div>
+              <div class="name">${source.source}</div>
+              <div class="muted">${source.count} notas</div>
+            </div>
+            <span class="pill neu">Tono: neutro</span>
+          </div>
+        `;
+        container.appendChild(wrapper);
+      });
+    }
+
+    function updateKpis(data) {
+      const total = data.scatter_points.length;
+      document.getElementById("kpi-total").textContent = total;
+      const negative = data.sentiment_donut.negativo || 0;
+      document.getElementById("kpi-negative").textContent = total ? `${Math.round((negative / total) * 100)}%` : "0%";
+      const opinion = data.type_donut.opinion || 0;
+      document.getElementById("kpi-opinion").textContent = total ? `${Math.round((opinion / total) * 100)}%` : "0%";
+      document.getElementById("kpi-labels").textContent = data.labels_cloud.length;
+      document.getElementById("emptyState").style.display = total ? "none" : "block";
+    }
+
+    async function loadDashboard() {
+      try {
+        const params = buildParams();
+        const res = await fetch(`{% url 'monitor:api_dashboard' %}?${params.toString()}`);
+        const data = await res.json();
+        renderCharts(data);
+        renderLabels(data);
+        renderClusters(data);
+        renderTopSources(data);
+        updateKpis(data);
+        const resolvedEntityType = entitySelect.value ? entityType.value : presetEntityType;
+        const resolvedEntityId = entitySelect.value || presetEntityId;
+        document.getElementById("openFeed").onclick = () => {
+          if (resolvedEntityType && resolvedEntityId) {
+            window.location.href = `/monitor/notas/?entity_type=${resolvedEntityType}&entity_id=${resolvedEntityId}`;
+            return;
+          }
+          window.location.href = "/monitor/notas/";
+        };
+        const exportHandler = async () => {
+          const exportRes = await fetch("{% url 'monitor:api_export_dashboard' %}", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-CSRFToken": getCookie("csrftoken")
+            },
+            body: JSON.stringify({
+              entity_type: resolvedEntityType,
+              entity_id: resolvedEntityId,
+              range: rangeSelect.value,
+              grain: grainSelect.value,
+              source_id: sourceSelect.value,
+              type: typeSelect.value,
+              sentiment: sentimentSelect.value
+            })
+          });
+          const exportData = await exportRes.json();
+          if (exportData.url) window.open(exportData.url, "_blank");
+        };
+        document.getElementById("exportDashboard").onclick = exportHandler;
+        document.getElementById("exportDashboardBottom").onclick = exportHandler;
+      } catch (err) {
+        console.error("Error cargando dashboard", err);
+      }
+    }
+
+    document.getElementById("applyFilters").addEventListener("click", loadDashboard);
+    document.getElementById("clearFilters").addEventListener("click", () => {
+      searchBox.value = "";
+      entitySelect.value = "";
+      sourceSelect.value = "";
+      typeSelect.value = "";
+      sentimentSelect.value = "";
+      loadDashboard();
+    });
+    searchBox.addEventListener("input", () => {
+      if (searchBox.value.length >= 2) {
+        loadEntities();
+      }
+    });
+
+    loadSources();
+    if (presetEntityType) {
+      entityType.value = presetEntityType;
+    }
+    loadDashboard();
+  </script>
+</body>
+</html>

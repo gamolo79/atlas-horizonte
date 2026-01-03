@@ -1,0 +1,312 @@
+{% load static %}
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Monitor · Revisión editorial</title>
+  <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/monitor-design-system.css' %}">
+  <style>
+    :root{
+      --bg:#0b0f14; --stroke:rgba(166,190,200,.16);
+      --text:#e7eef5; --muted:rgba(231,238,245,.70);
+      --g:#19c37d; --neg:#ff4d4d; --neu:#9fb2be; --pos:#19c37d;
+      --r:18px; --shadow:0 14px 40px rgba(0,0,0,.45); --max:1120px;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:Lexend,system-ui;background:var(--bg);color:var(--text)}
+    .wrap{max-width:var(--max);margin:0 auto;padding:18px}
+    .head{
+      display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
+      padding:14px 16px;border:1px solid var(--stroke);border-radius:var(--r);
+      background:rgba(255,255,255,.02);box-shadow:var(--shadow);
+    }
+    .title{font-weight:800}
+    .pill{padding:6px 10px;border-radius:999px;border:1px solid var(--stroke);font-size:12px;color:var(--muted)}
+    .pill.warn{border-color:rgba(255,77,77,.35);background:rgba(255,77,77,.08);color:var(--text)}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px}
+    @media(max-width:980px){.grid{grid-template-columns:1fr}}
+    .card{border:1px solid var(--stroke);border-radius:var(--r);background:rgba(255,255,255,.02);box-shadow:var(--shadow);padding:14px}
+    h3{margin:0 0 10px 0;font-size:15px}
+    .muted{color:var(--muted);font-size:12px;line-height:1.5}
+    .field{margin-top:10px}
+    label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}
+    input, textarea, select{
+      width:100%;border:1px solid var(--stroke);border-radius:14px;background:rgba(0,0,0,.20);
+      color:var(--text);padding:10px 12px;font-size:13px;outline:none;
+    }
+    textarea{min-height:92px;resize:vertical}
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .mentions-list{display:flex;flex-direction:column;gap:10px}
+    .mention-row{
+      display:grid;
+      grid-template-columns:1fr 1.2fr 1.2fr .8fr auto;
+      gap:8px;
+      align-items:center;
+    }
+    @media(max-width:980px){
+      .mention-row{grid-template-columns:1fr 1fr}
+    }
+    .actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+    .btn{padding:10px 12px;border-radius:14px;border:1px solid var(--stroke);background:rgba(25,195,125,.12);font-weight:800;font-size:13px}
+    .btn.ghost{background:rgba(255,255,255,.02);color:var(--muted);font-weight:500}
+    .box{padding:12px;border-radius:14px;border:1px solid var(--stroke);background:rgba(0,0,0,.18)}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    {% include "monitor/_header.html" %}
+
+    <div class="head" style="margin-top:14px">
+      <div>
+        <div class="title">Revisión editorial</div>
+        <div class="muted">Corrige etiquetas, idea central, tipo y sentimiento. Se guardan cambios y puedes aplicarlos por lotes.</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <span class="pill" id="review-pending">Pendientes: —</span>
+        <a class="pill" href="{% url 'monitor:feed' %}">← Volver al monitor</a>
+      </div>
+    </div>
+
+    <div class="grid">
+      <section class="card" data-article-id="{{ article_id|default:'' }}">
+        <h3>Nota seleccionada</h3>
+        <div class="box">
+          <div style="font-weight:800" id="article-title">Selecciona una nota desde el feed</div>
+          <div class="muted" style="margin-top:6px" id="article-meta">Fuente: — · —</div>
+          <div class="muted" style="margin-top:10px" id="article-extract">Texto (extracto): —</div>
+        </div>
+
+        <div class="field">
+          <label>Idea central (máximo 30 palabras)</label>
+          <textarea id="centralIdeaInput" placeholder="Escribe idea central"></textarea>
+        </div>
+
+        <div class="row">
+          <div class="field">
+            <label>Tipo</label>
+            <select id="typeSelect">
+              <option value="informativo">Informativo</option>
+              <option value="opinion">Opinión</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Menciones (tipo, entidad y sentimiento)</label>
+            <div id="mentionsList" class="mentions-list"></div>
+            <div class="actions" style="margin-top:8px">
+              <button class="btn ghost" id="addMention">Agregar mención</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Etiquetas (mínimo 5; separa con comas)</label>
+          <input id="labelsInput" placeholder="Etiqueta 1, etiqueta 2, etiqueta 3, etiqueta 4, etiqueta 5"/>
+        </div>
+
+        <div class="field">
+          <label>¿Por qué la IA estuvo mal / qué faltó? (obligatorio)</label>
+          <textarea id="reasonInput" placeholder="Ej: No es positivo; el tono es informativo. Faltó etiquetar 'extorsión' y 'policía cibernética'."></textarea>
+        </div>
+
+        <div class="actions">
+          <button class="btn" id="saveReview">Guardar corrección</button>
+          <button class="btn ghost" id="openOriginal">Abrir original</button>
+        </div>
+      </section>
+
+      <aside class="card">
+        <h3>Aplicar por lotes (sugerencias)</h3>
+        <div class="muted">MVP: las sugerencias de lote aparecerán cuando haya suficientes coincidencias.</div>
+
+        <div style="height:14px"></div>
+
+        <h3>Historial de cambios</h3>
+        <div class="box" id="review-history">
+          <div class="muted">Sin historial disponible.</div>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <script>
+    const articleId = document.querySelector("[data-article-id]")?.dataset.articleId;
+    const titleEl = document.getElementById("article-title");
+    const metaEl = document.getElementById("article-meta");
+    const extractEl = document.getElementById("article-extract");
+    const labelsInput = document.getElementById("labelsInput");
+    const centralIdeaInput = document.getElementById("centralIdeaInput");
+    const typeSelect = document.getElementById("typeSelect");
+    const mentionsList = document.getElementById("mentionsList");
+    const addMentionBtn = document.getElementById("addMention");
+    const reasonInput = document.getElementById("reasonInput");
+    const openOriginal = document.getElementById("openOriginal");
+
+    function getCookie(name) {
+      const value = `; ${document.cookie}`;
+      const parts = value.split(`; ${name}=`);
+      if (parts.length === 2) return parts.pop().split(";").shift();
+      return null;
+    }
+
+    async function loadReviewSummary() {
+      try {
+        const res = await fetch("{% url 'monitor:api_summary' %}");
+        const data = await res.json();
+        document.getElementById("review-pending").textContent = `Pendientes: ${data.pending_review ?? 0}`;
+      } catch (err) {
+        console.error("Error cargando resumen", err);
+      }
+    }
+
+    async function loadArticle() {
+      if (!articleId) return;
+      try {
+        const res = await fetch(`/monitor/api/article/${articleId}/`);
+        const data = await res.json();
+        titleEl.textContent = data.title;
+        metaEl.textContent = `Fuente: ${data.source_name} · ${data.published_at_display || "—"}`;
+        extractEl.textContent = `Texto (extracto): ${data.text_excerpt || "Sin extracto."}`;
+        labelsInput.value = (data.labels || []).join(", ");
+        centralIdeaInput.value = data.central_idea || "";
+        typeSelect.value = data.article_type || "informativo";
+        mentionsList.innerHTML = "";
+        if (data.mentions && data.mentions.length) {
+          data.mentions.forEach(mention => {
+            mentionsList.appendChild(createMentionRow(mention));
+          });
+        } else {
+          mentionsList.appendChild(createMentionRow());
+        }
+        const history = document.getElementById("review-history");
+        if (data.reviews && data.reviews.length) {
+          history.innerHTML = data.reviews.map(review => (
+            `<div class="muted">${review.created_at} · ${review.created_by}: ${review.reason_text}</div>`
+          )).join("");
+        }
+        openOriginal.onclick = () => window.open(data.url, "_blank");
+      } catch (err) {
+        console.error("Error cargando artículo", err);
+      }
+    }
+
+    function createMentionRow(mention = {}) {
+      const row = document.createElement("div");
+      row.className = "mention-row";
+      row.innerHTML = `
+        <select class="mention-type">
+          <option value="persona">Persona</option>
+          <option value="institucion">Institución</option>
+          <option value="tema">Tema</option>
+        </select>
+        <input class="mention-search" placeholder="Buscar entidad">
+        <select class="mention-entity"><option value="">Selecciona entidad</option></select>
+        <select class="mention-sentiment">
+          <option value="positivo">Positivo</option>
+          <option value="neutro">Neutro</option>
+          <option value="negativo">Negativo</option>
+        </select>
+        <button class="btn ghost mention-remove" type="button">Quitar</button>
+      `;
+      const typeSelect = row.querySelector(".mention-type");
+      const searchInput = row.querySelector(".mention-search");
+      const entitySelect = row.querySelector(".mention-entity");
+      const sentimentSelect = row.querySelector(".mention-sentiment");
+      const removeBtn = row.querySelector(".mention-remove");
+
+      typeSelect.value = mention.target_type || "persona";
+      sentimentSelect.value = mention.sentiment || "neutro";
+      if (mention.target_id && mention.target_name) {
+        entitySelect.innerHTML = `<option value="${mention.target_id}" selected>${mention.target_name}</option>`;
+      }
+
+      typeSelect.addEventListener("change", () => {
+        entitySelect.innerHTML = "<option value=''>Selecciona entidad</option>";
+        searchInput.value = "";
+      });
+
+      searchInput.addEventListener("input", async () => {
+        if (searchInput.value.length < 2) return;
+        try {
+          const res = await fetch(`{% url 'monitor:api_entities' %}?type=${typeSelect.value}&q=${encodeURIComponent(searchInput.value)}`);
+          const data = await res.json();
+          entitySelect.innerHTML = "<option value=''>Selecciona entidad</option>";
+          data.results.forEach(item => {
+            const option = document.createElement("option");
+            option.value = item.id;
+            option.textContent = item.name;
+            entitySelect.appendChild(option);
+          });
+        } catch (err) {
+          console.error("Error cargando entidades", err);
+        }
+      });
+
+      removeBtn.addEventListener("click", () => {
+        row.remove();
+        if (!mentionsList.children.length) {
+          mentionsList.appendChild(createMentionRow());
+        }
+      });
+
+      return row;
+    }
+
+    document.getElementById("saveReview").addEventListener("click", async () => {
+      if (!articleId) return;
+      const mentions = [];
+      mentionsList.querySelectorAll(".mention-row").forEach((row) => {
+        const typeSelect = row.querySelector(".mention-type");
+        const entitySelect = row.querySelector(".mention-entity");
+        const sentimentSelect = row.querySelector(".mention-sentiment");
+        const selectedOption = entitySelect.options[entitySelect.selectedIndex];
+        if (!typeSelect.value || !entitySelect.value || !selectedOption) return;
+        mentions.push({
+          target_type: typeSelect.value,
+          target_id: Number(entitySelect.value),
+          target_name: selectedOption.textContent,
+          sentiment: sentimentSelect.value
+        });
+      });
+      const payload = {
+        central_idea: centralIdeaInput.value,
+        article_type: typeSelect.value,
+        labels: labelsInput.value.split(",").map(item => item.trim()).filter(Boolean),
+        mentions: mentions,
+        reason_text: reasonInput.value
+      };
+      try {
+        const res = await fetch(`/monitor/api/article/${articleId}/review`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": getCookie("csrftoken")
+          },
+          body: JSON.stringify(payload)
+        });
+        if (res.status === 401) {
+          alert("Debes iniciar sesión para guardar correcciones.");
+          return;
+        }
+        if (!res.ok) {
+          const err = await res.json();
+          alert(err.error || "Error guardando revisión");
+          return;
+        }
+        alert("Corrección guardada.");
+        loadArticle();
+      } catch (err) {
+        console.error("Error guardando revisión", err);
+      }
+    });
+
+    addMentionBtn.addEventListener("click", () => {
+      mentionsList.appendChild(createMentionRow());
+    });
+
+    loadReviewSummary();
+    loadArticle();
+  </script>
+</body>
+</html>

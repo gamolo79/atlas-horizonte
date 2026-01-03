@@ -1,0 +1,20 @@
+{% load static %}
+<header class="topbar">
+  <div class="brand">
+    <img class="brand-logo" src="{% static 'img/logo-horizonte-monitor.png' %}" alt="Horizonte Digital Monitor">
+    <div>
+      <div class="brand-title">Monitor</div>
+      <div class="brand-subtitle">Cobertura en tiempo real · Dashboards · Benchmarks · Revisión editorial</div>
+    </div>
+  </div>
+
+  <nav class="nav">
+    <a class="chip{% if active_tab == 'home' %} active{% endif %}" href="{% url 'monitor:home' %}">Home</a>
+    <a class="chip{% if active_tab == 'feed' %} active{% endif %}" href="{% url 'monitor:feed' %}">Monitor</a>
+    <a class="chip{% if active_tab == 'dashboards' %} active{% endif %}" href="{% url 'monitor:dashboards' %}">Dashboards</a>
+    <a class="chip{% if active_tab == 'benchmarks' %} active{% endif %}" href="{% url 'monitor:benchmarks' %}">Benchmarks</a>
+    <a class="chip{% if active_tab == 'revision' %} active{% endif %}" href="{% url 'monitor:revision' %}">Revisión</a>
+    <a class="chip{% if active_tab == 'procesos' %} active{% endif %}" href="{% url 'monitor:procesos' %}">Procesos</a>
+    <a class="chip{% if active_tab == 'sources' %} active{% endif %}" href="{% url 'monitor:sources' %}">Fuentes</a>
+  </nav>
+</header>

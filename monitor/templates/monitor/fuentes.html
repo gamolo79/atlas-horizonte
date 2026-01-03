@@ -1,0 +1,471 @@
+{% load static %}
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Monitor · Fuentes</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/monitor-design-system.css' %}">
+
+  <style>
+    :root{
+      --bg:#0b0f14;
+      --stroke:rgba(166,190,200,.16);
+      --text:#e7eef5;
+      --muted:rgba(231,238,245,.70);
+
+      --g:#19c37d;
+      --g2:#0fb36f;
+
+      --neg:#ff4d4d;
+      --neu:#9fb2be;
+      --pos:#19c37d;
+
+      --r:18px;
+      --shadow:0 14px 40px rgba(0,0,0,.45);
+      --max:1160px;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family:Lexend,system-ui,-apple-system,Segoe UI,Roboto,Arial;
+      background:
+        radial-gradient(1100px 600px at 15% 0%, rgba(25,195,125,.10), transparent 55%),
+        radial-gradient(900px 500px at 85% 15%, rgba(15,179,111,.10), transparent 60%),
+        var(--bg);
+      color:var(--text);
+    }
+    a{color:inherit;text-decoration:none}
+    .wrap{max-width:var(--max);margin:0 auto;padding:18px}
+
+    /* Layout */
+    .grid{display:grid;gap:14px;margin-top:14px}
+    .grid.cols{grid-template-columns:1.35fr .65fr}
+    @media(max-width:980px){.grid.cols{grid-template-columns:1fr}}
+
+    .card{
+      border:1px solid var(--stroke);
+      background:linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.01));
+      border-radius:var(--r);
+      box-shadow:var(--shadow);
+      padding:14px;
+    }
+    h2{margin:0 0 10px 0;font-size:16px;letter-spacing:.2px}
+    .muted{color:var(--muted);font-size:12px;line-height:1.5}
+
+    /* Controls */
+    label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}
+    input, select{
+      width:100%;
+      border:1px solid var(--stroke);
+      border-radius:14px;
+      background:rgba(0,0,0,.20);
+      color:var(--text);
+      padding:10px 12px;
+      font-size:13px;
+      outline:none;
+    }
+    .filters{
+      display:grid;grid-template-columns:1.2fr .8fr .8fr .8fr;gap:10px;margin-top:10px;
+    }
+    @media(max-width:980px){.filters{grid-template-columns:1fr 1fr}}
+    @media(max-width:520px){.filters{grid-template-columns:1fr}}
+
+    .row{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+    .btn{
+      padding:10px 12px;border-radius:14px;border:1px solid var(--stroke);
+      background:rgba(25,195,125,.12);
+      color:var(--text);font-weight:800;font-size:13px;
+    }
+    .btn.ghost{background:rgba(255,255,255,.02);color:var(--muted);font-weight:500}
+    .btn.danger{background:rgba(255,77,77,.10);border-color:rgba(255,77,77,.22);color:var(--text)}
+
+    /* Stats */
+    .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:12px}
+    @media(max-width:980px){.kpis{grid-template-columns:repeat(2,1fr)}}
+    .kpi{padding:12px;border-radius:14px;background:rgba(0,0,0,.16);border:1px solid var(--stroke)}
+    .kpi .l{font-size:12px;color:var(--muted)}
+    .kpi .v{font-size:22px;font-weight:900;margin-top:4px}
+    .kpi .d{font-size:12px;color:var(--muted);margin-top:6px}
+    .kpi .d b{color:var(--g)}
+
+    /* Table-like list */
+    .table{
+      margin-top:12px;
+      border:1px solid var(--stroke);
+      border-radius:16px;
+      overflow:hidden;
+      background:rgba(0,0,0,.12);
+    }
+    .thead,.trow{
+      display:grid;
+      grid-template-columns: 1.2fr 1.4fr .6fr .6fr .8fr .8fr;
+      gap:10px;
+      align-items:center;
+      padding:10px 12px;
+    }
+    .thead{
+      background:rgba(255,255,255,.03);
+      border-bottom:1px solid var(--stroke);
+      font-size:12px;
+      color:var(--muted);
+    }
+    .trow{
+      border-bottom:1px solid rgba(166,190,200,.10);
+      font-size:13px;
+    }
+    .trow:last-child{border-bottom:none}
+    .name{font-weight:800}
+    .url{color:var(--muted);font-size:12px;word-break:break-all}
+    .mini{font-size:12px;color:var(--muted)}
+    .actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+    .iconbtn{
+      padding:8px 10px;border-radius:12px;border:1px solid var(--stroke);
+      background:rgba(255,255,255,.02);color:var(--muted);font-size:12px;
+    }
+    .iconbtn.ok{background:rgba(25,195,125,.10);border-color:rgba(25,195,125,.22);color:var(--text)}
+    .iconbtn.bad{background:rgba(255,77,77,.10);border-color:rgba(255,77,77,.22);color:var(--text)}
+
+    /* Pills */
+    .pill{
+      padding:6px 10px;border-radius:999px;font-size:12px;border:1px solid var(--stroke);
+      background:rgba(255,255,255,.02);color:var(--muted);white-space:nowrap;
+      display:inline-flex;align-items:center;gap:8px;
+    }
+    .dot{width:8px;height:8px;border-radius:50%}
+    .pill.pos{border-color:rgba(25,195,125,.35);background:rgba(25,195,125,.10);color:var(--text)}
+    .pill.neu{border-color:rgba(159,178,190,.35);background:rgba(159,178,190,.08);color:var(--text)}
+    .pill.neg{border-color:rgba(255,77,77,.35);background:rgba(255,77,77,.08);color:var(--text)}
+
+    /* Sidebar */
+    .box{
+      padding:12px;border-radius:14px;border:1px solid var(--stroke);
+      background:rgba(0,0,0,.16);
+    }
+    .box + .box{margin-top:10px}
+    .kv{display:flex;justify-content:space-between;gap:10px}
+    .kv b{font-weight:900}
+    .log{
+      margin-top:10px;
+      border:1px solid var(--stroke);
+      border-radius:14px;
+      background:rgba(0,0,0,.18);
+      padding:12px;
+      font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;
+      font-size:12px;
+      color:rgba(231,238,245,.85);
+      line-height:1.5;
+      white-space:pre-wrap;
+    }
+    .hint{margin-top:10px;color:var(--muted);font-size:12px;line-height:1.5}
+
+    /* Mobile table fallback */
+    @media(max-width:720px){
+      .thead{display:none}
+      .trow{
+        grid-template-columns:1fr;
+        gap:6px;
+      }
+      .actions{justify-content:flex-start}
+    }
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+
+    {% include "monitor/_header.html" %}
+
+    <!-- SUMMARY -->
+    <section class="card" style="margin-top:14px">
+      <h2>Resumen</h2>
+      <div class="muted">
+        Aquí decides qué medios se monitorean y con qué método. También ves su salud (errores, latencia, volumen).
+      </div>
+
+      <div class="kpis">
+        <div class="kpi">
+          <div class="l">Fuentes activas</div>
+          <div class="v" id="kpi-active">—</div>
+          <div class="d">Estado actual</div>
+        </div>
+        <div class="kpi">
+          <div class="l">Con error</div>
+          <div class="v" id="kpi-error" style="color:var(--neg)">—</div>
+          <div class="d">Último error registrado</div>
+        </div>
+        <div class="kpi">
+          <div class="l">Nuevas hoy</div>
+          <div class="v" id="kpi-new">—</div>
+          <div class="d">Notas recientes</div>
+        </div>
+        <div class="kpi">
+          <div class="l">Latencia promedio</div>
+          <div class="v" id="kpi-latency">—</div>
+          <div class="d">Promedio reportado</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="grid cols">
+
+      <!-- LEFT: LIST + FILTERS -->
+      <div class="card">
+        <h2>Directorio de fuentes</h2>
+        <div class="muted">
+          Busca, filtra por tipo y estado, y ejecuta pruebas rápidas. Recomendación: prioriza RSS, luego sitemap, y usa scraping solo cuando no haya otra opción.
+        </div>
+
+        <div class="filters">
+          <div>
+            <label>Buscar</label>
+            <input id="sourceSearch" placeholder="Nombre del medio o URL…">
+          </div>
+          <div>
+            <label>Tipo</label>
+            <select id="typeFilter">
+              <option value="">Todos</option>
+              <option value="rss">RSS</option>
+              <option value="sitemap">Sitemap</option>
+              <option value="scrape">Scrape</option>
+            </select>
+          </div>
+          <div>
+            <label>Estado</label>
+            <select id="statusFilter">
+              <option value="">Todos</option>
+              <option value="ok">OK</option>
+              <option value="error">Error</option>
+              <option value="inactive">Inactiva</option>
+            </select>
+          </div>
+          <div>
+            <label>Frecuencia</label>
+            <select id="frequencyFilter">
+              <option value="">Cualquiera</option>
+              <option value="5">1–5 min</option>
+              <option value="15">10–15 min</option>
+              <option value="60">30–60 min</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="row">
+          <button class="btn ghost" id="refreshSources">Actualizar listado</button>
+        </div>
+
+        <!-- TABLE -->
+        <div class="table" aria-label="Tabla de fuentes">
+          <div class="thead">
+            <div>Medio</div>
+            <div>URL</div>
+            <div>Tipo</div>
+            <div>Frecuencia</div>
+            <div>Última ejecución</div>
+            <div style="text-align:right">Acciones</div>
+          </div>
+
+          <div id="sourcesTable"></div>
+
+          <div class="trow">
+            <div>
+              <div class="name">Sitio sin RSS</div>
+              <div class="mini">Activa · 5 notas / 7 días</div>
+            </div>
+            <div class="url">https://ejemplo.com/noticias/</div>
+            <div><span class="pill neg"><span class="dot" style="background:var(--neg)"></span>Scrape</span></div>
+            <div class="mini">cada 30 min</div>
+            <div class="mini">hace 43 min · <span class="pill neg">Error</span></div>
+            <div class="actions">
+              <button class="iconbtn bad">Detalle</button>
+              <button class="iconbtn">Editar</button>
+              <button class="iconbtn danger">Desactivar</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="hint">
+          Nota: “Scrape” suele fallar más por cambios de diseño en los sitios. Si existe RSS o sitemap, úsalo primero.
+        </div>
+      </div>
+
+      <!-- RIGHT: ADD/EDIT + HEALTH + TEST -->
+      <aside class="grid">
+
+        <div class="card">
+          <h2>Administración de fuentes</h2>
+          <div class="muted">El alta/edición se gestiona desde el admin de Django para evitar duplicidad de CRUD.</div>
+          <div class="box" style="margin-top:10px">
+            <div class="kv"><span class="muted">Atajo</span><b>/admin/monitor/source/</b></div>
+            <div style="height:6px"></div>
+            <div class="kv"><span class="muted">Acción sugerida</span><b>Revisar estado y probar fuentes</b></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>Prueba rápida (preview)</h2>
+          <div class="muted">Selecciona una fuente en el listado y usa “Probar” para ver el preview.</div>
+
+          <div class="box" style="margin-top:10px" id="previewBox">
+            <div style="font-weight:900">Resultado</div>
+            <div class="muted" style="margin-top:6px" id="previewText">Sin pruebas ejecutadas.</div>
+          </div>
+
+          <div class="log" id="previewLog">Esperando selección de fuente...</div>
+        </div>
+
+        <div class="card">
+          <h2>Salud y alertas</h2>
+          <div class="muted">Alertas basadas en el estado real de las fuentes.</div>
+
+          <div class="box" style="margin-top:10px" id="alertsBox">
+            <div style="display:flex;justify-content:space-between;gap:10px">
+              <div>
+                <div style="font-weight:900">Sin alertas críticas</div>
+                <div class="muted">Revisa las fuentes con error para más detalle.</div>
+              </div>
+              <span class="pill neu">OK</span>
+            </div>
+          </div>
+
+          <div class="row">
+            <button class="btn ghost" id="retrySources">Reintentar fallas</button>
+            <a class="btn ghost" href="{% url 'monitor:procesos' %}">Abrir Procesos</a>
+          </div>
+        </div>
+
+      </aside>
+    </section>
+  </div>
+
+  <script>
+    const sourcesTable = document.getElementById("sourcesTable");
+    const sourceSearch = document.getElementById("sourceSearch");
+    const typeFilter = document.getElementById("typeFilter");
+    const statusFilter = document.getElementById("statusFilter");
+    const frequencyFilter = document.getElementById("frequencyFilter");
+    const previewText = document.getElementById("previewText");
+    const previewLog = document.getElementById("previewLog");
+
+    function renderSources(items) {
+      sourcesTable.innerHTML = "";
+      if (!items.length) {
+        sourcesTable.innerHTML = "<div class='trow'><div class='mini'>No hay fuentes para estos filtros.</div></div>";
+        return;
+      }
+      items.forEach(source => {
+        const row = document.createElement("div");
+        row.className = "trow";
+        const statusLabel = source.last_status === "error" ? "Error" : "OK";
+        const statusClass = source.last_status === "error" ? "neg" : "pos";
+        row.innerHTML = `
+          <div>
+            <div class="name">${source.name}</div>
+            <div class="mini">${source.is_active ? "Activa" : "Inactiva"}</div>
+          </div>
+          <div class="url">${source.url}</div>
+          <div><span class="pill ${statusClass}"><span class="dot" style="background:var(--g)"></span>${source.type}</span></div>
+          <div class="mini">cada ${source.frequency_minutes} min</div>
+          <div class="mini">${source.last_run_at || "—"} · <span class="pill ${statusClass}">${statusLabel}</span></div>
+          <div class="actions">
+            <button class="iconbtn ok" data-source-id="${source.id}">Probar</button>
+          </div>
+        `;
+        sourcesTable.appendChild(row);
+      });
+    }
+
+    function applyFilters(items) {
+      const search = sourceSearch.value.toLowerCase();
+      return items.filter(source => {
+        if (search && !(`${source.name} ${source.url}`.toLowerCase().includes(search))) return false;
+        if (typeFilter.value && source.type !== typeFilter.value) return false;
+        if (statusFilter.value === "inactive" && source.is_active) return false;
+        if (statusFilter.value === "error" && source.last_status !== "error") return false;
+        if (statusFilter.value === "ok" && source.last_status !== "ok") return false;
+        if (frequencyFilter.value && source.frequency_minutes > Number(frequencyFilter.value)) return false;
+        return true;
+      });
+    }
+
+    async function loadSources() {
+      try {
+        const res = await fetch("{% url 'monitor:api_sources' %}");
+        const data = await res.json();
+        const filtered = applyFilters(data.items || []);
+        renderSources(filtered);
+        const active = data.items.filter(item => item.is_active).length;
+        const errors = data.items.filter(item => item.last_status === "error").length;
+        document.getElementById("kpi-active").textContent = active;
+        document.getElementById("kpi-error").textContent = errors;
+        document.getElementById("kpi-new").textContent = data.items.reduce((sum, item) => sum + (item.last_new_count || 0), 0);
+        document.getElementById("kpi-latency").textContent = "—";
+        if (errors > 0) {
+          document.getElementById("alertsBox").innerHTML = `
+            <div style="display:flex;justify-content:space-between;gap:10px">
+              <div>
+                <div style="font-weight:900">${errors} fuentes con error</div>
+                <div class="muted">Revisa el detalle y reintenta fallas.</div>
+              </div>
+              <span class="pill neg">Atención</span>
+            </div>
+          `;
+        }
+      } catch (err) {
+        console.error("Error cargando fuentes", err);
+      }
+    }
+
+    function getCookie(name) {
+      const value = `; ${document.cookie}`;
+      const parts = value.split(`; ${name}=`);
+      if (parts.length === 2) return parts.pop().split(";").shift();
+      return null;
+    }
+
+    async function testSource(sourceId) {
+      previewText.textContent = "Ejecutando prueba...";
+      previewLog.textContent = "Procesando...";
+      try {
+        const res = await fetch(`/monitor/api/sources/test/${sourceId}`, {
+          method: "POST",
+          headers: {
+            "X-CSRFToken": getCookie("csrftoken")
+          }
+        });
+        const data = await res.json();
+        if (data.error) {
+          previewText.textContent = "Error en prueba.";
+          previewLog.textContent = data.error;
+          return;
+        }
+        previewText.innerHTML = `
+          • Items detectados: <b>${data.items_detected}</b><br/>
+          • Texto extraído: <b>${data.has_text ? "sí" : "no"}</b><br/>
+          • Meta description: <b>${data.has_meta ? "sí" : "no"}</b><br/>
+          • Keywords/tags: <b>${data.has_keywords ? "sí" : "no"}</b>
+        `;
+        previewLog.textContent = "Prueba completada.";
+      } catch (err) {
+        console.error("Error en prueba", err);
+        previewText.textContent = "Error en prueba.";
+        previewLog.textContent = "Revisa consola.";
+      }
+    }
+
+    sourcesTable.addEventListener("click", (event) => {
+      const target = event.target;
+      if (target.matches("button[data-source-id]")) {
+        testSource(target.dataset.sourceId);
+      }
+    });
+    document.getElementById("refreshSources").addEventListener("click", loadSources);
+    document.getElementById("retrySources").addEventListener("click", loadSources);
+    [sourceSearch, typeFilter, statusFilter, frequencyFilter].forEach(el => el.addEventListener("input", loadSources));
+    loadSources();
+  </script>
+</body>
+</html>

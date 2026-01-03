@@ -1,0 +1,234 @@
+{% load static %}
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Monitor · Procesos</title>
+  <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/monitor-design-system.css' %}">
+  <style>
+    :root{
+      --bg:#0b0f14; --stroke:rgba(166,190,200,.16);
+      --text:#e7eef5; --muted:rgba(231,238,245,.70);
+      --g:#19c37d; --shadow:0 14px 40px rgba(0,0,0,.45);
+      --neg:#ff4d4d; --neu:#9fb2be; --pos:#19c37d;
+      --r:18px; --max:1160px;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:Lexend,system-ui;background:var(--bg);color:var(--text)}
+    a{color:inherit;text-decoration:none}
+    .wrap{max-width:var(--max);margin:0 auto;padding:18px}
+    .card{border:1px solid var(--stroke);border-radius:var(--r);background:rgba(255,255,255,.02);box-shadow:var(--shadow);padding:14px}
+    h2{margin:0 0 10px 0;font-size:16px}
+    .muted{color:var(--muted);font-size:12px;line-height:1.5}
+    label{display:block;font-size:12px;color:var(--muted);margin:10px 0 6px}
+    input,select,textarea{
+      width:100%;border:1px solid var(--stroke);border-radius:14px;background:rgba(0,0,0,.20);
+      color:var(--text);padding:10px 12px;font-size:13px;outline:none;
+    }
+    textarea{min-height:92px;resize:vertical}
+    .grid{display:grid;grid-template-columns:1fr .9fr;gap:14px;margin-top:14px}
+    @media(max-width:980px){.grid{grid-template-columns:1fr}}
+    .row{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+    .btn{padding:10px 12px;border-radius:14px;border:1px solid var(--stroke);background:rgba(25,195,125,.12);font-weight:800;font-size:13px}
+    .btn.ghost{background:rgba(255,255,255,.02);color:var(--muted);font-weight:500}
+    .log{
+      border:1px solid var(--stroke);border-radius:14px;background:rgba(0,0,0,.18);
+      padding:12px;font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size:12px;color:rgba(231,238,245,.85);line-height:1.5;
+      white-space:pre-wrap;
+    }
+    .pill{padding:6px 10px;border-radius:999px;border:1px solid var(--stroke);background:rgba(255,255,255,.02);color:var(--muted);font-size:12px;white-space:nowrap}
+    .pill.pos{border-color:rgba(25,195,125,.35);background:rgba(25,195,125,.10);color:var(--text)}
+    .pill.neg{border-color:rgba(255,77,77,.35);background:rgba(255,77,77,.08);color:var(--text)}
+    .pill.neu{border-color:rgba(159,178,190,.35);background:rgba(159,178,190,.08);color:var(--text)}
+    .box{padding:12px;border-radius:14px;border:1px solid var(--stroke);background:rgba(0,0,0,.16)}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    {% include "monitor/_header.html" %}
+
+    <div class="grid">
+      <section class="card">
+        <h2>Ejecutar procesos</h2>
+        <div class="muted">
+          Útil para “ponerse al día”, reconstruir días pasados o reprocesar después de ajustar criterios o fuentes.
+        </div>
+
+        <label>Modo</label>
+        <select>
+          <option selected>Por rango de fechas</option>
+        </select>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div>
+            <label>Desde</label>
+            <input type="date" id="dateFrom">
+          </div>
+          <div>
+            <label>Hasta</label>
+            <input type="date" id="dateTo">
+          </div>
+        </div>
+
+        <label>Qué quieres correr</label>
+        <select id="runType">
+          <option selected>Todo: ingesta + clasificación + ficha editorial</option>
+          <option>Solo ingesta</option>
+          <option>Solo clasificación IA</option>
+        </select>
+
+        <label>Fuentes</label>
+        <select>
+          <option selected>Todas las fuentes activas</option>
+        </select>
+
+        <label>Opciones avanzadas</label>
+        <div class="box">
+          <div style="display:flex;justify-content:space-between;gap:10px;align-items:center">
+            <div>
+              <div style="font-weight:800;font-size:13px">Reprocesar aunque ya exista clasificación</div>
+              <div class="muted">Útil si cambió el prompt o reglas de mapeo con Atlas.</div>
+            </div>
+            <input type="checkbox" id="forceClassify" style="width:18px;height:18px">
+          </div>
+          <div style="height:10px"></div>
+          <div style="display:flex;justify-content:space-between;gap:10px;align-items:center">
+            <div>
+              <div style="font-weight:800;font-size:13px">Respetar correcciones editoriales</div>
+              <div class="muted">Si está activo, la IA no “pisa” ajustes humanos.</div>
+            </div>
+            <input type="checkbox" id="respectEditorial" checked style="width:18px;height:18px">
+          </div>
+        </div>
+
+        <label>Nota / motivo (para bitácora)</label>
+        <textarea id="runNotes" placeholder="Ej: Se agregaron fuentes nuevas y se ajustó criterio de sentimiento por actor."></textarea>
+
+        <div class="row">
+          <button class="btn" id="runNow">Ejecutar ahora</button>
+          <button class="btn ghost">Simular (solo contar)</button>
+          <button class="btn ghost">Programar</button>
+        </div>
+      </section>
+
+      <aside class="card">
+        <h2>Estado y bitácora</h2>
+        <div class="row">
+          <span class="pill neu" id="autoStatus">Automático: —</span>
+          <span class="pill neu" id="queueStatus">Cola: —</span>
+          <span class="pill neu" id="sourceErrors">Fuentes con error: —</span>
+        </div>
+
+        <div style="height:12px"></div>
+        <h2>Última ejecución</h2>
+        <div class="box" id="lastRunBox">
+          <div style="display:flex;justify-content:space-between;gap:10px">
+            <div>
+              <div style="font-weight:800">Sin ejecuciones registradas</div>
+              <div class="muted">Corre un proceso para iniciar la bitácora.</div>
+            </div>
+            <span class="pill neu">—</span>
+          </div>
+        </div>
+
+        <div style="height:12px"></div>
+        <h2>Log</h2>
+        <div class="log" id="processLog">Sin logs por ahora.</div>
+
+        <div class="row">
+          <button class="btn ghost">Ver detalles</button>
+          <button class="btn ghost">Reintentar fallas</button>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <script>
+    async function loadSummary() {
+      try {
+        const res = await fetch("{% url 'monitor:api_summary' %}");
+        const data = await res.json();
+        document.getElementById("sourceErrors").textContent = `Fuentes con error: ${data.sources_error ?? 0}`;
+      } catch (err) {
+        console.error("Error cargando resumen", err);
+      }
+    }
+
+    function getCookie(name) {
+      const value = `; ${document.cookie}`;
+      const parts = value.split(`; ${name}=`);
+      if (parts.length === 2) return parts.pop().split(";").shift();
+      return null;
+    }
+
+    async function loadProcessRuns() {
+      try {
+        const res = await fetch("{% url 'monitor:api_processes' %}");
+        const data = await res.json();
+        if (!data.items.length) {
+          return;
+        }
+        const run = data.items[0];
+        document.getElementById("lastRunBox").innerHTML = `
+          <div style="display:flex;justify-content:space-between;gap:10px">
+            <div>
+              <div style="font-weight:800">Rango: ${run.date_from || "—"} → ${run.date_to || "—"}</div>
+              <div class="muted">Tipo: ${run.run_type} · Estado: ${run.status}</div>
+            </div>
+            <span class="pill ${run.status === "ok" ? "pos" : run.status === "error" ? "neg" : "neu"}">${run.status}</span>
+          </div>
+        `;
+        document.getElementById("processLog").textContent = run.log_text || "Sin log disponible.";
+        document.getElementById("autoStatus").textContent = `Automático: ${data.automatic_mode}`;
+        document.getElementById("queueStatus").textContent = `Cola: ${data.items.length} registros`;
+      } catch (err) {
+        console.error("Error cargando procesos", err);
+      }
+    }
+
+    document.getElementById("runNow").addEventListener("click", async () => {
+      const runTypeLabel = document.getElementById("runType").value;
+      const runType = runTypeLabel.includes("Solo ingesta") ? "ingest" : runTypeLabel.includes("Solo clasificación") ? "classify" : "all";
+      const payload = {
+        date_from: document.getElementById("dateFrom").value || null,
+        date_to: document.getElementById("dateTo").value || null,
+        run_type: runType,
+        force_classify: document.getElementById("forceClassify").checked,
+        respect_editorial: document.getElementById("respectEditorial").checked,
+        notes: document.getElementById("runNotes").value
+      };
+      const btn = document.getElementById("runNow");
+      btn.textContent = "Ejecutando...";
+      btn.disabled = true;
+      try {
+        const res = await fetch("{% url 'monitor:api_process_run' %}", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": getCookie("csrftoken")
+          },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          alert(data.error || "Error ejecutando proceso");
+          return;
+        }
+        document.getElementById("processLog").textContent = data.log || "Proceso ejecutado.";
+        loadProcessRuns();
+      } catch (err) {
+        console.error("Error ejecutando proceso", err);
+      } finally {
+        btn.textContent = "Ejecutar ahora";
+        btn.disabled = false;
+      }
+    });
+
+    loadSummary();
+    loadProcessRuns();
+  </script>
+</body>
+</html>

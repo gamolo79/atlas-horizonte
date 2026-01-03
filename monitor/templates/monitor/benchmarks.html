@@ -1,0 +1,545 @@
+{% load static %}
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Monitor · Benchmarks</title>
+
+  <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/luxon@3"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon@1"></script>
+  <link rel="stylesheet" href="{% static 'css/monitor-design-system.css' %}">
+
+  <style>
+    :root{
+      --bg:#0b0f14; --stroke:rgba(166,190,200,.16);
+      --text:#e7eef5; --muted:rgba(231,238,245,.70);
+      --g:#19c37d; --shadow:0 14px 40px rgba(0,0,0,.45);
+      --neg:#ff4d4d; --neu:#9fb2be; --pos:#19c37d;
+      --r:18px; --max:1160px;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:Lexend,system-ui;background:var(--bg);color:var(--text)}
+    a{color:inherit;text-decoration:none}
+    .wrap{max-width:var(--max);margin:0 auto;padding:18px}
+    .card{border:1px solid var(--stroke);border-radius:var(--r);background:rgba(255,255,255,.02);box-shadow:var(--shadow);padding:14px}
+    h2{margin:0 0 10px 0;font-size:16px}
+    .muted{color:var(--muted);font-size:12px;line-height:1.5}
+    label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}
+    input,select{
+      width:100%;border:1px solid var(--stroke);border-radius:14px;background:rgba(0,0,0,.20);
+      color:var(--text);padding:10px 12px;font-size:13px;outline:none;
+    }
+    .filters-row{display:grid;grid-template-columns:repeat(3, minmax(0, 1fr));gap:10px;margin-top:12px}
+    .filters-row.range{grid-template-columns:repeat(2, minmax(0, 1fr));max-width:520px}
+    @media(max-width:980px){.filters-row{grid-template-columns:1fr 1fr}.filters-row.range{max-width:none}}
+    @media(max-width:520px){.filters-row{grid-template-columns:1fr}}
+    .row{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+    .btn{padding:10px 12px;border-radius:14px;border:1px solid var(--stroke);background:rgba(25,195,125,.12);font-weight:800;font-size:13px}
+    .btn.ghost{background:rgba(255,255,255,.02);color:var(--muted);font-weight:500}
+    .grid{display:grid;grid-template-columns:1.35fr .65fr;gap:14px;margin-top:14px}
+    @media(max-width:980px){.grid{grid-template-columns:1fr}}
+    .split{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px}
+    @media(max-width:980px){.split{grid-template-columns:1fr}}
+    canvas{width:100% !important;height:300px !important}
+    .pill{padding:6px 10px;border-radius:999px;border:1px solid var(--stroke);background:rgba(255,255,255,.02);color:var(--muted);font-size:12px;white-space:nowrap}
+    .pill.pos{border-color:rgba(25,195,125,.35);background:rgba(25,195,125,.10);color:var(--text)}
+    .pill.neg{border-color:rgba(255,77,77,.35);background:rgba(255,77,77,.08);color:var(--text)}
+    .pill.neu{border-color:rgba(159,178,190,.35);background:rgba(159,178,190,.08);color:var(--text)}
+    .box{padding:12px;border-radius:14px;border:1px solid var(--stroke);background:rgba(0,0,0,.16)}
+    .tags{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+    .tag{border:1px solid var(--stroke);border-radius:999px;padding:6px 10px;background:rgba(0,0,0,.16);font-size:12px;color:var(--muted)}
+    .tag.a{border-color:rgba(25,195,125,.35);background:rgba(25,195,125,.08);color:var(--text)}
+    .tag.b{border-color:rgba(159,178,190,.35);background:rgba(159,178,190,.08);color:var(--text)}
+    .tag.shared{border-color:rgba(255,255,255,.22);background:rgba(255,255,255,.05);color:var(--text)}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    {% include "monitor/_header.html" %}
+
+    <section class="card" style="margin-top:14px">
+      <h2>Selecciona A y B</h2>
+      <div class="filters-row">
+        <div>
+          <label>Tipo (A)</label>
+          <select id="aType">
+            <option value="persona" selected>Persona</option>
+            <option value="institucion">Institución</option>
+            <option value="tema">Tema</option>
+          </select>
+        </div>
+        <div>
+          <label>Buscar (A)</label>
+          <input id="aSearch" placeholder="Escribe para filtrar…">
+        </div>
+        <div>
+          <label>Entidad (A)</label>
+          <select id="aEntity"><option value="">Selecciona entidad</option></select>
+        </div>
+      </div>
+
+      <div class="filters-row">
+        <div>
+          <label>Tipo (B)</label>
+          <select id="bType">
+            <option value="persona">Persona</option>
+            <option value="institucion" selected>Institución</option>
+            <option value="tema">Tema</option>
+          </select>
+        </div>
+        <div>
+          <label>Buscar (B)</label>
+          <input id="bSearch" placeholder="Escribe para filtrar…">
+        </div>
+        <div>
+          <label>Entidad (B)</label>
+          <select id="bEntity"><option value="">Selecciona entidad</option></select>
+        </div>
+      </div>
+
+      <div class="filters-row range">
+        <div>
+          <label>Rango</label>
+          <select id="rangeSelect">
+            <option value="7">Últimos 7 días</option>
+            <option value="30" selected>Últimos 30 días</option>
+            <option value="90">Últimos 90 días</option>
+            <option value="year">Este año</option>
+          </select>
+        </div>
+        <div>
+          <label>Granularidad</label>
+          <select id="grainSelect">
+            <option value="day">Día</option>
+            <option value="week" selected>Semana</option>
+            <option value="month">Mes</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="row">
+        <button class="btn" id="compareBtn">Comparar</button>
+        <button class="btn ghost" id="swapBtn">Intercambiar A ↔ B</button>
+        <button class="btn ghost">Guardar benchmark</button>
+      </div>
+    </section>
+
+    <section class="grid">
+      <div class="card">
+        <h2>Volumen comparado (A vs B)</h2>
+        <div class="muted">Serie temporal por semana/mes. Útil para ver quién “sube” y cuándo.</div>
+        <div style="height:10px"></div>
+        <canvas id="lineCompare"></canvas>
+      </div>
+
+      <aside class="card">
+        <h2>Lectura rápida</h2>
+        <div class="box">
+          <div style="display:flex;justify-content:space-between;gap:10px">
+            <div>
+              <div style="font-weight:800" id="aSummary">A: —</div>
+              <div class="muted" id="aSummaryMeta">Notas: — · Opinión: —</div>
+            </div>
+            <span class="pill neu">Tono: neutro</span>
+          </div>
+        </div>
+        <div style="height:10px"></div>
+        <div class="box">
+          <div style="display:flex;justify-content:space-between;gap:10px">
+            <div>
+              <div style="font-weight:800" id="bSummary">B: —</div>
+              <div class="muted" id="bSummaryMeta">Notas: — · Opinión: —</div>
+            </div>
+            <span class="pill pos">Tono: positivo</span>
+          </div>
+        </div>
+
+        <div class="split">
+          <div>
+            <div class="muted" style="margin-top:12px">Sentimiento A</div>
+            <canvas id="donutA"></canvas>
+          </div>
+          <div>
+            <div class="muted" style="margin-top:12px">Sentimiento B</div>
+            <canvas id="donutB"></canvas>
+          </div>
+        </div>
+      </aside>
+    </section>
+
+    <section class="split">
+      <div class="card">
+        <h2>Dispersión por nota (A)</h2>
+        <div class="muted">Cada punto es una nota con tooltip (título + enlace). Color por sentimiento.</div>
+        <div style="height:10px"></div>
+        <canvas id="scatterA"></canvas>
+      </div>
+
+      <div class="card">
+        <h2>Dispersión por nota (B)</h2>
+        <div class="muted">Mismo enfoque para comparar “ritmo” y picos.</div>
+        <div style="height:10px"></div>
+        <canvas id="scatterB"></canvas>
+      </div>
+    </section>
+
+    <section class="split">
+      <div class="card">
+        <h2>Etiquetas: compartidas vs distintivas</h2>
+        <div class="muted">Compartidas ayudan a entender el terreno común; distintivas muestran dónde se separan narrativas.</div>
+
+        <div style="height:10px"></div>
+        <div class="box">
+          <div style="font-weight:800">Compartidas</div>
+          <div class="tags" id="sharedLabels">
+            <span class="tag shared">Sin datos</span>
+          </div>
+        </div>
+
+        <div style="height:10px"></div>
+        <div class="box">
+          <div style="font-weight:800">Distintivas A</div>
+          <div class="tags" id="distinctLabelsA">
+            <span class="tag a">—</span>
+          </div>
+        </div>
+
+        <div style="height:10px"></div>
+        <div class="box">
+          <div style="font-weight:800">Distintivas B</div>
+          <div class="tags" id="distinctLabelsB">
+            <span class="tag b">—</span>
+          </div>
+        </div>
+
+        <div class="row">
+          <button class="btn ghost">Ver “historias” del rango</button>
+          <button class="btn ghost" id="exportBenchmark">Exportar</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Fuentes que empujan el tono</h2>
+        <div class="muted">Ranking de medios por volumen y sesgo aparente (según sentimiento hacia A/B).</div>
+
+        <div style="height:10px"></div>
+        <div id="toneSources">
+          <div class="box">
+            <div style="display:flex;justify-content:space-between;gap:10px">
+              <div>
+                <div style="font-weight:800">Sin datos</div>
+                <div class="muted">Corre procesos para poblar.</div>
+              </div>
+              <span class="pill neu">—</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="row">
+          <button class="btn" id="openNotes">Abrir lista de notas</button>
+          <button class="btn ghost" id="openDashA">Abrir dashboards de A</button>
+          <button class="btn ghost" id="openDashB">Abrir dashboards de B</button>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <script>
+    let compareChart;
+    let donutA;
+    let donutB;
+    let scatterA;
+    let scatterB;
+
+    const aType = document.getElementById("aType");
+    const bType = document.getElementById("bType");
+    const aSearch = document.getElementById("aSearch");
+    const bSearch = document.getElementById("bSearch");
+    const aEntity = document.getElementById("aEntity");
+    const bEntity = document.getElementById("bEntity");
+    const rangeSelect = document.getElementById("rangeSelect");
+    const grainSelect = document.getElementById("grainSelect");
+
+    function getCookie(name) {
+      const value = `; ${document.cookie}`;
+      const parts = value.split(`; ${name}=`);
+      if (parts.length === 2) return parts.pop().split(";").shift();
+      return null;
+    }
+
+    async function loadEntities(targetSelect, type, query) {
+      if (!query) return;
+      try {
+        const res = await fetch(`{% url 'monitor:api_entities' %}?type=${type}&q=${encodeURIComponent(query)}`);
+        const data = await res.json();
+        targetSelect.innerHTML = "<option value=''>Selecciona entidad</option>";
+        data.results.forEach(item => {
+          const option = document.createElement("option");
+          option.value = item.id;
+          option.textContent = item.name;
+          targetSelect.appendChild(option);
+        });
+      } catch (err) {
+        console.error("Error cargando entidades", err);
+      }
+    }
+
+    function buildParams() {
+      const params = new URLSearchParams();
+      params.set("a_type", aType.value);
+      params.set("b_type", bType.value);
+      if (aEntity.value) params.set("a_id", aEntity.value);
+      if (bEntity.value) params.set("b_id", bEntity.value);
+      if (rangeSelect.value) params.set("range", rangeSelect.value);
+      if (grainSelect.value) params.set("grain", grainSelect.value);
+      return params;
+    }
+
+    function renderLineCompare(data) {
+      if (compareChart) compareChart.destroy();
+      const timelineMap = (timeline) => {
+        const map = new Map();
+        timeline.forEach(item => map.set(item.period, item.total));
+        return map;
+      };
+      const mapA = timelineMap(data.a.timeline);
+      const mapB = timelineMap(data.b.timeline);
+      const labels = Array.from(new Set([...mapA.keys(), ...mapB.keys()])).sort();
+      const seriesA = labels.map(label => mapA.get(label) || 0);
+      const seriesB = labels.map(label => mapB.get(label) || 0);
+      compareChart = new Chart(document.getElementById("lineCompare"), {
+        type: "line",
+        data: {
+          labels,
+          datasets: [
+            { label: "A", data: seriesA, tension: 0.35, borderColor: "#19c37d" },
+            { label: "B", data: seriesB, tension: 0.35, borderColor: "#9fb2be" }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { labels: { color: "rgba(231,238,245,.70)" } } },
+          scales: {
+            x: { ticks: { color: "rgba(231,238,245,.70)" }, grid: { color: "rgba(166,190,200,.10)" } },
+            y: { beginAtZero: true, ticks: { color: "rgba(231,238,245,.70)" }, grid: { color: "rgba(166,190,200,.10)" } }
+          }
+        }
+      });
+    }
+
+    function renderDonuts(data) {
+      if (donutA) donutA.destroy();
+      if (donutB) donutB.destroy();
+      donutA = new Chart(document.getElementById("donutA"), {
+        type: "doughnut",
+        data: {
+          labels: ["Pos", "Neu", "Neg"],
+          datasets: [{
+            data: [
+              data.a.sentiment_donut.positivo || 0,
+              data.a.sentiment_donut.neutro || 0,
+              data.a.sentiment_donut.negativo || 0
+            ],
+            backgroundColor: ["#19c37d", "#9fb2be", "#ff4d4d"]
+          }]
+        },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: "bottom", labels: { color: "rgba(231,238,245,.70)" } } } }
+      });
+      donutB = new Chart(document.getElementById("donutB"), {
+        type: "doughnut",
+        data: {
+          labels: ["Pos", "Neu", "Neg"],
+          datasets: [{
+            data: [
+              data.b.sentiment_donut.positivo || 0,
+              data.b.sentiment_donut.neutro || 0,
+              data.b.sentiment_donut.negativo || 0
+            ],
+            backgroundColor: ["#19c37d", "#9fb2be", "#ff4d4d"]
+          }]
+        },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: "bottom", labels: { color: "rgba(231,238,245,.70)" } } } }
+      });
+    }
+
+    function renderScatters(data) {
+      if (scatterA) scatterA.destroy();
+      if (scatterB) scatterB.destroy();
+      const groupPoints = (points) => {
+        const grouped = { positivo: [], neutro: [], negativo: [] };
+        points.forEach(point => {
+          grouped[point.sentiment]?.push(point);
+        });
+        return grouped;
+      };
+
+      const aGrouped = groupPoints(data.a.scatter_points);
+      const bGrouped = groupPoints(data.b.scatter_points);
+
+      scatterA = new Chart(document.getElementById("scatterA"), {
+        type: "scatter",
+        data: {
+          datasets: [
+            { label: "Pos", data: aGrouped.positivo, pointRadius: 5, backgroundColor: "#19c37d" },
+            { label: "Neu", data: aGrouped.neutro, pointRadius: 5, backgroundColor: "#9fb2be" },
+            { label: "Neg", data: aGrouped.negativo, pointRadius: 5, backgroundColor: "#ff4d4d" }
+          ]
+        },
+        options: {
+          parsing: false,
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { labels: { color: "rgba(231,238,245,.70)" } } },
+          scales: {
+            x: { type: "time", time: { unit: "day" } },
+            y: { beginAtZero: true }
+          }
+        }
+      });
+
+      scatterB = new Chart(document.getElementById("scatterB"), {
+        type: "scatter",
+        data: {
+          datasets: [
+            { label: "Pos", data: bGrouped.positivo, pointRadius: 5, backgroundColor: "#19c37d" },
+            { label: "Neu", data: bGrouped.neutro, pointRadius: 5, backgroundColor: "#9fb2be" },
+            { label: "Neg", data: bGrouped.negativo, pointRadius: 5, backgroundColor: "#ff4d4d" }
+          ]
+        },
+        options: {
+          parsing: false,
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { labels: { color: "rgba(231,238,245,.70)" } } },
+          scales: {
+            x: { type: "time", time: { unit: "day" } },
+            y: { beginAtZero: true }
+          }
+        }
+      });
+    }
+
+    function renderLabels(data) {
+      const shared = document.getElementById("sharedLabels");
+      const distinctA = document.getElementById("distinctLabelsA");
+      const distinctB = document.getElementById("distinctLabelsB");
+      shared.innerHTML = data.shared_labels.map(label => `<a class="tag shared" href="/monitor/feed/?label=${encodeURIComponent(label)}">${label}</a>`).join("") || "<span class='tag shared'>Sin datos</span>";
+      distinctA.innerHTML = data.distinct_labels.a.map(label => `<a class="tag a" href="/monitor/feed/?label=${encodeURIComponent(label)}">${label}</a>`).join("") || "<span class='tag a'>—</span>";
+      distinctB.innerHTML = data.distinct_labels.b.map(label => `<a class="tag b" href="/monitor/feed/?label=${encodeURIComponent(label)}">${label}</a>`).join("") || "<span class='tag b'>—</span>";
+    }
+
+    function renderToneSources(data) {
+      const container = document.getElementById("toneSources");
+      container.innerHTML = "";
+      const sources = [...data.tone_sources.a, ...data.tone_sources.b].slice(0, 5);
+      if (!sources.length) {
+        container.innerHTML = "<div class='box'><div style='display:flex;justify-content:space-between;gap:10px'><div><div style='font-weight:800'>Sin datos</div><div class='muted'>Corre procesos para poblar.</div></div><span class='pill neu'>—</span></div></div>";
+        return;
+      }
+      sources.forEach(source => {
+        const box = document.createElement("div");
+        box.className = "box";
+        box.style.marginBottom = "10px";
+        box.innerHTML = `
+          <div style="display:flex;justify-content:space-between;gap:10px">
+            <div>
+              <div style="font-weight:800">${source.source}</div>
+              <div class="muted">${source.count} notas</div>
+            </div>
+            <span class="pill neu">neutro</span>
+          </div>
+        `;
+        container.appendChild(box);
+      });
+    }
+
+    function updateSummary(data) {
+      const aTotal = data.a.scatter_points.length;
+      const bTotal = data.b.scatter_points.length;
+      document.getElementById("aSummary").textContent = `A: ${aEntity.options[aEntity.selectedIndex]?.textContent || "—"}`;
+      document.getElementById("bSummary").textContent = `B: ${bEntity.options[bEntity.selectedIndex]?.textContent || "—"}`;
+      document.getElementById("aSummaryMeta").textContent = `Notas: ${aTotal}`;
+      document.getElementById("bSummaryMeta").textContent = `Notas: ${bTotal}`;
+      document.getElementById("openNotes").onclick = () => {
+        window.location.href = `/monitor/notas/?entity_type=${aType.value}&entity_id=${aEntity.value}`;
+      };
+      document.getElementById("openDashA").onclick = () => {
+        window.location.href = `/monitor/dashboards/?entity_type=${aType.value}&entity_id=${aEntity.value}`;
+      };
+      document.getElementById("openDashB").onclick = () => {
+        window.location.href = `/monitor/dashboards/?entity_type=${bType.value}&entity_id=${bEntity.value}`;
+      };
+    }
+
+    async function loadBenchmark() {
+      try {
+        if (!aEntity.value || !bEntity.value) {
+          return;
+        }
+        const params = buildParams();
+        const res = await fetch(`{% url 'monitor:api_benchmark' %}?${params.toString()}`);
+        const data = await res.json();
+        if (data.error) {
+          console.error(data.error);
+          return;
+        }
+        renderLineCompare(data);
+        renderDonuts(data);
+        renderScatters(data);
+        renderLabels(data);
+        renderToneSources(data);
+        updateSummary(data);
+        document.getElementById("exportBenchmark").onclick = async () => {
+          const exportRes = await fetch("{% url 'monitor:api_export_benchmark' %}", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-CSRFToken": getCookie("csrftoken")
+            },
+            body: JSON.stringify({
+              a_type: aType.value,
+              a_id: aEntity.value,
+              b_type: bType.value,
+              b_id: bEntity.value,
+              range: rangeSelect.value,
+              grain: grainSelect.value
+            })
+          });
+          const exportData = await exportRes.json();
+          if (exportData.url) window.open(exportData.url, "_blank");
+        };
+      } catch (err) {
+        console.error("Error cargando benchmark", err);
+      }
+    }
+
+    document.getElementById("compareBtn").addEventListener("click", loadBenchmark);
+    document.getElementById("swapBtn").addEventListener("click", () => {
+      const tempType = aType.value;
+      const tempEntity = aEntity.value;
+      aType.value = bType.value;
+      bType.value = tempType;
+      aEntity.value = bEntity.value;
+      bEntity.value = tempEntity;
+      loadBenchmark();
+    });
+    aSearch.addEventListener("input", () => {
+      if (aSearch.value.length >= 2) {
+        loadEntities(aEntity, aType.value, aSearch.value);
+      }
+    });
+    bSearch.addEventListener("input", () => {
+      if (bSearch.value.length >= 2) {
+        loadEntities(bEntity, bType.value, bSearch.value);
+      }
+    });
+
+    loadBenchmark();
+  </script>
+</body>
+</html>
