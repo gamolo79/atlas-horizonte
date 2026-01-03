@@ -38,6 +38,16 @@
     }
     textarea{min-height:92px;resize:vertical}
     .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .mentions-list{display:flex;flex-direction:column;gap:10px}
+    .mention-row{
+      display:grid;
+      grid-template-columns:1fr 1.2fr 1.2fr .8fr auto;
+      gap:8px;
+      align-items:center;
+    }
+    @media(max-width:980px){
+      .mention-row{grid-template-columns:1fr 1fr}
+    }
     .actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
     .btn{padding:10px 12px;border-radius:14px;border:1px solid var(--stroke);background:rgba(25,195,125,.12);font-weight:800;font-size:13px}
     .btn.ghost{background:rgba(255,255,255,.02);color:var(--muted);font-weight:500}
@@ -46,7 +56,9 @@
 </head>
 <body>
   <div class="wrap">
-    <div class="head">
+    {% include "monitor/_header.html" %}
+
+    <div class="head" style="margin-top:14px">
       <div>
         <div class="title">Revisión editorial</div>
         <div class="muted">Corrige etiquetas, idea central, tipo y sentimiento. Se guardan cambios y puedes aplicarlos por lotes.</div>
@@ -80,8 +92,11 @@
             </select>
           </div>
           <div class="field">
-            <label>Menciones (sentimiento)</label>
-            <div id="mentionsList" class="box muted">Sin menciones</div>
+            <label>Menciones (tipo, entidad y sentimiento)</label>
+            <div id="mentionsList" class="mentions-list"></div>
+            <div class="actions" style="margin-top:8px">
+              <button class="btn ghost" id="addMention">Agregar mención</button>
+            </div>
           </div>
         </div>
 
@@ -124,6 +139,7 @@
     const centralIdeaInput = document.getElementById("centralIdeaInput");
     const typeSelect = document.getElementById("typeSelect");
     const mentionsList = document.getElementById("mentionsList");
+    const addMentionBtn = document.getElementById("addMention");
     const reasonInput = document.getElementById("reasonInput");
     const openOriginal = document.getElementById("openOriginal");
 
@@ -155,26 +171,13 @@
         labelsInput.value = (data.labels || []).join(", ");
         centralIdeaInput.value = data.central_idea || "";
         typeSelect.value = data.article_type || "informativo";
+        mentionsList.innerHTML = "";
         if (data.mentions && data.mentions.length) {
-          mentionsList.innerHTML = "";
-          data.mentions.forEach((mention, idx) => {
-            const row = document.createElement("div");
-            row.style.marginBottom = "8px";
-            row.innerHTML = `
-              <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-                <span>${mention.target_name}</span>
-                <select data-mention-index="${idx}" data-target-type="${mention.target_type}" data-target-id="${mention.target_id}" data-target-name="${mention.target_name}">
-                  <option value="positivo">Positivo</option>
-                  <option value="neutro">Neutro</option>
-                  <option value="negativo">Negativo</option>
-                </select>
-              </div>
-            `;
-            row.querySelector("select").value = mention.sentiment || "neutro";
-            mentionsList.appendChild(row);
+          data.mentions.forEach(mention => {
+            mentionsList.appendChild(createMentionRow(mention));
           });
         } else {
-          mentionsList.textContent = "Sin menciones";
+          mentionsList.appendChild(createMentionRow());
         }
         const history = document.getElementById("review-history");
         if (data.reviews && data.reviews.length) {
@@ -188,17 +191,82 @@
       }
     }
 
+    function createMentionRow(mention = {}) {
+      const row = document.createElement("div");
+      row.className = "mention-row";
+      row.innerHTML = `
+        <select class="mention-type">
+          <option value="persona">Persona</option>
+          <option value="institucion">Institución</option>
+          <option value="tema">Tema</option>
+        </select>
+        <input class="mention-search" placeholder="Buscar entidad">
+        <select class="mention-entity"><option value="">Selecciona entidad</option></select>
+        <select class="mention-sentiment">
+          <option value="positivo">Positivo</option>
+          <option value="neutro">Neutro</option>
+          <option value="negativo">Negativo</option>
+        </select>
+        <button class="btn ghost mention-remove" type="button">Quitar</button>
+      `;
+      const typeSelect = row.querySelector(".mention-type");
+      const searchInput = row.querySelector(".mention-search");
+      const entitySelect = row.querySelector(".mention-entity");
+      const sentimentSelect = row.querySelector(".mention-sentiment");
+      const removeBtn = row.querySelector(".mention-remove");
+
+      typeSelect.value = mention.target_type || "persona";
+      sentimentSelect.value = mention.sentiment || "neutro";
+      if (mention.target_id && mention.target_name) {
+        entitySelect.innerHTML = `<option value="${mention.target_id}" selected>${mention.target_name}</option>`;
+      }
+
+      typeSelect.addEventListener("change", () => {
+        entitySelect.innerHTML = "<option value=''>Selecciona entidad</option>";
+        searchInput.value = "";
+      });
+
+      searchInput.addEventListener("input", async () => {
+        if (searchInput.value.length < 2) return;
+        try {
+          const res = await fetch(`{% url 'monitor:api_entities' %}?type=${typeSelect.value}&q=${encodeURIComponent(searchInput.value)}`);
+          const data = await res.json();
+          entitySelect.innerHTML = "<option value=''>Selecciona entidad</option>";
+          data.results.forEach(item => {
+            const option = document.createElement("option");
+            option.value = item.id;
+            option.textContent = item.name;
+            entitySelect.appendChild(option);
+          });
+        } catch (err) {
+          console.error("Error cargando entidades", err);
+        }
+      });
+
+      removeBtn.addEventListener("click", () => {
+        row.remove();
+        if (!mentionsList.children.length) {
+          mentionsList.appendChild(createMentionRow());
+        }
+      });
+
+      return row;
+    }
+
     document.getElementById("saveReview").addEventListener("click", async () => {
       if (!articleId) return;
       const mentions = [];
-      mentionsList.querySelectorAll("select").forEach((selectEl) => {
-        const label = selectEl.dataset.targetName;
-        if (!label) return;
+      mentionsList.querySelectorAll(".mention-row").forEach((row) => {
+        const typeSelect = row.querySelector(".mention-type");
+        const entitySelect = row.querySelector(".mention-entity");
+        const sentimentSelect = row.querySelector(".mention-sentiment");
+        const selectedOption = entitySelect.options[entitySelect.selectedIndex];
+        if (!typeSelect.value || !entitySelect.value || !selectedOption) return;
         mentions.push({
-          target_type: selectEl.dataset.targetType,
-          target_id: Number(selectEl.dataset.targetId),
-          target_name: label,
-          sentiment: selectEl.value
+          target_type: typeSelect.value,
+          target_id: Number(entitySelect.value),
+          target_name: selectedOption.textContent,
+          sentiment: sentimentSelect.value
         });
       });
       const payload = {
@@ -231,6 +299,10 @@
       } catch (err) {
         console.error("Error guardando revisión", err);
       }
+    });
+
+    addMentionBtn.addEventListener("click", () => {
+      mentionsList.appendChild(createMentionRow());
     });
 
     loadReviewSummary();

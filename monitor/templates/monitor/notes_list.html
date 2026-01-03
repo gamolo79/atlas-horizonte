@@ -1,0 +1,236 @@
+{% load static %}
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Monitor · Lista de notas</title>
+  <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/monitor-design-system.css' %}">
+  <style>
+    :root{
+      --bg:#0b0f14; --panel:#0f1722; --stroke:rgba(166,190,200,.16);
+      --text:#e7eef5; --muted:rgba(231,238,245,.70);
+      --g:#19c37d; --neg:#ff4d4d; --neu:#9fb2be; --pos:#19c37d;
+      --r:18px; --shadow:0 14px 40px rgba(0,0,0,.45); --max:1120px;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:Lexend,system-ui;background:var(--bg);color:var(--text)}
+    .wrap{max-width:var(--max);margin:0 auto;padding:18px}
+    .card{
+      border:1px solid var(--stroke);border-radius:var(--r);
+      background:rgba(255,255,255,.02);box-shadow:var(--shadow);padding:14px;
+    }
+    .filters{
+      display:grid;grid-template-columns:repeat(4, minmax(0, 1fr));gap:10px;margin-top:12px;
+    }
+    @media(max-width:980px){.filters{grid-template-columns:repeat(2, minmax(0, 1fr))}}
+    @media(max-width:520px){.filters{grid-template-columns:1fr}}
+    .input, .select{
+      border:1px solid var(--stroke);border-radius:14px;background:rgba(0,0,0,.20);
+      color:var(--text);padding:10px 12px;font-size:13px;outline:none;width:100%;
+    }
+    label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}
+    .list{display:flex;flex-direction:column;gap:12px;margin-top:14px}
+    .note{
+      padding:14px;border-radius:16px;border:1px solid var(--stroke);
+      background:rgba(0,0,0,.18);
+    }
+    .note h3{margin:0 0 8px 0;font-size:15px}
+    .meta{font-size:12px;color:var(--muted);display:flex;gap:10px;flex-wrap:wrap}
+    .chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+    .chip{padding:6px 10px;border-radius:999px;font-size:12px;border:1px solid var(--stroke);color:var(--muted)}
+    .chip.pos{border-color:rgba(25,195,125,.4);background:rgba(25,195,125,.10);color:var(--text)}
+    .chip.neu{border-color:rgba(159,178,190,.35);background:rgba(159,178,190,.08);color:var(--text)}
+    .chip.neg{border-color:rgba(255,77,77,.35);background:rgba(255,77,77,.08);color:var(--text)}
+    .actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
+    .btn{
+      padding:10px 12px;border-radius:14px;border:1px solid var(--stroke);
+      background:rgba(25,195,125,.12);font-weight:700;font-size:13px;
+    }
+    .btn.ghost{background:rgba(255,255,255,.02);color:var(--muted);font-weight:500}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    {% include "monitor/_header.html" %}
+
+    <section class="card" style="margin-top:14px">
+      <h2 style="margin:0 0 8px 0">Lista de notas (solo lectura)</h2>
+      <div class="meta">Filtra por fecha, entidad, sentimiento o etiqueta. Esta vista es solo consulta.</div>
+
+      <div class="filters">
+        <div>
+          <label>Buscar</label>
+          <input class="input" id="qInput" placeholder="Título o texto">
+        </div>
+        <div>
+          <label>Desde</label>
+          <input class="input" id="dateFrom" type="date">
+        </div>
+        <div>
+          <label>Hasta</label>
+          <input class="input" id="dateTo" type="date">
+        </div>
+        <div>
+          <label>Etiqueta</label>
+          <input class="input" id="labelInput" placeholder="Etiqueta exacta">
+        </div>
+
+        <div>
+          <label>Entidad</label>
+          <select class="select" id="entityType">
+            <option value="">Tipo</option>
+            <option value="persona">Persona</option>
+            <option value="institucion">Institución</option>
+            <option value="tema">Tema</option>
+          </select>
+        </div>
+        <div>
+          <label>Buscar entidad</label>
+          <input class="input" id="entitySearch" placeholder="Escribe para filtrar…">
+        </div>
+        <div>
+          <label>Seleccionar entidad</label>
+          <select class="select" id="entitySelect">
+            <option value="">Selecciona entidad</option>
+          </select>
+        </div>
+        <div>
+          <label>Sentimiento</label>
+          <select class="select" id="sentimentSelect">
+            <option value="">Todos</option>
+            <option value="positivo">Positivo</option>
+            <option value="neutro">Neutro</option>
+            <option value="negativo">Negativo</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button class="btn" id="applyFilters">Aplicar filtros</button>
+        <button class="btn ghost" id="clearFilters">Limpiar</button>
+      </div>
+    </section>
+
+    <div class="list" id="notesList">
+      <div class="note">Cargando notas...</div>
+    </div>
+  </div>
+
+  <script>
+    const notesList = document.getElementById("notesList");
+    const qInput = document.getElementById("qInput");
+    const dateFrom = document.getElementById("dateFrom");
+    const dateTo = document.getElementById("dateTo");
+    const labelInput = document.getElementById("labelInput");
+    const entityType = document.getElementById("entityType");
+    const entitySearch = document.getElementById("entitySearch");
+    const entitySelect = document.getElementById("entitySelect");
+    const sentimentSelect = document.getElementById("sentimentSelect");
+
+    function buildParams() {
+      const params = new URLSearchParams();
+      if (qInput.value) params.set("q", qInput.value);
+      if (dateFrom.value) params.set("date_from", dateFrom.value);
+      if (dateTo.value) params.set("date_to", dateTo.value);
+      if (labelInput.value) params.set("label", labelInput.value);
+      if (entityType.value && entitySelect.value) {
+        params.set("entity_type", entityType.value);
+        params.set("entity_id", entitySelect.value);
+      }
+      if (sentimentSelect.value) params.set("sentiment", sentimentSelect.value);
+      return params;
+    }
+
+    async function loadEntities() {
+      if (!entityType.value || entitySearch.value.length < 2) return;
+      try {
+        const res = await fetch(`{% url 'monitor:api_entities' %}?type=${entityType.value}&q=${encodeURIComponent(entitySearch.value)}`);
+        const data = await res.json();
+        entitySelect.innerHTML = "<option value=''>Selecciona entidad</option>";
+        data.results.forEach(item => {
+          const option = document.createElement("option");
+          option.value = item.id;
+          option.textContent = item.name;
+          entitySelect.appendChild(option);
+        });
+      } catch (err) {
+        console.error("Error cargando entidades", err);
+      }
+    }
+
+    function sentimentClass(sentiment) {
+      if (sentiment === "positivo") return "pos";
+      if (sentiment === "negativo") return "neg";
+      return "neu";
+    }
+
+    function renderNote(item) {
+      const div = document.createElement("div");
+      div.className = "note";
+      const labels = (item.labels || []).slice(0, 8).map(label => `<span class="chip">${label}</span>`).join("") || "<span class='chip'>Sin etiquetas</span>";
+      const mentions = (item.mentions || []).map(mention => `${mention.target_name} (${mention.sentiment})`).join(", ") || "Sin menciones";
+      div.innerHTML = `
+        <h3>${item.title || "Sin título"}</h3>
+        <div class="meta">
+          <span>Fuente: ${item.source_name || "—"}</span>
+          <span>${item.published_at_display || "—"}</span>
+          <span>Tipo: ${item.article_type || "—"}</span>
+          <span>Sentimiento: <span class="chip ${sentimentClass(item.sentiment)}">${item.sentiment || "neutro"}</span></span>
+        </div>
+        <div class="meta" style="margin-top:8px">Idea central: ${item.central_idea || "Sin resumen"}</div>
+        <div class="meta" style="margin-top:6px">Menciones: ${mentions}</div>
+        <div class="chips">${labels}</div>
+        <div class="actions">
+          <a class="btn ghost" href="${item.url}" target="_blank" rel="noopener">Abrir original</a>
+          <a class="btn ghost" href="/monitor/revision/${item.id}/">Revisión editorial</a>
+        </div>
+      `;
+      return div;
+    }
+
+    async function loadNotes() {
+      notesList.innerHTML = "<div class='note'>Cargando notas...</div>";
+      try {
+        const res = await fetch(`{% url 'monitor:api_feed' %}?${buildParams().toString()}`);
+        const data = await res.json();
+        notesList.innerHTML = "";
+        if (!data.items || !data.items.length) {
+          notesList.innerHTML = "<div class='note'>Sin notas con estos filtros.</div>";
+          return;
+        }
+        data.items.forEach(item => notesList.appendChild(renderNote(item)));
+      } catch (err) {
+        console.error("Error cargando notas", err);
+        notesList.innerHTML = "<div class='note'>Error cargando notas.</div>";
+      }
+    }
+
+    document.getElementById("applyFilters").addEventListener("click", loadNotes);
+    document.getElementById("clearFilters").addEventListener("click", () => {
+      qInput.value = "";
+      dateFrom.value = "";
+      dateTo.value = "";
+      labelInput.value = "";
+      entityType.value = "";
+      entitySearch.value = "";
+      entitySelect.innerHTML = "<option value=''>Selecciona entidad</option>";
+      sentimentSelect.value = "";
+      loadNotes();
+    });
+    entitySearch.addEventListener("input", loadEntities);
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const presetType = urlParams.get("entity_type");
+    const presetId = urlParams.get("entity_id");
+    const presetLabel = urlParams.get("label");
+    if (presetType) entityType.value = presetType;
+    if (presetLabel) labelInput.value = presetLabel;
+    if (presetId && presetType) {
+      entitySelect.innerHTML = `<option value="${presetId}" selected>Entidad seleccionada</option>`;
+    }
+    loadNotes();
+  </script>
+</body>
+</html>
