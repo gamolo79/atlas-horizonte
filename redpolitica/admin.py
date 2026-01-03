@@ -14,10 +14,23 @@ from .models import (
 )
 
 
+class PersonTopicManualInline(admin.TabularInline):
+    model = PersonTopicManual
+    autocomplete_fields = ["topic"]
+    extra = 0
+
+
+class InstitutionTopicInline(admin.TabularInline):
+    model = InstitutionTopic
+    autocomplete_fields = ["topic"]
+    extra = 0
+
+
 @admin.register(Persona)
 class PersonaAdmin(admin.ModelAdmin):
     search_fields = ("nombre_completo",)
     prepopulated_fields = {"slug": ("nombre_completo",)}
+    inlines = [PersonTopicManualInline]
 
 
 @admin.register(Institucion)
@@ -25,6 +38,7 @@ class InstitucionAdmin(admin.ModelAdmin):
     search_fields = ("nombre",)
     list_filter = ("tipo", "ambito")
     prepopulated_fields = {"slug": ("nombre",)}
+    inlines = [InstitutionTopicInline]
 
 
 @admin.register(PeriodoAdministrativo)
