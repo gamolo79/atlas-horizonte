@@ -18,13 +18,14 @@
     body{margin:0;font-family:Lexend,system-ui;background:var(--bg);color:var(--text)}
     .wrap{max-width:var(--max);margin:0 auto;padding:18px}
     .filter-card{
-      display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
+      display:flex;flex-direction:column;align-items:stretch;gap:12px;
       padding:14px 16px;border:1px solid var(--stroke);border-radius:var(--r);
       background:rgba(255,255,255,.02);box-shadow:var(--shadow);
       margin-top:14px;
     }
+    .filter-header{display:flex;flex-direction:column;gap:4px}
     .filter-title{font-weight:800}
-    .filters{display:flex;gap:8px;flex-wrap:wrap}
+    .filters{display:flex;gap:8px;flex-wrap:wrap;width:100%}
     .input, .select{
       border:1px solid var(--stroke);border-radius:14px;background:rgba(0,0,0,.20);
       color:var(--text);padding:10px 12px;font-size:13px;outline:none;
@@ -63,7 +64,7 @@
     {% include "monitor/_header.html" %}
 
     <div class="filter-card">
-      <div>
+      <div class="filter-header">
         <div class="filter-title">Monitor en tiempo real</div>
         <div style="font-size:12px;color:var(--muted)">Entradas nuevas cada 2–5 min (según fuente)</div>
       </div>
