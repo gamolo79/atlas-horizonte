@@ -1,3 +1,5 @@
+import json
+
 from django import forms
 
 from .models import (
@@ -9,8 +11,25 @@ from .models import (
 )
 
 
+class AliasesField(forms.CharField):
+    def clean(self, value):
+        value = super().clean(value)
+        if not value:
+            return []
+        stripped_value = value.strip()
+        if stripped_value.startswith("["):
+            try:
+                parsed = json.loads(stripped_value)
+            except json.JSONDecodeError:
+                parsed = None
+            if isinstance(parsed, list):
+                cleaned = [str(alias).strip() for alias in parsed if str(alias).strip()]
+                return cleaned
+        return [alias.strip() for alias in value.split(",") if alias.strip()]
+
+
 class AliasesFormMixin:
-    aliases = forms.CharField(
+    aliases = AliasesField(
         required=False,
         help_text="Lista de aliases separados por comas.",
     )
