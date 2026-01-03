@@ -1,6 +1,12 @@
 from django import forms
 
-from .models import Institucion, Persona
+from .models import (
+    Institucion,
+    InstitutionTopic,
+    Persona,
+    PersonTopicManual,
+    Topic,
+)
 
 
 class AliasesFormMixin:
@@ -35,3 +41,21 @@ class InstitucionForm(AliasesFormMixin, forms.ModelForm):
     class Meta:
         model = Institucion
         fields = "__all__"
+
+
+class TopicForm(AliasesFormMixin, forms.ModelForm):
+    class Meta:
+        model = Topic
+        fields = ["name", "parent", "topic_kind", "status", "description", "aliases"]
+
+
+class InstitutionTopicForm(forms.ModelForm):
+    class Meta:
+        model = InstitutionTopic
+        fields = ["topic", "role", "note"]
+
+
+class PersonTopicManualForm(forms.ModelForm):
+    class Meta:
+        model = PersonTopicManual
+        fields = ["topic", "role", "note"]
