@@ -1,8 +1,10 @@
+import io
 import json
 from collections import Counter, defaultdict
 from datetime import datetime, timedelta
 
 from django.core.exceptions import ObjectDoesNotExist
+from django.core.management import call_command
 from django.db.models import Q
 from django.http import JsonResponse
 from django.shortcuts import render
@@ -73,6 +75,13 @@ def _parse_date(value):
         return None
 
 
+def _format_datetime(value):
+    if not value:
+        return None
+    localized = timezone.localtime(value)
+    return localized.strftime("%d/%m/%Y %H:%M")
+
+
 def _range_dates(range_key):
     today = timezone.now().date()
     if range_key == "year":
@@ -118,6 +127,7 @@ def _article_payload(article):
         "title": article.title,
         "source_name": article.source.name if article.source_id else "—",
         "published_at": (article.published_at or article.fetched_at).isoformat() if (article.published_at or article.fetched_at) else None,
+        "published_at_display": _format_datetime(article.published_at or article.fetched_at),
         "url": article.url,
         "text_excerpt": (article.text or "")[:240],
         "article_type": classification.article_type if classification else None,
@@ -208,6 +218,9 @@ def api_feed(request):
             classification__mentions__target_type=entity_type,
             classification__mentions__target_id=entity_id,
         )
+    label = request.GET.get("label")
+    if label:
+        queryset = queryset.filter(classification__labels_json__contains=[label])
 
     items = [_article_payload(article) for article in queryset[:100]]
     return JsonResponse({"items": items, "counts": {"total": queryset.count()}})
@@ -219,13 +232,23 @@ def api_article_detail(request, article_id):
         article = Article.objects.select_related("source").get(id=article_id)
     except Article.DoesNotExist as exc:
         return JsonResponse({"error": "Artículo no encontrado"}, status=404)
-    return JsonResponse(_article_payload(article))
+    payload = _article_payload(article)
+    payload["reviews"] = [
+        {
+            "id": review.id,
+            "created_at": _format_datetime(review.created_at),
+            "created_by": review.created_by.get_username() if review.created_by_id else "—",
+            "reason_text": review.reason_text,
+        }
+        for review in article.reviews.select_related("created_by").all()
+    ]
+    return JsonResponse(payload)
 
 
 @require_POST
 def api_article_review(request, article_id):
     if not request.user.is_authenticated:
-        return JsonResponse({"error": "Autenticación requerida"}, status=403)
+        return JsonResponse({"error": "Autenticación requerida"}, status=401)
     try:
         article = Article.objects.select_related("source").get(id=article_id)
     except Article.DoesNotExist as exc:
@@ -546,6 +569,7 @@ def api_processes(request):
     runs = ProcessRun.objects.all().order_by("-started_at")[:10]
     return JsonResponse(
         {
+            "automatic_mode": "manual",
             "items": [
                 {
                     "id": run.id,
@@ -562,3 +586,97 @@ def api_processes(request):
             ]
         }
     )
+
+
+@require_POST
+def api_process_run(request):
+    try:
+        payload = json.loads(request.body.decode("utf-8"))
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "JSON inválido"}, status=400)
+
+    run_type = payload.get("run_type", "all")
+    if run_type not in {"ingest", "classify", "all"}:
+        return JsonResponse({"error": "run_type inválido"}, status=400)
+
+    date_from = payload.get("date_from")
+    date_to = payload.get("date_to")
+    source_ids = payload.get("source_ids") or []
+    notes = payload.get("notes", "")
+    respect_editorial = payload.get("respect_editorial", True)
+    force_classify = payload.get("force_classify", False)
+
+    run = ProcessRun.objects.create(
+        run_type=run_type,
+        date_from=_parse_date(date_from),
+        date_to=_parse_date(date_to),
+        status="running",
+        notes=notes,
+    )
+
+    log_buffer = io.StringIO()
+    try:
+        if run_type in {"ingest", "all"}:
+            if source_ids:
+                for source_id in source_ids:
+                    call_command(
+                        "fetch_sources",
+                        stdout=log_buffer,
+                        stderr=log_buffer,
+                        source_id=source_id,
+                    )
+            else:
+                call_command("fetch_sources", stdout=log_buffer, stderr=log_buffer)
+        if run_type in {"classify", "all"}:
+            classify_kwargs = {"stdout": log_buffer, "stderr": log_buffer}
+            if date_from:
+                classify_kwargs["date_from"] = date_from
+            if date_to:
+                classify_kwargs["date_to"] = date_to
+            if not respect_editorial:
+                classify_kwargs["ignore_editor_lock"] = True
+            if force_classify:
+                classify_kwargs["force"] = True
+            call_command("classify_articles", **classify_kwargs)
+        run.status = "ok"
+    except Exception as exc:  # noqa: BLE001
+        log_buffer.write(f"\nError: {exc}\n")
+        run.status = "error"
+    finally:
+        run.finished_at = timezone.now()
+        run.log_text = log_buffer.getvalue()
+        run.save(update_fields=["status", "finished_at", "log_text"])
+
+    return JsonResponse({"ok": run.status == "ok", "run_id": run.id, "log": run.log_text})
+
+
+@require_POST
+def api_export_dashboard(request):
+    try:
+        payload = json.loads(request.body.decode("utf-8"))
+    except json.JSONDecodeError:
+        payload = {}
+    params = []
+    for key in ("entity_type", "entity_id", "range", "grain"):
+        if payload.get(key):
+            params.append(f"{key}={payload[key]}")
+    url = "/monitor/dashboards/export/"
+    if params:
+        url = f"{url}?{'&'.join(params)}"
+    return JsonResponse({"url": url})
+
+
+@require_POST
+def api_export_benchmark(request):
+    try:
+        payload = json.loads(request.body.decode("utf-8"))
+    except json.JSONDecodeError:
+        payload = {}
+    params = []
+    for key in ("a_type", "a_id", "b_type", "b_id", "range", "grain"):
+        if payload.get(key):
+            params.append(f"{key}={payload[key]}")
+    url = "/monitor/benchmarks/export/"
+    if params:
+        url = f"{url}?{'&'.join(params)}"
+    return JsonResponse({"url": url})

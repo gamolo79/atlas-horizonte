@@ -25,4 +25,7 @@ urlpatterns = [
     path("api/sources", views.api_sources, name="api_sources"),
     path("api/sources/test/<int:source_id>", views.api_sources_test, name="api_sources_test"),
     path("api/processes", views.api_processes, name="api_processes"),
+    path("api/processes/run", views.api_process_run, name="api_process_run"),
+    path("api/export/dashboard", views.api_export_dashboard, name="api_export_dashboard"),
+    path("api/export/benchmark", views.api_export_benchmark, name="api_export_benchmark"),
 ]

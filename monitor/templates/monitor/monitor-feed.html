@@ -6,6 +6,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>Monitor · Tiempo real</title>
   <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/monitor-design-system.css' %}">
   <style>
     :root{
       --bg:#0b0f14; --panel:#0f1722; --stroke:rgba(166,190,200,.16);
@@ -125,12 +126,8 @@
     const entityType = document.getElementById("entityType");
     const entitySearch = document.getElementById("entitySearch");
     const entitySelect = document.getElementById("entitySelect");
-
-    function formatDate(value) {
-      if (!value) return "—";
-      const date = new Date(value);
-      return new Intl.DateTimeFormat("es-MX", { dateStyle: "medium", timeStyle: "short" }).format(date);
-    }
+    const urlParams = new URLSearchParams(window.location.search);
+    const presetLabel = urlParams.get("label");
 
     async function loadSummary() {
       try {
@@ -187,6 +184,9 @@
         params.set("entity_type", entityType.value);
         params.set("entity_id", entityId);
       }
+      if (presetLabel) {
+        params.set("label", presetLabel);
+      }
 
       feedList.innerHTML = "<div class='note'>Cargando notas...</div>";
       try {
@@ -211,7 +211,7 @@
             <h3>${item.title}</h3>
             <div class="meta">
               <span>Fuente: ${item.source_name}</span>
-              <span>${formatDate(item.published_at)}</span>
+              <span>${item.published_at_display || "—"}</span>
               <span>Tipo: ${typeLabel}</span>
               <span>${idea}</span>
             </div>
@@ -242,6 +242,13 @@
     [document.getElementById("qInput"), document.getElementById("dateFrom"), document.getElementById("dateTo"),
      document.getElementById("sentimentSelect"), document.getElementById("typeSelect"), entitySelect, entityType]
       .forEach(el => el.addEventListener("change", loadFeed));
+
+    if (urlParams.get("entity_type")) {
+      entityType.value = urlParams.get("entity_type");
+    }
+    if (urlParams.get("entity_id")) {
+      entitySelect.value = urlParams.get("entity_id");
+    }
 
     loadSummary();
     loadFeed();

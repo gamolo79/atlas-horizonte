@@ -6,6 +6,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>Monitor · Revisión editorial</title>
   <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/monitor-design-system.css' %}">
   <style>
     :root{
       --bg:#0b0f14; --stroke:rgba(166,190,200,.16);
@@ -149,7 +150,7 @@
         const res = await fetch(`/monitor/api/article/${articleId}/`);
         const data = await res.json();
         titleEl.textContent = data.title;
-        metaEl.textContent = `Fuente: ${data.source_name} · ${data.published_at || "—"}`;
+        metaEl.textContent = `Fuente: ${data.source_name} · ${data.published_at_display || "—"}`;
         extractEl.textContent = `Texto (extracto): ${data.text_excerpt || "Sin extracto."}`;
         labelsInput.value = (data.labels || []).join(", ");
         centralIdeaInput.value = data.central_idea || "";
@@ -174,6 +175,12 @@
           });
         } else {
           mentionsList.textContent = "Sin menciones";
+        }
+        const history = document.getElementById("review-history");
+        if (data.reviews && data.reviews.length) {
+          history.innerHTML = data.reviews.map(review => (
+            `<div class="muted">${review.created_at} · ${review.created_by}: ${review.reason_text}</div>`
+          )).join("");
         }
         openOriginal.onclick = () => window.open(data.url, "_blank");
       } catch (err) {
@@ -210,12 +217,17 @@
           },
           body: JSON.stringify(payload)
         });
+        if (res.status === 401) {
+          alert("Debes iniciar sesión para guardar correcciones.");
+          return;
+        }
         if (!res.ok) {
           const err = await res.json();
           alert(err.error || "Error guardando revisión");
           return;
         }
         alert("Corrección guardada.");
+        loadArticle();
       } catch (err) {
         console.error("Error guardando revisión", err);
       }

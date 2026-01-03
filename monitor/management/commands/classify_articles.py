@@ -17,12 +17,18 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument("--limit", type=int, default=50, help="Límite de artículos a clasificar")
         parser.add_argument("--force", action="store_true", help="Reprocesar aunque exista clasificación")
+        parser.add_argument(
+            "--ignore-editor-lock",
+            action="store_true",
+            help="Ignorar bloqueos editoriales",
+        )
         parser.add_argument("--date-from", dest="date_from", help="Fecha inicio YYYY-MM-DD")
         parser.add_argument("--date-to", dest="date_to", help="Fecha fin YYYY-MM-DD")
 
     def handle(self, *args, **options):
         limit = options["limit"]
         force = options["force"]
+        ignore_editor_lock = options["ignore_editor_lock"]
         date_from = self._parse_date(options.get("date_from"))
         date_to = self._parse_date(options.get("date_to"))
 
@@ -47,7 +53,7 @@ class Command(BaseCommand):
                 classification = article.classification
             except ObjectDoesNotExist:
                 classification = None
-            if classification and classification.is_editor_locked:
+            if classification and classification.is_editor_locked and not ignore_editor_lock:
                 continue
             try:
                 payload = classify_article(article, catalog)

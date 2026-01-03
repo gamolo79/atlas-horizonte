@@ -10,6 +10,7 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/luxon@3"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon@1"></script>
+  <link rel="stylesheet" href="{% static 'css/monitor-design-system.css' %}">
 
   <style>
     :root{
@@ -230,7 +231,7 @@
 
         <div class="row">
           <button class="btn ghost">Ver “historias” del rango</button>
-          <button class="btn ghost">Exportar</button>
+          <button class="btn ghost" id="exportBenchmark">Exportar</button>
         </div>
       </div>
 
@@ -252,9 +253,9 @@
         </div>
 
         <div class="row">
-          <button class="btn">Abrir lista de notas</button>
-          <button class="btn ghost">Abrir dashboards de A</button>
-          <button class="btn ghost">Abrir dashboards de B</button>
+          <button class="btn" id="openNotes">Abrir lista de notas</button>
+          <button class="btn ghost" id="openDashA">Abrir dashboards de A</button>
+          <button class="btn ghost" id="openDashB">Abrir dashboards de B</button>
         </div>
       </div>
     </section>
@@ -276,6 +277,13 @@
     const bEntity = document.getElementById("bEntity");
     const rangeSelect = document.getElementById("rangeSelect");
     const grainSelect = document.getElementById("grainSelect");
+
+    function getCookie(name) {
+      const value = `; ${document.cookie}`;
+      const parts = value.split(`; ${name}=`);
+      if (parts.length === 2) return parts.pop().split(";").shift();
+      return null;
+    }
 
     async function loadEntities(targetSelect, type, query) {
       if (!query) return;
@@ -315,12 +323,13 @@
         data: {
           labels,
           datasets: [
-            { label: "A", data: seriesA, tension: 0.35 },
-            { label: "B", data: seriesB, tension: 0.35 }
+            { label: "A", data: seriesA, tension: 0.35, borderColor: "#19c37d" },
+            { label: "B", data: seriesB, tension: 0.35, borderColor: "#9fb2be" }
           ]
         },
         options: {
           responsive: true,
+          maintainAspectRatio: false,
           plugins: { legend: { labels: { color: "rgba(231,238,245,.70)" } } },
           scales: {
             x: { ticks: { color: "rgba(231,238,245,.70)" }, grid: { color: "rgba(166,190,200,.10)" } },
@@ -342,10 +351,11 @@
               data.a.sentiment_donut.positivo || 0,
               data.a.sentiment_donut.neutro || 0,
               data.a.sentiment_donut.negativo || 0
-            ]
+            ],
+            backgroundColor: ["#19c37d", "#9fb2be", "#ff4d4d"]
           }]
         },
-        options: { plugins: { legend: { position: "bottom", labels: { color: "rgba(231,238,245,.70)" } } } }
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: "bottom", labels: { color: "rgba(231,238,245,.70)" } } } }
       });
       donutB = new Chart(document.getElementById("donutB"), {
         type: "doughnut",
@@ -356,10 +366,11 @@
               data.b.sentiment_donut.positivo || 0,
               data.b.sentiment_donut.neutro || 0,
               data.b.sentiment_donut.negativo || 0
-            ]
+            ],
+            backgroundColor: ["#19c37d", "#9fb2be", "#ff4d4d"]
           }]
         },
-        options: { plugins: { legend: { position: "bottom", labels: { color: "rgba(231,238,245,.70)" } } } }
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: "bottom", labels: { color: "rgba(231,238,245,.70)" } } } }
       });
     }
 
@@ -381,13 +392,15 @@
         type: "scatter",
         data: {
           datasets: [
-            { label: "Pos", data: aGrouped.positivo, pointRadius: 5 },
-            { label: "Neu", data: aGrouped.neutro, pointRadius: 5 },
-            { label: "Neg", data: aGrouped.negativo, pointRadius: 5 }
+            { label: "Pos", data: aGrouped.positivo, pointRadius: 5, backgroundColor: "#19c37d" },
+            { label: "Neu", data: aGrouped.neutro, pointRadius: 5, backgroundColor: "#9fb2be" },
+            { label: "Neg", data: aGrouped.negativo, pointRadius: 5, backgroundColor: "#ff4d4d" }
           ]
         },
         options: {
           parsing: false,
+          responsive: true,
+          maintainAspectRatio: false,
           plugins: { legend: { labels: { color: "rgba(231,238,245,.70)" } } },
           scales: {
             x: { type: "time", time: { unit: "day" } },
@@ -400,13 +413,15 @@
         type: "scatter",
         data: {
           datasets: [
-            { label: "Pos", data: bGrouped.positivo, pointRadius: 5 },
-            { label: "Neu", data: bGrouped.neutro, pointRadius: 5 },
-            { label: "Neg", data: bGrouped.negativo, pointRadius: 5 }
+            { label: "Pos", data: bGrouped.positivo, pointRadius: 5, backgroundColor: "#19c37d" },
+            { label: "Neu", data: bGrouped.neutro, pointRadius: 5, backgroundColor: "#9fb2be" },
+            { label: "Neg", data: bGrouped.negativo, pointRadius: 5, backgroundColor: "#ff4d4d" }
           ]
         },
         options: {
           parsing: false,
+          responsive: true,
+          maintainAspectRatio: false,
           plugins: { legend: { labels: { color: "rgba(231,238,245,.70)" } } },
           scales: {
             x: { type: "time", time: { unit: "day" } },
@@ -420,9 +435,9 @@
       const shared = document.getElementById("sharedLabels");
       const distinctA = document.getElementById("distinctLabelsA");
       const distinctB = document.getElementById("distinctLabelsB");
-      shared.innerHTML = data.shared_labels.map(label => `<span class="tag shared">${label}</span>`).join("") || "<span class='tag shared'>Sin datos</span>";
-      distinctA.innerHTML = data.distinct_labels.a.map(label => `<span class="tag a">${label}</span>`).join("") || "<span class='tag a'>—</span>";
-      distinctB.innerHTML = data.distinct_labels.b.map(label => `<span class="tag b">${label}</span>`).join("") || "<span class='tag b'>—</span>";
+      shared.innerHTML = data.shared_labels.map(label => `<a class="tag shared" href="/monitor/feed/?label=${encodeURIComponent(label)}">${label}</a>`).join("") || "<span class='tag shared'>Sin datos</span>";
+      distinctA.innerHTML = data.distinct_labels.a.map(label => `<a class="tag a" href="/monitor/feed/?label=${encodeURIComponent(label)}">${label}</a>`).join("") || "<span class='tag a'>—</span>";
+      distinctB.innerHTML = data.distinct_labels.b.map(label => `<a class="tag b" href="/monitor/feed/?label=${encodeURIComponent(label)}">${label}</a>`).join("") || "<span class='tag b'>—</span>";
     }
 
     function renderToneSources(data) {
@@ -457,6 +472,15 @@
       document.getElementById("bSummary").textContent = `B: ${bEntity.options[bEntity.selectedIndex]?.textContent || "—"}`;
       document.getElementById("aSummaryMeta").textContent = `Notas: ${aTotal}`;
       document.getElementById("bSummaryMeta").textContent = `Notas: ${bTotal}`;
+      document.getElementById("openNotes").onclick = () => {
+        window.location.href = `/monitor/feed/?entity_type=${aType.value}&entity_id=${aEntity.value}`;
+      };
+      document.getElementById("openDashA").onclick = () => {
+        window.location.href = `/monitor/dashboards/?entity_type=${aType.value}&entity_id=${aEntity.value}`;
+      };
+      document.getElementById("openDashB").onclick = () => {
+        window.location.href = `/monitor/dashboards/?entity_type=${bType.value}&entity_id=${bEntity.value}`;
+      };
     }
 
     async function loadBenchmark() {
@@ -477,6 +501,25 @@
         renderLabels(data);
         renderToneSources(data);
         updateSummary(data);
+        document.getElementById("exportBenchmark").onclick = async () => {
+          const exportRes = await fetch("{% url 'monitor:api_export_benchmark' %}", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-CSRFToken": getCookie("csrftoken")
+            },
+            body: JSON.stringify({
+              a_type: aType.value,
+              a_id: aEntity.value,
+              b_type: bType.value,
+              b_id: bEntity.value,
+              range: rangeSelect.value,
+              grain: grainSelect.value
+            })
+          });
+          const exportData = await exportRes.json();
+          if (exportData.url) window.open(exportData.url, "_blank");
+        };
       } catch (err) {
         console.error("Error cargando benchmark", err);
       }

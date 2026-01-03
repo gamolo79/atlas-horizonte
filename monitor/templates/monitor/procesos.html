@@ -6,6 +6,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>Monitor · Procesos</title>
   <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/monitor-design-system.css' %}">
   <style>
     :root{
       --bg:#0b0f14; --stroke:rgba(166,190,200,.16);
@@ -94,7 +95,7 @@
         </div>
 
         <label>Qué quieres correr</label>
-        <select>
+        <select id="runType">
           <option selected>Todo: ingesta + clasificación + ficha editorial</option>
           <option>Solo ingesta</option>
           <option>Solo clasificación IA</option>
@@ -112,7 +113,7 @@
               <div style="font-weight:800;font-size:13px">Reprocesar aunque ya exista clasificación</div>
               <div class="muted">Útil si cambió el prompt o reglas de mapeo con Atlas.</div>
             </div>
-            <input type="checkbox" style="width:18px;height:18px">
+            <input type="checkbox" id="forceClassify" style="width:18px;height:18px">
           </div>
           <div style="height:10px"></div>
           <div style="display:flex;justify-content:space-between;gap:10px;align-items:center">
@@ -120,15 +121,15 @@
               <div style="font-weight:800;font-size:13px">Respetar correcciones editoriales</div>
               <div class="muted">Si está activo, la IA no “pisa” ajustes humanos.</div>
             </div>
-            <input type="checkbox" checked style="width:18px;height:18px">
+            <input type="checkbox" id="respectEditorial" checked style="width:18px;height:18px">
           </div>
         </div>
 
         <label>Nota / motivo (para bitácora)</label>
-        <textarea placeholder="Ej: Se agregaron fuentes nuevas y se ajustó criterio de sentimiento por actor."></textarea>
+        <textarea id="runNotes" placeholder="Ej: Se agregaron fuentes nuevas y se ajustó criterio de sentimiento por actor."></textarea>
 
         <div class="row">
-          <button class="btn">Ejecutar ahora</button>
+          <button class="btn" id="runNow">Ejecutar ahora</button>
           <button class="btn ghost">Simular (solo contar)</button>
           <button class="btn ghost">Programar</button>
         </div>
@@ -177,6 +178,13 @@
       }
     }
 
+    function getCookie(name) {
+      const value = `; ${document.cookie}`;
+      const parts = value.split(`; ${name}=`);
+      if (parts.length === 2) return parts.pop().split(";").shift();
+      return null;
+    }
+
     async function loadProcessRuns() {
       try {
         const res = await fetch("{% url 'monitor:api_processes' %}");
@@ -195,10 +203,50 @@
           </div>
         `;
         document.getElementById("processLog").textContent = run.log_text || "Sin log disponible.";
+        document.getElementById("autoStatus").textContent = `Automático: ${data.automatic_mode}`;
+        document.getElementById("queueStatus").textContent = `Cola: ${data.items.length} registros`;
       } catch (err) {
         console.error("Error cargando procesos", err);
       }
     }
+
+    document.getElementById("runNow").addEventListener("click", async () => {
+      const runTypeLabel = document.getElementById("runType").value;
+      const runType = runTypeLabel.includes("Solo ingesta") ? "ingest" : runTypeLabel.includes("Solo clasificación") ? "classify" : "all";
+      const payload = {
+        date_from: document.getElementById("dateFrom").value || null,
+        date_to: document.getElementById("dateTo").value || null,
+        run_type: runType,
+        force_classify: document.getElementById("forceClassify").checked,
+        respect_editorial: document.getElementById("respectEditorial").checked,
+        notes: document.getElementById("runNotes").value
+      };
+      const btn = document.getElementById("runNow");
+      btn.textContent = "Ejecutando...";
+      btn.disabled = true;
+      try {
+        const res = await fetch("{% url 'monitor:api_process_run' %}", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": getCookie("csrftoken")
+          },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          alert(data.error || "Error ejecutando proceso");
+          return;
+        }
+        document.getElementById("processLog").textContent = data.log || "Proceso ejecutado.";
+        loadProcessRuns();
+      } catch (err) {
+        console.error("Error ejecutando proceso", err);
+      } finally {
+        btn.textContent = "Ejecutar ahora";
+        btn.disabled = false;
+      }
+    });
 
     loadSummary();
     loadProcessRuns();

@@ -37,6 +37,74 @@ a {
   text-decoration: none;
 }
 
+a,
+button,
+.btn {
+  cursor: pointer;
+}
+
+.btn,
+.btn-primary,
+.btn-ghost,
+.btn-danger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border-radius: 14px;
+  padding: 10px 12px;
+  font-weight: 700;
+  font-size: 13px;
+  border: 1px solid transparent;
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast), border-color var(--transition-fast);
+  color: #ffffff;
+}
+
+.btn-primary {
+  background: var(--accent);
+  border-color: rgba(22, 163, 74, 0.4);
+  box-shadow: 0 0 0 1px rgba(22, 163, 74, 0.2);
+}
+
+.btn-ghost {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(148, 163, 184, 0.2);
+  color: #ffffff;
+}
+
+.btn-danger {
+  background: rgba(220, 38, 38, 0.2);
+  border-color: rgba(220, 38, 38, 0.4);
+  color: #ffffff;
+}
+
+.btn:hover,
+.btn-primary:hover,
+.btn-ghost:hover,
+.btn-danger:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(22, 163, 74, 0.25);
+}
+
+.btn:disabled,
+.btn[disabled],
+.btn-primary:disabled,
+.btn-ghost:disabled,
+.btn-danger:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+  box-shadow: none;
+}
+
+.btn:focus-visible,
+.btn-primary:focus-visible,
+.btn-ghost:focus-visible,
+.btn-danger:focus-visible,
+a:focus-visible {
+  outline: 2px solid rgba(34, 197, 94, 0.6);
+  outline-offset: 2px;
+}
+
 .muted {
   color: var(--text-muted);
 }
