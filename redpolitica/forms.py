@@ -1,60 +1,37 @@
 from django import forms
 
-from .models import InstitutionTopic, PersonTopicManual, Topic
+from .models import Institucion, Persona
 
 
-class TopicForm(forms.ModelForm):
-    class Meta:
-        model = Topic
-        fields = [
-            "name",
-            "slug",
-            "description",
-            "parent",
-            "topic_kind",
-            "status",
+class AliasesFormMixin:
+    aliases = forms.CharField(
+        required=False,
+        help_text="Lista de aliases separados por comas.",
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.instance and getattr(self.instance, "aliases", None):
+            self.initial.setdefault("aliases", ", ".join(self.instance.aliases))
+
+    def clean_aliases(self):
+        aliases_text = self.cleaned_data.get("aliases", "")
+        if not aliases_text:
+            return []
+        return [
+            alias.strip()
+            for alias in aliases_text.split(",")
+            if alias.strip()
         ]
-        widgets = {
-            "name": forms.TextInput(attrs={"class": "search-input"}),
-            "slug": forms.TextInput(attrs={"class": "search-input"}),
-            "description": forms.Textarea(attrs={"class": "search-input", "rows": 4}),
-            "parent": forms.Select(attrs={"class": "search-input"}),
-            "topic_kind": forms.Select(attrs={"class": "search-input"}),
-            "status": forms.Select(attrs={"class": "search-input"}),
-        }
 
 
-class InstitutionTopicForm(forms.ModelForm):
+class PersonaForm(AliasesFormMixin, forms.ModelForm):
     class Meta:
-        model = InstitutionTopic
-        fields = [
-            "institution",
-            "role",
-            "note",
-            "valid_from",
-            "valid_to",
-        ]
-        widgets = {
-            "institution": forms.Select(attrs={"class": "search-input"}),
-            "role": forms.TextInput(attrs={"class": "search-input"}),
-            "note": forms.Textarea(attrs={"class": "search-input", "rows": 3}),
-            "valid_from": forms.DateInput(attrs={"type": "date", "class": "search-input"}),
-            "valid_to": forms.DateInput(attrs={"type": "date", "class": "search-input"}),
-        }
+        model = Persona
+        fields = "__all__"
 
 
-class PersonTopicManualForm(forms.ModelForm):
+class InstitucionForm(AliasesFormMixin, forms.ModelForm):
     class Meta:
-        model = PersonTopicManual
-        fields = [
-            "person",
-            "role",
-            "note",
-            "source_url",
-        ]
-        widgets = {
-            "person": forms.Select(attrs={"class": "search-input"}),
-            "role": forms.TextInput(attrs={"class": "search-input"}),
-            "note": forms.Textarea(attrs={"class": "search-input", "rows": 3}),
-            "source_url": forms.URLInput(attrs={"class": "search-input"}),
-        }
+        model = Institucion
+        fields = "__all__"
