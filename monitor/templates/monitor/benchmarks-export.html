@@ -58,36 +58,58 @@
     <div class="grid">
       <div class="card">
         <h2>Entidad A</h2>
-        <div class="value">—</div>
-        <div class="subtitle">Notas · Sentimiento · Opinión</div>
+        <div class="value">{{ a_name }}</div>
+        <div class="subtitle">Notas: {{ a_total }}</div>
       </div>
       <div class="card">
         <h2>Entidad B</h2>
-        <div class="value">—</div>
-        <div class="subtitle">Notas · Sentimiento · Opinión</div>
+        <div class="value">{{ b_name }}</div>
+        <div class="subtitle">Notas: {{ b_total }}</div>
       </div>
     </div>
 
     <div class="section">
       <h2>Línea del tiempo comparativa</h2>
-      <div class="chart-placeholder">Gráfica temporal A vs B (volumen/sentimiento).</div>
+      <div class="chart-placeholder">
+        {% if timeline_a or timeline_b %}
+          {% for item in timeline_a %}
+            <div>A · {{ item.period }} · {{ item.total }} notas</div>
+          {% endfor %}
+          {% for item in timeline_b %}
+            <div>B · {{ item.period }} · {{ item.total }} notas</div>
+          {% endfor %}
+        {% else %}
+          Sin datos en el rango seleccionado.
+        {% endif %}
+      </div>
     </div>
 
     <div class="section">
       <h2>Etiquetas compartidas</h2>
       <div class="chips">
-        <span class="chip">Etiqueta 1</span>
-        <span class="chip">Etiqueta 2</span>
-        <span class="chip">Etiqueta 3</span>
+        {% if shared_labels %}
+          {% for label in shared_labels %}
+            <span class="chip">{{ label }}</span>
+          {% endfor %}
+        {% else %}
+          <span class="chip">Sin etiquetas compartidas</span>
+        {% endif %}
       </div>
     </div>
 
     <div class="section">
       <h2>Etiquetas distintivas</h2>
       <div class="chips">
-        <span class="chip">Etiqueta A1</span>
-        <span class="chip">Etiqueta B1</span>
-        <span class="chip">Etiqueta A2</span>
+        {% for label in a_labels %}
+          <span class="chip">A: {{ label }}</span>
+        {% empty %}
+          <span class="chip">A: —</span>
+        {% endfor %}
+        {% for label in b_labels %}
+          <span class="chip">B: {{ label }}</span>
+        {% empty %}
+          <span class="chip">B: —</span>
+        {% endfor %}
       </div>
     </div>
   </div>

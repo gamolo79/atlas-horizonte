@@ -43,23 +43,6 @@
     }
     a{color:inherit;text-decoration:none}
     .wrap{max-width:var(--max);margin:0 auto;padding:18px}
-    .topbar{
-      display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
-      padding:14px 16px;border:1px solid var(--stroke);border-radius:var(--r);
-      background:linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.01));
-      box-shadow:var(--shadow);
-    }
-    .brand{display:flex;align-items:center;gap:12px}
-    .brand img{height:34px}
-    .brand .t{font-weight:800}
-    .brand .s{font-size:12px;color:var(--muted);margin-top:2px}
-    .nav{display:flex;gap:8px;flex-wrap:wrap}
-    .chip{
-      padding:10px 12px;border-radius:999px;border:1px solid var(--stroke);
-      background:rgba(255,255,255,.02);
-      font-size:13px;color:var(--muted);
-    }
-    .chip.active{color:var(--text);border-color:rgba(25,195,125,.35);background:rgba(25,195,125,.10)}
     .grid{display:grid;gap:14px;margin-top:14px}
     .grid.cols{grid-template-columns:1.55fr .75fr}
     @media(max-width:980px){.grid.cols{grid-template-columns:1fr}}
@@ -139,24 +122,7 @@
 <body>
   <div class="wrap">
 
-    <header class="topbar">
-      <div class="brand">
-        <img src="{% static 'img/logo-horizonte-monitor.png' %}" alt="Horizonte Digital Monitor">
-        <div>
-          <div class="t">Dashboards</div>
-          <div class="s">Explora cobertura por persona, institución o tema</div>
-        </div>
-      </div>
-      <nav class="nav">
-        <a class="chip" href="{% url 'monitor:home' %}">Home</a>
-        <a class="chip" href="{% url 'monitor:feed' %}">Monitor</a>
-        <a class="chip active" href="#">Dashboards</a>
-        <a class="chip" href="{% url 'monitor:benchmarks' %}">Benchmarks</a>
-        <a class="chip" href="{% url 'monitor:revision' %}">Revisión</a>
-        <a class="chip" href="{% url 'monitor:procesos' %}">Procesos</a>
-        <a class="chip" href="{% url 'monitor:sources' %}">Fuentes</a>
-      </nav>
-    </header>
+    {% include "monitor/_header.html" %}
 
     <!-- Encabezado + filtros -->
     <section class="card">
@@ -579,8 +545,11 @@
         const resolvedEntityType = entitySelect.value ? entityType.value : presetEntityType;
         const resolvedEntityId = entitySelect.value || presetEntityId;
         document.getElementById("openFeed").onclick = () => {
-          if (!resolvedEntityType || !resolvedEntityId) return;
-          window.location.href = `/monitor/feed/?entity_type=${resolvedEntityType}&entity_id=${resolvedEntityId}`;
+          if (resolvedEntityType && resolvedEntityId) {
+            window.location.href = `/monitor/notas/?entity_type=${resolvedEntityType}&entity_id=${resolvedEntityId}`;
+            return;
+          }
+          window.location.href = "/monitor/notas/";
         };
         const exportHandler = async () => {
           const exportRes = await fetch("{% url 'monitor:api_export_dashboard' %}", {
@@ -593,7 +562,10 @@
               entity_type: resolvedEntityType,
               entity_id: resolvedEntityId,
               range: rangeSelect.value,
-              grain: grainSelect.value
+              grain: grainSelect.value,
+              source_id: sourceSelect.value,
+              type: typeSelect.value,
+              sentiment: sentimentSelect.value
             })
           });
           const exportData = await exportRes.json();

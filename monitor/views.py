@@ -6,8 +6,9 @@ from datetime import datetime, timedelta
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.management import call_command
 from django.db.models import Q
-from django.http import JsonResponse
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render
+from django.template.loader import render_to_string
 from django.utils import timezone
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_GET, require_POST
@@ -19,51 +20,71 @@ from monitor.management.commands.fetch_sources import (
     fetch_url_content,
 )
 from monitor.models import Article, Classification, EditorialReview, Mention, ProcessRun, Source
+from weasyprint import HTML
+
 from monitor.services import get_display_name, get_aliases
 from redpolitica.models import Institucion, Persona, Topic
 
-
 @ensure_csrf_cookie
 def home(request):
-    return render(request, "monitor/monitor-home.html")
+    return render(request, "monitor/monitor-home.html", {"active_tab": "home"})
 
 
 @ensure_csrf_cookie
 def feed(request):
-    return render(request, "monitor/monitor-feed.html")
+    return render(request, "monitor/monitor-feed.html", {"active_tab": "feed"})
 
 
 @ensure_csrf_cookie
 def dashboards(request):
-    return render(request, "monitor/dashboards.html")
+    return render(request, "monitor/dashboards.html", {"active_tab": "dashboards"})
 
 
 def dashboards_export(request):
-    return render(request, "monitor/dashboards-export.html")
+    return _render_pdf(
+        request,
+        "monitor/dashboards-export.html",
+        _dashboard_export_context(request),
+        filename="dashboard.pdf",
+    )
 
 
 @ensure_csrf_cookie
 def benchmarks(request):
-    return render(request, "monitor/benchmarks.html")
+    return render(request, "monitor/benchmarks.html", {"active_tab": "benchmarks"})
 
 
 def benchmarks_export(request):
-    return render(request, "monitor/benchmarks-export.html")
+    return _render_pdf(
+        request,
+        "monitor/benchmarks-export.html",
+        _benchmark_export_context(request),
+        filename="benchmark.pdf",
+    )
 
 
 @ensure_csrf_cookie
 def revision(request, article_id=None):
-    return render(request, "monitor/revision.html", {"article_id": article_id})
+    return render(
+        request,
+        "monitor/revision.html",
+        {"article_id": article_id, "active_tab": "revision"},
+    )
 
 
 @ensure_csrf_cookie
 def procesos(request):
-    return render(request, "monitor/procesos.html")
+    return render(request, "monitor/procesos.html", {"active_tab": "procesos"})
 
 
 @ensure_csrf_cookie
 def sources(request):
-    return render(request, "monitor/fuentes.html")
+    return render(request, "monitor/fuentes.html", {"active_tab": "sources"})
+
+
+@ensure_csrf_cookie
+def notes_list(request):
+    return render(request, "monitor/notes_list.html", {"active_tab": "feed"})
 
 
 def _parse_date(value):
@@ -105,6 +126,127 @@ def _apply_date_filters(queryset, date_from, date_to):
     return queryset
 
 
+def _render_pdf(request, template_name, context, filename):
+    html = render_to_string(template_name, context)
+    base_url = request.build_absolute_uri("/")
+    pdf = HTML(string=html, base_url=base_url).write_pdf()
+    response = HttpResponse(pdf, content_type="application/pdf")
+    response["Content-Disposition"] = f'inline; filename="{filename}"'
+    return response
+
+
+def _dashboard_export_context(request):
+    queryset = Article.objects.select_related("source").order_by("-published_at", "-fetched_at")
+    entity_type = request.GET.get("entity_type")
+    entity_id = request.GET.get("entity_id")
+    if entity_type and entity_id:
+        queryset = queryset.filter(
+            classification__mentions__target_type=entity_type,
+            classification__mentions__target_id=entity_id,
+        )
+    article_type = request.GET.get("type")
+    if article_type:
+        queryset = queryset.filter(classification__article_type=article_type)
+
+    sentiment = request.GET.get("sentiment")
+    if sentiment:
+        queryset = queryset.filter(classification__mentions__sentiment=sentiment)
+
+    source_id = request.GET.get("source_id")
+    if source_id:
+        queryset = queryset.filter(source_id=source_id)
+    range_key = request.GET.get("range")
+    date_from = _parse_date(request.GET.get("date_from"))
+    date_to = _parse_date(request.GET.get("date_to"))
+    if not (date_from or date_to) and range_key:
+        date_from, date_to = _range_dates(range_key)
+    if date_from or date_to:
+        queryset = _apply_date_filters(queryset, date_from, date_to)
+
+    data = _aggregate_dashboard(queryset)
+    total_notes = len(data["scatter_points"])
+    positive = data["sentiment_donut"].get("positivo", 0)
+    opinion = data["type_donut"].get("opinion", 0)
+    top_source = data["top_sources"][0]["source"] if data["top_sources"] else "—"
+    return {
+        "now": timezone.localtime().strftime("%d/%m/%Y %H:%M"),
+        "entity_type": entity_type,
+        "entity_id": entity_id,
+        "total_notes": total_notes,
+        "positive_ratio": round((positive / total_notes) * 100, 1) if total_notes else 0,
+        "opinion_ratio": round((opinion / total_notes) * 100, 1) if total_notes else 0,
+        "top_source": top_source,
+        "labels": [item["label"] for item in data["labels_cloud"][:10]],
+        "timeline": data["timeline"],
+        "sentiment_donut": data["sentiment_donut"],
+        "type_donut": data["type_donut"],
+    }
+
+
+def _benchmark_export_context(request):
+    a_type = request.GET.get("a_type")
+    a_id = request.GET.get("a_id")
+    b_type = request.GET.get("b_type")
+    b_id = request.GET.get("b_id")
+
+    base_queryset = Article.objects.select_related("source")
+    range_key = request.GET.get("range")
+    date_from = _parse_date(request.GET.get("date_from"))
+    date_to = _parse_date(request.GET.get("date_to"))
+    if not (date_from or date_to) and range_key:
+        date_from, date_to = _range_dates(range_key)
+    if date_from or date_to:
+        base_queryset = _apply_date_filters(base_queryset, date_from, date_to)
+
+    a_queryset = base_queryset
+    b_queryset = base_queryset
+    if a_type and a_id:
+        a_queryset = base_queryset.filter(
+            classification__mentions__target_type=a_type,
+            classification__mentions__target_id=a_id,
+        )
+    if b_type and b_id:
+        b_queryset = base_queryset.filter(
+            classification__mentions__target_type=b_type,
+            classification__mentions__target_id=b_id,
+        )
+    a_data = _aggregate_dashboard(a_queryset)
+    b_data = _aggregate_dashboard(b_queryset)
+
+    def _resolve_name(entity_type, entity_id):
+        if not (entity_type and entity_id):
+            return "—"
+        model = {"persona": Persona, "institucion": Institucion, "tema": Topic}.get(entity_type)
+        if not model:
+            return "—"
+        try:
+            return get_display_name(model.objects.get(id=entity_id))
+        except model.DoesNotExist:
+            return "—"
+
+    return {
+        "now": timezone.localtime().strftime("%d/%m/%Y %H:%M"),
+        "a_type": a_type,
+        "a_id": a_id,
+        "b_type": b_type,
+        "b_id": b_id,
+        "a_name": _resolve_name(a_type, a_id),
+        "b_name": _resolve_name(b_type, b_id),
+        "a_total": len(a_data["scatter_points"]),
+        "b_total": len(b_data["scatter_points"]),
+        "a_sentiment": a_data["sentiment_donut"],
+        "b_sentiment": b_data["sentiment_donut"],
+        "shared_labels": [
+            label for label in {item["label"] for item in a_data["labels_cloud"]}
+            if label in {item["label"] for item in b_data["labels_cloud"]}
+        ],
+        "a_labels": [item["label"] for item in a_data["labels_cloud"][:10]],
+        "b_labels": [item["label"] for item in b_data["labels_cloud"][:10]],
+        "timeline_a": a_data["timeline"],
+        "timeline_b": b_data["timeline"],
+    }
+
+
 def _article_payload(article):
     classification = None
     try:
@@ -122,6 +264,9 @@ def _article_payload(article):
                     "sentiment": mention.sentiment,
                 }
             )
+    sentiment = "neutro"
+    if classification and classification.mentions.exists():
+        sentiment = classification.mentions.first().sentiment
     return {
         "id": article.id,
         "title": article.title,
@@ -134,6 +279,7 @@ def _article_payload(article):
         "central_idea": classification.central_idea if classification else None,
         "labels": classification.labels_json if classification else [],
         "mentions": mentions_payload,
+        "sentiment": sentiment,
         "status": article.status,
     }
 
@@ -657,7 +803,7 @@ def api_export_dashboard(request):
     except json.JSONDecodeError:
         payload = {}
     params = []
-    for key in ("entity_type", "entity_id", "range", "grain"):
+    for key in ("entity_type", "entity_id", "range", "grain", "source_id", "type", "sentiment"):
         if payload.get(key):
             params.append(f"{key}={payload[key]}")
     url = "/monitor/dashboards/export/"

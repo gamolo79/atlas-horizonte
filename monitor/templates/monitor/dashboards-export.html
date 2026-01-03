@@ -59,40 +59,54 @@
     <div class="kpis">
       <div class="kpi">
         <div class="label">Notas</div>
-        <div class="value">—</div>
+        <div class="value">{{ total_notes }}</div>
       </div>
       <div class="kpi">
         <div class="label">% Sentimiento positivo</div>
-        <div class="value">—</div>
+        <div class="value">{{ positive_ratio }}%</div>
       </div>
       <div class="kpi">
         <div class="label">% Opinión</div>
-        <div class="value">—</div>
+        <div class="value">{{ opinion_ratio }}%</div>
       </div>
       <div class="kpi">
         <div class="label">Top fuente</div>
-        <div class="value">—</div>
+        <div class="value">{{ top_source }}</div>
       </div>
     </div>
 
     <div class="section">
       <h2>Línea del tiempo</h2>
-      <div class="chart-placeholder">Gráfica temporal (volumen/sentimiento). En MVP se muestra como placeholder imprimible.</div>
+      {% if timeline %}
+        <div class="chart-placeholder">
+          {% for item in timeline %}
+            <div>{{ item.period }} · {{ item.total }} notas</div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="chart-placeholder">Sin datos en el rango seleccionado.</div>
+      {% endif %}
     </div>
 
     <div class="section">
       <h2>Sentimiento</h2>
-      <div class="chart-placeholder">Donut sentimiento · fallback numérico si no hay gráfica.</div>
+      <div class="chart-placeholder">
+        Positivo: {{ sentiment_donut.positivo|default:0 }} ·
+        Neutro: {{ sentiment_donut.neutro|default:0 }} ·
+        Negativo: {{ sentiment_donut.negativo|default:0 }}
+      </div>
     </div>
 
     <div class="section">
       <h2>Etiquetas destacadas</h2>
       <div class="chips">
-        <span class="chip">Etiqueta 1</span>
-        <span class="chip">Etiqueta 2</span>
-        <span class="chip">Etiqueta 3</span>
-        <span class="chip">Etiqueta 4</span>
-        <span class="chip">Etiqueta 5</span>
+        {% if labels %}
+          {% for label in labels %}
+            <span class="chip">{{ label }}</span>
+          {% endfor %}
+        {% else %}
+          <span class="chip">Sin etiquetas</span>
+        {% endif %}
       </div>
     </div>
   </div>

@@ -15,6 +15,7 @@ urlpatterns = [
     path("revision/", views.revision, name="revision"),
     path("procesos/", views.procesos, name="procesos"),
     path("fuentes/", views.sources, name="sources"),
+    path("notas/", views.notes_list, name="notes_list"),
     path("api/summary/", views.api_summary, name="api_summary"),
     path("api/entities", views.api_entities, name="api_entities"),
     path("api/feed", views.api_feed, name="api_feed"),

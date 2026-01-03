@@ -19,14 +19,6 @@
     body{margin:0;font-family:Lexend,system-ui;background:var(--bg);color:var(--text)}
     a{color:inherit;text-decoration:none}
     .wrap{max-width:var(--max);margin:0 auto;padding:18px}
-    .topbar{
-      display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
-      padding:14px 16px;border:1px solid var(--stroke);border-radius:var(--r);
-      background:rgba(255,255,255,.02);box-shadow:var(--shadow);
-    }
-    .nav{display:flex;gap:8px;flex-wrap:wrap}
-    .chip{padding:10px 12px;border-radius:999px;border:1px solid var(--stroke);background:rgba(255,255,255,.02);font-size:13px;color:var(--muted)}
-    .chip.active{color:var(--text);border-color:rgba(25,195,125,.35);background:rgba(25,195,125,.10)}
     .card{border:1px solid var(--stroke);border-radius:var(--r);background:rgba(255,255,255,.02);box-shadow:var(--shadow);padding:14px}
     h2{margin:0 0 10px 0;font-size:16px}
     .muted{color:var(--muted);font-size:12px;line-height:1.5}
@@ -56,20 +48,7 @@
 </head>
 <body>
   <div class="wrap">
-    <header class="topbar">
-      <div>
-        <div style="font-weight:800">Procesos</div>
-        <div class="muted">Corre ingesta, clasificación y fichas de forma manual (por fechas), además del modo automático.</div>
-      </div>
-      <nav class="nav">
-        <a class="chip" href="{% url 'monitor:home' %}">Home</a>
-        <a class="chip" href="{% url 'monitor:feed' %}">Monitor</a>
-        <a class="chip" href="{% url 'monitor:dashboards' %}">Dashboards</a>
-        <a class="chip" href="{% url 'monitor:benchmarks' %}">Benchmarks</a>
-        <a class="chip" href="{% url 'monitor:revision' %}">Revisión</a>
-        <a class="chip active" href="#">Procesos</a>
-      </nav>
-    </header>
+    {% include "monitor/_header.html" %}
 
     <div class="grid">
       <section class="card">

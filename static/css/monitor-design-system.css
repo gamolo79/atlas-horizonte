@@ -159,6 +159,60 @@ header {
   gap: 12px;
 }
 
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 14px 16px;
+  border: 1px solid var(--border-muted);
+  border-radius: var(--radius-xl);
+  background: rgba(255, 255, 255, 0.02);
+  box-shadow: var(--shadow-soft);
+}
+
+.brand-logo {
+  height: 32px;
+  width: auto;
+}
+
+.brand-title {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.brand-subtitle {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.nav {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.chip {
+  padding: 10px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border-muted);
+  background: rgba(255, 255, 255, 0.02);
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.chip:hover {
+  color: var(--text-main);
+  border-color: rgba(25, 195, 125, 0.35);
+}
+
+.chip.active {
+  color: var(--text-main);
+  border-color: rgba(25, 195, 125, 0.35);
+  background: rgba(25, 195, 125, 0.1);
+}
+
 .header-row {
   display: flex;
   align-items: center;
