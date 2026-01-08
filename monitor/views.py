@@ -6,6 +6,8 @@ from datetime import datetime, timedelta
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.management import call_command
 from django.db.models import Q
+from django.core.paginator import Paginator
+from django.db.models.functions import Coalesce
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render
 from django.template.loader import render_to_string
@@ -281,6 +283,7 @@ def _article_payload(article):
         "mentions": mentions_payload,
         "sentiment": sentiment,
         "status": article.status,
+        "is_reviewed": bool(classification and classification.is_editor_locked),
     }
 
 
@@ -335,7 +338,11 @@ def api_entities(request):
 
 @require_GET
 def api_feed(request):
-    queryset = Article.objects.select_related("source").order_by("-published_at", "-fetched_at")
+    queryset = (
+        Article.objects.select_related("source", "classification")
+        .prefetch_related("classification__mentions")
+        .order_by("-published_at", "-fetched_at")
+    )
     date_from = _parse_date(request.GET.get("date_from"))
     date_to = _parse_date(request.GET.get("date_to"))
     if date_from or date_to:
@@ -368,8 +375,30 @@ def api_feed(request):
     if label:
         queryset = queryset.filter(classification__labels_json__contains=[label])
 
-    items = [_article_payload(article) for article in queryset[:100]]
-    return JsonResponse({"items": items, "counts": {"total": queryset.count()}})
+    try:
+        page_size = max(1, min(int(request.GET.get("page_size", 20)), 100))
+    except (TypeError, ValueError):
+        page_size = 20
+    try:
+        page_number = int(request.GET.get("page", 1))
+    except (TypeError, ValueError):
+        page_number = 1
+
+    paginator = Paginator(queryset, page_size)
+    page_obj = paginator.get_page(page_number)
+
+    items = [_article_payload(article) for article in page_obj.object_list]
+    return JsonResponse(
+        {
+            "items": items,
+            "counts": {
+                "total": paginator.count,
+                "page": page_obj.number,
+                "page_size": page_size,
+                "total_pages": paginator.num_pages,
+            },
+        }
+    )
 
 
 @require_GET
@@ -389,6 +418,55 @@ def api_article_detail(request, article_id):
         for review in article.reviews.select_related("created_by").all()
     ]
     return JsonResponse(payload)
+
+
+@require_GET
+def api_review_navigation(request, article_id):
+    try:
+        current = Article.objects.annotate(
+            sort_ts=Coalesce("published_at", "fetched_at")
+        ).get(id=article_id)
+    except Article.DoesNotExist as exc:
+        return JsonResponse({"error": "Artículo no encontrado"}, status=404)
+
+    pending_queryset = (
+        Article.objects.filter(classification__is_editor_locked=False)
+        .annotate(sort_ts=Coalesce("published_at", "fetched_at"))
+        .order_by("-sort_ts", "-fetched_at", "-id")
+    )
+
+    prev_filter = (
+        Q(sort_ts__gt=current.sort_ts)
+        | Q(sort_ts=current.sort_ts, fetched_at__gt=current.fetched_at)
+        | Q(
+            sort_ts=current.sort_ts,
+            fetched_at=current.fetched_at,
+            id__gt=current.id,
+        )
+    )
+    next_filter = (
+        Q(sort_ts__lt=current.sort_ts)
+        | Q(sort_ts=current.sort_ts, fetched_at__lt=current.fetched_at)
+        | Q(
+            sort_ts=current.sort_ts,
+            fetched_at=current.fetched_at,
+            id__lt=current.id,
+        )
+    )
+
+    prev_article = pending_queryset.filter(prev_filter).order_by(
+        "sort_ts", "fetched_at", "id"
+    ).first()
+    next_article = pending_queryset.filter(next_filter).order_by(
+        "-sort_ts", "-fetched_at", "-id"
+    ).first()
+
+    return JsonResponse(
+        {
+            "prev_id": prev_article.id if prev_article else None,
+            "next_id": next_article.id if next_article else None,
+        }
+    )
 
 
 @require_POST

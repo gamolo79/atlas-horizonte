@@ -43,12 +43,15 @@
     .chip.pos{border-color:rgba(25,195,125,.4);background:rgba(25,195,125,.10);color:var(--text)}
     .chip.neu{border-color:rgba(159,178,190,.35);background:rgba(159,178,190,.08);color:var(--text)}
     .chip.neg{border-color:rgba(255,77,77,.35);background:rgba(255,77,77,.08);color:var(--text)}
+    .chip.warn{border-color:rgba(255,77,77,.35);background:rgba(255,77,77,.08);color:var(--text)}
     .actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
     .btn{
       padding:10px 12px;border-radius:14px;border:1px solid var(--stroke);
       background:rgba(25,195,125,.12);font-weight:700;font-size:13px;
     }
     .btn.ghost{background:rgba(255,255,255,.02);color:var(--muted);font-weight:500}
+    .pagination{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:12px;flex-wrap:wrap}
+    .page-info{font-size:12px;color:var(--muted)}
   </style>
 </head>
 <body>
@@ -116,6 +119,7 @@
     <div class="list" id="notesList">
       <div class="note">Cargando notas...</div>
     </div>
+    <div class="pagination" id="notesPagination"></div>
   </div>
 
   <script>
@@ -128,6 +132,9 @@
     const entitySearch = document.getElementById("entitySearch");
     const entitySelect = document.getElementById("entitySelect");
     const sentimentSelect = document.getElementById("sentimentSelect");
+    const notesPagination = document.getElementById("notesPagination");
+    const pageSize = 20;
+    let currentPage = 1;
 
     function buildParams() {
       const params = new URLSearchParams();
@@ -169,6 +176,7 @@
     function renderNote(item) {
       const div = document.createElement("div");
       div.className = "note";
+      const reviewBadge = item.is_reviewed ? "" : "<span class='chip warn'>Pendiente revisión</span>";
       const labels = (item.labels || []).slice(0, 8).map(label => `<span class="chip">${label}</span>`).join("") || "<span class='chip'>Sin etiquetas</span>";
       const mentions = (item.mentions || []).map(mention => `${mention.target_name} (${mention.sentiment})`).join(", ") || "Sin menciones";
       div.innerHTML = `
@@ -179,6 +187,7 @@
           <span>Tipo: ${item.article_type || "—"}</span>
           <span>Sentimiento: <span class="chip ${sentimentClass(item.sentiment)}">${item.sentiment || "neutro"}</span></span>
         </div>
+        <div class="chips">${reviewBadge}</div>
         <div class="meta" style="margin-top:8px">Idea central: ${item.central_idea || "Sin resumen"}</div>
         <div class="meta" style="margin-top:6px">Menciones: ${mentions}</div>
         <div class="chips">${labels}</div>
@@ -192,22 +201,54 @@
 
     async function loadNotes() {
       notesList.innerHTML = "<div class='note'>Cargando notas...</div>";
+      notesPagination.innerHTML = "";
       try {
-        const res = await fetch(`{% url 'monitor:api_feed' %}?${buildParams().toString()}`);
+        const params = buildParams();
+        params.set("page", currentPage);
+        params.set("page_size", pageSize);
+        const res = await fetch(`{% url 'monitor:api_feed' %}?${params.toString()}`);
         const data = await res.json();
         notesList.innerHTML = "";
         if (!data.items || !data.items.length) {
           notesList.innerHTML = "<div class='note'>Sin notas con estos filtros.</div>";
           return;
         }
+        currentPage = data.counts?.page || currentPage;
         data.items.forEach(item => notesList.appendChild(renderNote(item)));
+        renderPagination(data.counts);
       } catch (err) {
         console.error("Error cargando notas", err);
         notesList.innerHTML = "<div class='note'>Error cargando notas.</div>";
       }
     }
 
-    document.getElementById("applyFilters").addEventListener("click", loadNotes);
+    function renderPagination(counts) {
+      if (!counts || counts.total_pages <= 1) {
+        notesPagination.innerHTML = "";
+        return;
+      }
+      const prevDisabled = counts.page <= 1 ? "disabled" : "";
+      const nextDisabled = counts.page >= counts.total_pages ? "disabled" : "";
+      notesPagination.innerHTML = `
+        <button class="btn ghost" ${prevDisabled} data-page="${counts.page - 1}">Anterior</button>
+        <span class="page-info">Página ${counts.page} de ${counts.total_pages} · ${counts.total} notas</span>
+        <button class="btn ghost" ${nextDisabled} data-page="${counts.page + 1}">Siguiente</button>
+      `;
+      notesPagination.querySelectorAll("button[data-page]").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const page = Number(btn.dataset.page);
+          if (!Number.isNaN(page) && page >= 1 && page <= counts.total_pages) {
+            currentPage = page;
+            loadNotes();
+          }
+        });
+      });
+    }
+
+    document.getElementById("applyFilters").addEventListener("click", () => {
+      currentPage = 1;
+      loadNotes();
+    });
     document.getElementById("clearFilters").addEventListener("click", () => {
       qInput.value = "";
       dateFrom.value = "";
@@ -217,6 +258,7 @@
       entitySearch.value = "";
       entitySelect.innerHTML = "<option value=''>Selecciona entidad</option>";
       sentimentSelect.value = "";
+      currentPage = 1;
       loadNotes();
     });
     entitySearch.addEventListener("input", loadEntities);

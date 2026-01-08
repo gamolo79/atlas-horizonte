@@ -52,6 +52,8 @@
     .btn{padding:10px 12px;border-radius:14px;border:1px solid var(--stroke);background:rgba(25,195,125,.12);font-weight:800;font-size:13px}
     .btn.ghost{background:rgba(255,255,255,.02);color:var(--muted);font-weight:500}
     .box{padding:12px;border-radius:14px;border:1px solid var(--stroke);background:rgba(0,0,0,.18)}
+    .review-nav{display:flex;justify-content:space-between;gap:10px;margin-top:16px;flex-wrap:wrap}
+    .btn.disabled{opacity:.5;pointer-events:none}
   </style>
 </head>
 <body>
@@ -65,6 +67,7 @@
       </div>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
         <span class="pill" id="review-pending">Pendientes: —</span>
+        <span class="pill" id="review-status">Estado: —</span>
         <a class="pill" href="{% url 'monitor:feed' %}">← Volver al monitor</a>
       </div>
     </div>
@@ -128,6 +131,11 @@
         </div>
       </aside>
     </div>
+
+    <div class="review-nav">
+      <a class="btn ghost" id="prevReview" href="#">← Nota previa por revisar</a>
+      <a class="btn" id="nextReview" href="#">Siguiente nota por revisar →</a>
+    </div>
   </div>
 
   <script>
@@ -142,6 +150,8 @@
     const addMentionBtn = document.getElementById("addMention");
     const reasonInput = document.getElementById("reasonInput");
     const openOriginal = document.getElementById("openOriginal");
+    const prevReview = document.getElementById("prevReview");
+    const nextReview = document.getElementById("nextReview");
 
     function getCookie(name) {
       const value = `; ${document.cookie}`;
@@ -185,9 +195,40 @@
             `<div class="muted">${review.created_at} · ${review.created_by}: ${review.reason_text}</div>`
           )).join("");
         }
+        const reviewStatus = document.getElementById("review-status");
+        if (reviewStatus) {
+          const label = data.is_reviewed ? "Revisada" : "Pendiente de revisión";
+          reviewStatus.textContent = `Estado: ${label}`;
+          reviewStatus.classList.toggle("warn", !data.is_reviewed);
+        }
         openOriginal.onclick = () => window.open(data.url, "_blank");
       } catch (err) {
         console.error("Error cargando artículo", err);
+      }
+    }
+
+    function setNavButton(button, targetId) {
+      if (!button) return;
+      if (!targetId) {
+        button.classList.add("disabled");
+        button.setAttribute("aria-disabled", "true");
+        button.removeAttribute("href");
+        return;
+      }
+      button.classList.remove("disabled");
+      button.setAttribute("aria-disabled", "false");
+      button.setAttribute("href", `/monitor/revision/${targetId}/`);
+    }
+
+    async function loadReviewNav() {
+      if (!articleId) return;
+      try {
+        const res = await fetch(`/monitor/api/article/${articleId}/review-nav`);
+        const data = await res.json();
+        setNavButton(prevReview, data.prev_id);
+        setNavButton(nextReview, data.next_id);
+      } catch (err) {
+        console.error("Error cargando navegación de revisión", err);
       }
     }
 
@@ -296,6 +337,7 @@
         }
         alert("Corrección guardada.");
         loadArticle();
+        loadReviewNav();
       } catch (err) {
         console.error("Error guardando revisión", err);
       }
@@ -307,6 +349,7 @@
 
     loadReviewSummary();
     loadArticle();
+    loadReviewNav();
   </script>
 </body>
 </html>
