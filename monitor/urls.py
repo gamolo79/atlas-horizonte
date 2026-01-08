@@ -20,6 +20,11 @@ urlpatterns = [
     path("api/entities", views.api_entities, name="api_entities"),
     path("api/feed", views.api_feed, name="api_feed"),
     path("api/article/<int:article_id>/", views.api_article_detail, name="api_article_detail"),
+    path(
+        "api/article/<int:article_id>/review-nav",
+        views.api_review_navigation,
+        name="api_review_navigation",
+    ),
     path("api/article/<int:article_id>/review", views.api_article_review, name="api_article_review"),
     path("api/dashboard", views.api_dashboard, name="api_dashboard"),
     path("api/benchmark", views.api_benchmark, name="api_benchmark"),

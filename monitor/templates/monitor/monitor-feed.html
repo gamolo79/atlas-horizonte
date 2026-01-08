@@ -49,6 +49,7 @@
     .chip.pos{border-color:rgba(25,195,125,.4);background:rgba(25,195,125,.10);color:var(--text)}
     .chip.neu{border-color:rgba(159,178,190,.35);background:rgba(159,178,190,.08);color:var(--text)}
     .chip.neg{border-color:rgba(255,77,77,.35);background:rgba(255,77,77,.08);color:var(--text)}
+    .chip.warn{border-color:rgba(255,77,77,.35);background:rgba(255,77,77,.08);color:var(--text)}
     .actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
     .btn{
       padding:10px 12px;border-radius:14px;border:1px solid var(--stroke);
@@ -57,6 +58,8 @@
     .btn.ghost{background:rgba(255,255,255,.02);color:var(--muted);font-weight:500}
     .side h4{margin:0 0 10px 0;font-size:14px}
     .kv{display:flex;justify-content:space-between;gap:10px;padding:10px;border-radius:14px;border:1px solid var(--stroke);background:rgba(0,0,0,.18);margin-bottom:10px}
+    .pagination{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:12px;flex-wrap:wrap}
+    .page-info{font-size:12px;color:var(--muted)}
   </style>
 </head>
 <body>
@@ -102,6 +105,7 @@
         <div class="list" id="feedList">
           <div class="note">Cargando notas...</div>
         </div>
+        <div class="pagination" id="feedPagination"></div>
       </div>
 
       <aside class="card side">
@@ -125,8 +129,11 @@
     const entityType = document.getElementById("entityType");
     const entitySearch = document.getElementById("entitySearch");
     const entitySelect = document.getElementById("entitySelect");
+    const feedPagination = document.getElementById("feedPagination");
     const urlParams = new URLSearchParams(window.location.search);
     const presetLabel = urlParams.get("label");
+    const pageSize = 20;
+    let currentPage = 1;
 
     async function loadSummary() {
       try {
@@ -186,8 +193,11 @@
       if (presetLabel) {
         params.set("label", presetLabel);
       }
+      params.set("page", currentPage);
+      params.set("page_size", pageSize);
 
       feedList.innerHTML = "<div class='note'>Cargando notas...</div>";
+      feedPagination.innerHTML = "";
       try {
         const res = await fetch(`{% url 'monitor:api_feed' %}?${params.toString()}`);
         const data = await res.json();
@@ -196,9 +206,11 @@
           return;
         }
         feedList.innerHTML = "";
+        currentPage = data.counts?.page || currentPage;
         data.items.forEach(item => {
           const note = document.createElement("article");
           note.className = "note";
+          const reviewBadge = item.is_reviewed ? "" : "<span class='chip warn'>Pendiente revisión</span>";
           const mentionsChips = item.mentions.map(m => {
             const sentimentClass = m.sentiment === "positivo" ? "pos" : m.sentiment === "negativo" ? "neg" : "neu";
             return `<span class="chip ${sentimentClass}">${m.target_name} · ${m.sentiment}</span>`;
@@ -215,6 +227,7 @@
               <span>${idea}</span>
             </div>
             <div class="chips">
+              ${reviewBadge}
               ${mentionsChips || ""}
               ${labels || ""}
             </div>
@@ -226,10 +239,34 @@
           `;
           feedList.appendChild(note);
         });
+        renderPagination(data.counts);
       } catch (err) {
         console.error("Error cargando feed", err);
         feedList.innerHTML = "<div class='note'>Error al cargar notas. Revisa consola.</div>";
       }
+    }
+
+    function renderPagination(counts) {
+      if (!counts || counts.total_pages <= 1) {
+        feedPagination.innerHTML = "";
+        return;
+      }
+      const prevDisabled = counts.page <= 1 ? "disabled" : "";
+      const nextDisabled = counts.page >= counts.total_pages ? "disabled" : "";
+      feedPagination.innerHTML = `
+        <button class="btn ghost" ${prevDisabled} data-page="${counts.page - 1}">Anterior</button>
+        <span class="page-info">Página ${counts.page} de ${counts.total_pages} · ${counts.total} notas</span>
+        <button class="btn ghost" ${nextDisabled} data-page="${counts.page + 1}">Siguiente</button>
+      `;
+      feedPagination.querySelectorAll("button[data-page]").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const page = Number(btn.dataset.page);
+          if (!Number.isNaN(page) && page >= 1 && page <= counts.total_pages) {
+            currentPage = page;
+            loadFeed();
+          }
+        });
+      });
     }
 
     entitySearch.addEventListener("input", () => {
@@ -240,7 +277,10 @@
 
     [document.getElementById("qInput"), document.getElementById("dateFrom"), document.getElementById("dateTo"),
      document.getElementById("sentimentSelect"), document.getElementById("typeSelect"), entitySelect, entityType]
-      .forEach(el => el.addEventListener("change", loadFeed));
+      .forEach(el => el.addEventListener("change", () => {
+        currentPage = 1;
+        loadFeed();
+      }));
 
     if (urlParams.get("entity_type")) {
       entityType.value = urlParams.get("entity_type");
