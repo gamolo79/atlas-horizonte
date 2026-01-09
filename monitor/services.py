@@ -3,16 +3,19 @@ import logging
 import os
 import re
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Iterable, List, Optional, Set
 
 from openai import OpenAI
+from rapidfuzz import fuzz
 
-from atlas_core.text_utils import normalize_name
+from atlas_core.text_utils import normalize_name, tokenize
 
 
 NAME_FIELDS = ["nombre", "name", "title", "titulo", "label"]
 ALIASES_FIELDS = ["aliases", "alias", "aka", "apodos"]
 logger = logging.getLogger(__name__)
+FUZZY_MATCH_THRESHOLD = 90
+CATALOG_FALLBACK_SIZE = 25
 
 
 def get_display_name(obj) -> str:
@@ -116,6 +119,50 @@ def catalog_prompt(catalog: Dict[str, List[CatalogEntry]], max_items: int = 200)
     return "\n".join(lines)
 
 
+def _entry_tokens(entry: CatalogEntry) -> Set[str]:
+    return set(tokenize(entry.normalized_name))
+
+
+def _article_text(article) -> str:
+    return f"{getattr(article, 'title', '')} {getattr(article, 'text', '')}".strip()
+
+
+def _article_tokens(text: str) -> Set[str]:
+    return set(tokenize(text))
+
+
+def filter_catalog_for_article(
+    article,
+    catalog: Dict[str, List[CatalogEntry]],
+    fallback_size: int = CATALOG_FALLBACK_SIZE,
+) -> Dict[str, List[CatalogEntry]]:
+    text = _article_text(article)
+    return filter_catalog_for_text(text, catalog, fallback_size=fallback_size)
+
+
+def filter_catalog_for_text(
+    text: str,
+    catalog: Dict[str, List[CatalogEntry]],
+    fallback_size: int = CATALOG_FALLBACK_SIZE,
+) -> Dict[str, List[CatalogEntry]]:
+    normalized_text = normalize_name(text)
+    article_tokens = _article_tokens(text)
+    if not normalized_text and not article_tokens:
+        return catalog
+    filtered: Dict[str, List[CatalogEntry]] = {}
+    for key, entries in catalog.items():
+        matches = [
+            entry
+            for entry in entries
+            if entry.normalized_name in normalized_text or _entry_tokens(entry) & article_tokens
+        ]
+        if matches:
+            filtered[key] = matches
+        else:
+            filtered[key] = entries[:fallback_size]
+    return filtered
+
+
 def parse_json_response(raw: str) -> Dict[str, Any]:
     cleaned = raw.strip()
     if cleaned.startswith("```"):
@@ -174,6 +221,27 @@ def validate_payload(payload: Dict[str, Any]) -> Dict[str, Any]:
     return payload
 
 
+def _fuzzy_score(source: str, candidate: str) -> int:
+    return max(fuzz.ratio(source, candidate), fuzz.token_set_ratio(source, candidate))
+
+
+def _find_fuzzy_match(
+    normalized: str,
+    entries: Iterable[CatalogEntry],
+    threshold: int = FUZZY_MATCH_THRESHOLD,
+) -> Optional[CatalogEntry]:
+    best_entry: Optional[CatalogEntry] = None
+    best_score = 0
+    for entry in entries:
+        score = _fuzzy_score(normalized, entry.normalized_name)
+        if score > best_score:
+            best_score = score
+            best_entry = entry
+    if best_entry and best_score >= threshold:
+        return best_entry
+    return None
+
+
 def match_mentions(
     mentions: List[Dict[str, Any]],
     catalog: Dict[str, List[CatalogEntry]],
@@ -185,7 +253,10 @@ def match_mentions(
     }
     for mention in mentions:
         normalized = normalize_name(mention["target_name"])
+        entries = catalog.get(mention["target_type"], [])
         entry = catalog_map.get(mention["target_type"], {}).get(normalized)
+        if not entry:
+            entry = _find_fuzzy_match(normalized, entries)
         if not entry:
             continue
         matches.append(
@@ -210,6 +281,7 @@ def classify_article(article, catalog: Dict[str, List[CatalogEntry]], retries: i
         api_key=api_key,
         project=project_id,
     )
+    filtered_catalog = filter_catalog_for_article(article, catalog)
     prompt = f"""
 Eres un analista de cobertura mediática. Devuelve SOLO JSON estricto, sin texto extra.
 
@@ -235,7 +307,7 @@ Reglas:
 - article_type debe ser informativo u opinion.
 
 Catálogo Atlas (para menciones):
-{catalog_prompt(catalog)}
+{catalog_prompt(filtered_catalog)}
 
 Artículo:
 Título: {article.title}
