@@ -562,6 +562,65 @@ def api_article_review(request, article_id):
     return JsonResponse({"status": "ok"})
 
 
+@require_POST
+def api_article_review_skip(request, article_id):
+    if not request.user.is_authenticated:
+        return JsonResponse({"error": "Autenticación requerida"}, status=401)
+    try:
+        article = Article.objects.select_related("source").get(id=article_id)
+    except Article.DoesNotExist as exc:
+        return JsonResponse({"error": "Artículo no encontrado"}, status=404)
+
+    payload = {}
+    if request.body:
+        try:
+            payload = json.loads(request.body.decode("utf-8"))
+        except json.JSONDecodeError:
+            return JsonResponse({"error": "JSON inválido"}, status=400)
+
+    reason_text = (payload.get("reason_text") or "").strip() or "Sin corrección requerida."
+
+    try:
+        classification = article.classification
+    except ObjectDoesNotExist:
+        classification = Classification.objects.create(
+            article=article,
+            central_idea="",
+            article_type="informativo",
+            labels_json=[],
+            model_name="editorial",
+            is_editor_locked=True,
+        )
+    else:
+        classification.is_editor_locked = True
+        classification.save(update_fields=["is_editor_locked"])
+
+    before_json = {
+        "central_idea": classification.central_idea,
+        "article_type": classification.article_type,
+        "labels": classification.labels_json,
+        "mentions": [
+            {
+                "target_type": mention.target_type,
+                "target_id": mention.target_id,
+                "target_name": mention.target_name,
+                "sentiment": mention.sentiment,
+            }
+            for mention in classification.mentions.all()
+        ],
+    }
+
+    EditorialReview.objects.create(
+        article=article,
+        before_json=before_json,
+        after_json=before_json,
+        reason_text=reason_text,
+        created_by=request.user,
+    )
+
+    return JsonResponse({"status": "ok"})
+
+
 def _aggregate_dashboard(queryset):
     sentiment_counts = Counter()
     type_counts = Counter()
