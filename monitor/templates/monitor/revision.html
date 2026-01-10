@@ -37,7 +37,7 @@
       color:var(--text);padding:10px 12px;font-size:13px;outline:none;
     }
     textarea{min-height:92px;resize:vertical}
-    .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .row{display:flex;flex-direction:column;gap:10px}
     .mentions-list{display:flex;flex-direction:column;gap:10px}
     .mention-row{
       display:grid;
@@ -115,6 +115,7 @@
 
         <div class="actions">
           <button class="btn" id="saveReview">Guardar corrección</button>
+          <button class="btn ghost" id="skipReview">Quitar de revisión</button>
           <button class="btn ghost" id="openOriginal">Abrir original</button>
         </div>
       </section>
@@ -152,6 +153,7 @@
     const openOriginal = document.getElementById("openOriginal");
     const prevReview = document.getElementById("prevReview");
     const nextReview = document.getElementById("nextReview");
+    const skipReviewBtn = document.getElementById("skipReview");
 
     function getCookie(name) {
       const value = `; ${document.cookie}`;
@@ -345,6 +347,38 @@
 
     addMentionBtn.addEventListener("click", () => {
       mentionsList.appendChild(createMentionRow());
+    });
+
+    skipReviewBtn.addEventListener("click", async () => {
+      if (!articleId) return;
+      const payload = {
+        reason_text: reasonInput.value
+      };
+      try {
+        const res = await fetch(`/monitor/api/article/${articleId}/review-skip`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": getCookie("csrftoken")
+          },
+          body: JSON.stringify(payload)
+        });
+        if (res.status === 401) {
+          alert("Debes iniciar sesión para guardar correcciones.");
+          return;
+        }
+        if (!res.ok) {
+          const err = await res.json();
+          alert(err.error || "Error guardando revisión");
+          return;
+        }
+        alert("Nota marcada como revisada.");
+        loadReviewSummary();
+        loadArticle();
+        loadReviewNav();
+      } catch (err) {
+        console.error("Error guardando revisión", err);
+      }
     });
 
     loadReviewSummary();
