@@ -13,5 +13,6 @@ urlpatterns = [
     path("reporte/<int:run_id>/", views.run_report, name="run_report"),
     path("reporte/<int:run_id>/detalle/", views.run_detail, name="run_detail"),
     path("reporte/<int:run_id>/pdf/", views.run_pdf, name="run_pdf"),
+    path("runs/<int:run_id>/status/", views.run_status, name="run_status"),
     path("intereses/<int:interest_id>/eliminar/", views.delete_interest, name="delete_interest"),
 ]

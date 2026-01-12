@@ -1,13 +1,13 @@
 from datetime import date, datetime
 from unittest import mock
 
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
 from monitor.models import Article, Classification, Mention, Source
 from redpolitica.models import Persona
-from sintesis.models import SynthesisClient, SynthesisClientInterest
+from sintesis.models import SynthesisClient, SynthesisClientInterest, SynthesisRun
 from sintesis.management.commands.run_sintesis import Command
 from sintesis.run_builder import build_run, build_run_document
 
@@ -86,9 +86,10 @@ class SynthesisRunBuilderTests(TestCase):
         )
         self._create_article("Nota con PDF")
         run = build_run(client=self.client)
-        build_run_document(run)
+        with override_settings(SINTESIS_ENABLE_PDF=False):
+            build_run_document(run)
         run.refresh_from_db()
-        self.assertTrue(run.pdf_file)
+        self.assertFalse(run.pdf_file)
 
     def test_dedupe_article_not_in_two_sections(self):
         SynthesisClientInterest.objects.create(
@@ -130,8 +131,8 @@ class SynthesisRunViewTests(TestCase):
             keyword_tags=["salud"],
         )
 
-    @mock.patch("sintesis.views.call_command")
-    def test_client_detail_run_manual_post_redirects(self, call_command_mock):
+    @mock.patch("sintesis.views.subprocess.Popen")
+    def test_client_detail_run_manual_post_redirects(self, popen_mock):
         response = self.client.post(
             reverse("sintesis:client_detail", kwargs={"client_id": self.synthesis_client.id}),
             {
@@ -143,7 +144,75 @@ class SynthesisRunViewTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 302)
-        call_command_mock.assert_called_once()
-        _, kwargs = call_command_mock.call_args
-        self.assertIsInstance(kwargs["date_from"], date)
-        self.assertIsInstance(kwargs["date_to"], date)
+        self.assertEqual(SynthesisRun.objects.filter(client=self.synthesis_client).count(), 1)
+        run = SynthesisRun.objects.get(client=self.synthesis_client)
+        self.assertEqual(run.status, "queued")
+        popen_mock.assert_called_once()
+
+    @mock.patch("sintesis.views.subprocess.Popen")
+    def test_procesos_run_manual_post_redirects(self, popen_mock):
+        response = self.client.post(
+            reverse("sintesis:procesos"),
+            {
+                "run-client": self.synthesis_client.id,
+                "run-date_from": "2026-01-12",
+                "run-date_to": "2026-01-13",
+                "run_manual": "1",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(SynthesisRun.objects.filter(client=self.synthesis_client).count(), 1)
+        run = SynthesisRun.objects.get(client=self.synthesis_client)
+        self.assertEqual(run.status, "queued")
+        popen_mock.assert_called_once()
+
+
+class SynthesisRunPdfFailureTests(TestCase):
+    def setUp(self):
+        self.source = Source.objects.create(
+            name="Medio Uno",
+            source_type="rss",
+            url="https://medio.local",
+        )
+        self.persona = Persona.objects.create(nombre_completo="Ana Pérez", slug="ana-perez")
+        self.client = SynthesisClient.objects.create(
+            name="Cliente Demo",
+            persona=self.persona,
+            description="Demo",
+            keyword_tags=["salud"],
+        )
+        SynthesisClientInterest.objects.create(
+            client=self.client,
+            persona=self.persona,
+            interest_group="priority",
+        )
+        article = Article.objects.create(
+            source=self.source,
+            url="https://medio.local/nota",
+            title="Nota PDF",
+            text="Texto de prueba sobre salud pública.",
+            published_at=timezone.now(),
+        )
+        classification = Classification.objects.create(
+            article=article,
+            central_idea="Tema central de la nota",
+            article_type="informativo",
+            labels_json=["salud", "politica"],
+            model_name="test",
+        )
+        Mention.objects.create(
+            classification=classification,
+            target_type="persona",
+            target_id=self.persona.id,
+            target_name=self.persona.nombre_completo,
+            sentiment="positivo",
+            confidence=0.9,
+        )
+
+    @mock.patch("sintesis.run_builder.generate_run_pdf", side_effect=Exception("PDF error"))
+    def test_run_completes_when_pdf_fails(self, _generate_run_pdf):
+        Command().handle(client_id=self.client.id)
+        run = SynthesisRun.objects.get(client=self.client)
+        self.assertIn(run.status, {"completed", "failed"})
+        self.assertNotEqual(run.status, "running")

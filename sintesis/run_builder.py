@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import importlib
+import importlib.util
 import logging
 from collections import Counter, defaultdict
 from dataclasses import dataclass
@@ -13,12 +15,6 @@ from django.db.models import Q
 from django.core.files.base import ContentFile
 from django.template.loader import render_to_string
 from django.utils import timezone
-try:
-    from weasyprint import HTML
-    WEASYPRINT_AVAILABLE = True
-except (ImportError, OSError):
-    WEASYPRINT_AVAILABLE = False
-    logger.warning("WeasyPrint not available. PDF generation will be disabled.")
 
 from atlas_core.text_utils import normalize_name, tokenize
 from monitor.models import Article
@@ -50,7 +46,7 @@ class SectionSpec:
     tokens: Set[str]
 
 
-def _date_range(date_from, date_to):
+def resolve_date_range(date_from, date_to):
     if date_from and date_to:
         return date_from, date_to
     if date_from and not date_to:
@@ -299,15 +295,16 @@ def build_run(
     date_to=None,
     schedule=None,
     run_type: str = "manual",
+    status: str = "running",
 ) -> SynthesisRun:
-    date_from, date_to = _date_range(date_from, date_to)
+    date_from, date_to = resolve_date_range(date_from, date_to)
     run = SynthesisRun.objects.create(
         client=client,
         schedule=schedule,
         run_type=run_type,
         date_from=date_from,
         date_to=date_to,
-        status="running",
+        status=status,
     )
     logger.info("Iniciando run de síntesis %s para %s", run.pk, client.name)
     return run
@@ -438,18 +435,14 @@ def build_run_document(run: SynthesisRun) -> int:
             run.pdf_file = pdf_file
             run.pdf_generated_at = timezone.now()
 
-    run.status = "ok"
-    run.finished_at = timezone.now()
     run.save(
         update_fields=[
-            "status",
             "output_count",
             "stats_json",
             "log_text",
             "html_snapshot",
             "pdf_file",
             "pdf_generated_at",
-            "finished_at",
         ]
     )
     return created_stories
@@ -491,14 +484,26 @@ def render_run_html(run: SynthesisRun, is_pdf: bool = False) -> str:
     )
 
 
+def _weasyprint_available() -> bool:
+    return importlib.util.find_spec("weasyprint") is not None
+
+
 def generate_run_pdf(run: SynthesisRun) -> Optional[str]:
-    if not WEASYPRINT_AVAILABLE:
+    if not settings.SINTESIS_ENABLE_PDF:
+        return None
+    if not _weasyprint_available():
+        logger.warning("WeasyPrint not available. PDF generation will be disabled.")
         return None
     if not run.output_count:
         return None
     html = render_run_html(run, is_pdf=True)
-    html_obj = HTML(string=html, base_url=str(settings.BASE_DIR))
-    pdf_bytes = html_obj.write_pdf()
+    weasyprint_module = importlib.import_module("weasyprint")
+    html_obj = weasyprint_module.HTML(string=html, base_url=str(settings.BASE_DIR))
+    try:
+        pdf_bytes = html_obj.write_pdf()
+    except Exception:  # noqa: BLE001
+        logger.exception("Error generating PDF for run %s.", run.pk)
+        return None
     filename = f"sintesis_{run.client_id}_{run.pk}.pdf"
     run.pdf_file.save(filename, ContentFile(pdf_bytes), save=False)
     return run.pdf_file
@@ -507,6 +512,8 @@ def generate_run_pdf(run: SynthesisRun) -> Optional[str]:
 def ensure_run_pdf(run: SynthesisRun) -> Optional[str]:
     if run.pdf_file:
         return run.pdf_file
+    if not settings.SINTESIS_ENABLE_PDF:
+        return None
     if not run.output_count:
         return None
     pdf_file = generate_run_pdf(run)
