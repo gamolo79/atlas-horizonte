@@ -9,12 +9,14 @@ try:
 except ImportError:  # pragma: no cover - fallback for missing dependency
     date_parser = None
 from django.core.management.base import BaseCommand
-from django.db import IntegrityError
+from django.db import IntegrityError, transaction
 from django.utils import timezone
 from lxml import etree
 from readability import Document
 
-from monitor.models import Article, Source
+from monitor.models import Article, Classification, Mention, Source
+from monitor.services import build_catalog, classify_article, match_mentions
+from redpolitica.models import Institucion, Persona, Topic
 
 
 DEFAULT_TIMEOUT = 15
@@ -128,6 +130,11 @@ class Command(BaseCommand):
         source_id = options.get("source_id")
         limit_sources = options.get("limit_sources")
 
+        personas = Persona.objects.all()
+        instituciones = Institucion.objects.all()
+        temas = Topic.objects.all()
+        catalog = build_catalog(personas, instituciones, temas)
+
         sources = Source.objects.filter(is_active=True)
         if source_id:
             sources = sources.filter(id=source_id)
@@ -146,11 +153,23 @@ class Command(BaseCommand):
 
             try:
                 if source.source_type == "rss":
-                    seen, created, errors, last_error = self._process_rss(source, limit - total_new)
+                    seen, created, errors, last_error = self._process_rss(
+                        source,
+                        limit - total_new,
+                        catalog,
+                    )
                 elif source.source_type == "sitemap":
-                    seen, created, errors, last_error = self._process_sitemap(source, limit - total_new)
+                    seen, created, errors, last_error = self._process_sitemap(
+                        source,
+                        limit - total_new,
+                        catalog,
+                    )
                 elif source.source_type == "scrape":
-                    seen, created, errors, last_error = self._process_scrape(source, limit - total_new)
+                    seen, created, errors, last_error = self._process_scrape(
+                        source,
+                        limit - total_new,
+                        catalog,
+                    )
                 else:
                     last_error = f"Tipo desconocido: {source.source_type}"
                     errors += 1
@@ -185,7 +204,7 @@ class Command(BaseCommand):
 
         self.stdout.write(self.style.SUCCESS(f"Total nuevos: {total_new}"))
 
-    def _process_rss(self, source: Source, limit: int) -> Tuple[int, int, int, str]:
+    def _process_rss(self, source: Source, limit: int, catalog) -> Tuple[int, int, int, str]:
         feed = feedparser.parse(source.url)
         seen = 0
         created = 0
@@ -240,9 +259,13 @@ class Command(BaseCommand):
 
             if created_flag:
                 created += 1
+                classify_error = self._classify_article(article, catalog)
+                if classify_error:
+                    errors += 1
+                    last_error = classify_error
         return seen, created, errors, last_error
 
-    def _process_sitemap(self, source: Source, limit: int) -> Tuple[int, int, int, str]:
+    def _process_sitemap(self, source: Source, limit: int, catalog) -> Tuple[int, int, int, str]:
         urls = crawl_sitemap(source.url)
         seen = 0
         created = 0
@@ -272,6 +295,10 @@ class Command(BaseCommand):
                 )
                 if created_flag:
                     created += 1
+                    classify_error = self._classify_article(article, catalog)
+                    if classify_error:
+                        errors += 1
+                        last_error = classify_error
             except requests.RequestException as exc:
                 errors += 1
                 last_error = str(exc)
@@ -279,7 +306,7 @@ class Command(BaseCommand):
                 continue
         return seen, created, errors, last_error
 
-    def _process_scrape(self, source: Source, limit: int) -> Tuple[int, int, int, str]:
+    def _process_scrape(self, source: Source, limit: int, catalog) -> Tuple[int, int, int, str]:
         seen = 0
         created = 0
         errors = 0
@@ -305,9 +332,46 @@ class Command(BaseCommand):
             )
             if created_flag:
                 created += 1
+                classify_error = self._classify_article(article, catalog)
+                if classify_error:
+                    errors += 1
+                    last_error = classify_error
         except requests.RequestException as exc:
             errors += 1
             last_error = str(exc)
         except IntegrityError:
             pass
         return seen, created, errors, last_error
+
+    def _classify_article(self, article: Article, catalog) -> str:
+        try:
+            payload = classify_article(article, catalog)
+            matches = match_mentions(payload.get("mentions", []), catalog)
+            with transaction.atomic():
+                classification, created = Classification.objects.update_or_create(
+                    article=article,
+                    defaults={
+                        "central_idea": payload["central_idea"],
+                        "article_type": payload["article_type"],
+                        "labels_json": payload["labels"],
+                        "model_name": payload.get("_model_name", "unknown"),
+                        "prompt_version": "v1",
+                    },
+                )
+                if not created:
+                    classification.mentions.all().delete()
+                Mention.objects.bulk_create(
+                    [
+                        Mention(classification=classification, **match)
+                        for match in matches
+                    ]
+                )
+                article.status = "processed"
+                article.error_text = ""
+                article.save(update_fields=["status", "error_text"])
+            return ""
+        except Exception as exc:  # noqa: BLE001
+            article.status = "error"
+            article.error_text = str(exc)[:1000]
+            article.save(update_fields=["status", "error_text"])
+            return str(exc)
