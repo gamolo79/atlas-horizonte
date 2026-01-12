@@ -15,4 +15,5 @@ urlpatterns = [
     path("reporte/<int:run_id>/pdf/", views.run_pdf, name="run_pdf"),
     path("runs/<int:run_id>/status/", views.run_status, name="run_status"),
     path("intereses/<int:interest_id>/eliminar/", views.delete_interest, name="delete_interest"),
+    path("secciones/<int:section_id>/eliminar/", views.delete_section, name="delete_section"),
 ]
