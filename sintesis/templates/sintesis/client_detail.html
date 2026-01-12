@@ -44,9 +44,11 @@
 <div class="grid cols" style="margin-top:16px">
   <div class="card">
     <h2>Intereses editoriales</h2>
-    <p class="muted">Selecciona personas, instituciones o temas que priorizan la síntesis.</p>
+    <p class="muted">Clasifica intereses prioritarios y generales para armar secciones del documento.</p>
+
+    <h3 class="muted" style="margin-top:12px">Prioritarios</h3>
     <div class="list">
-      {% for interest in interests %}
+      {% for interest in priority_interests %}
       <div class="item">
         <div>
           <div class="title">
@@ -56,13 +58,37 @@
           </div>
           {% if interest.note %}<div class="meta">{{ interest.note }}</div>{% endif %}
         </div>
-        <span class="pill info">{{ interest.created_at|date:"d/m/Y" }}</span>
+        <span class="pill good">Prioritario</span>
       </div>
       {% empty %}
       <div class="item">
         <div>
-          <div class="title">Sin intereses definidos</div>
-          <div class="meta">Agrega un interés para priorizar historias.</div>
+          <div class="title">Sin intereses prioritarios</div>
+          <div class="meta">Agrega intereses clave para las notas principales.</div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+    <h3 class="muted" style="margin-top:16px">Generales</h3>
+    <div class="list">
+      {% for interest in general_interests %}
+      <div class="item">
+        <div>
+          <div class="title">
+            {% if interest.persona %}{{ interest.persona.nombre_completo }}{% endif %}
+            {% if interest.institucion %}{{ interest.institucion.nombre }}{% endif %}
+            {% if interest.topic %}{{ interest.topic.name }}{% endif %}
+          </div>
+          {% if interest.note %}<div class="meta">{{ interest.note }}</div>{% endif %}
+        </div>
+        <span class="pill info">General</span>
+      </div>
+      {% empty %}
+      <div class="item">
+        <div>
+          <div class="title">Sin intereses generales</div>
+          <div class="meta">Agrega intereses para las notas generales.</div>
         </div>
       </div>
       {% endfor %}
@@ -82,6 +108,10 @@
         <div>
           <label for="id_interest-topic">Tema</label>
           {{ interest_form.topic }}
+        </div>
+        <div>
+          <label for="id_interest-interest_group">Grupo</label>
+          {{ interest_form.interest_group }}
         </div>
         <div>
           <label for="id_interest-note">Nota</label>
@@ -169,6 +199,81 @@
   </div>
 </div>
 
+<div class="card" style="margin-top:16px">
+  <h2>Secciones personalizadas</h2>
+  <p class="muted">Crea bloques adicionales por cliente y define filtros por persona, institución o tema.</p>
+  <div class="list" style="margin-top:12px">
+    {% for section in sections %}
+    <div class="item">
+      <div>
+        <div class="title">{{ section.title }}</div>
+        <div class="meta">Agrupar por {{ section.get_group_by_display }} · Orden {{ section.order }}</div>
+        <div class="chips" style="margin-top:8px">
+          {% for filter in section.filters.all %}
+            <span class="chip">
+              {% if filter.persona %}{{ filter.persona.nombre_completo }}{% endif %}
+              {% if filter.institucion %}{{ filter.institucion.nombre }}{% endif %}
+              {% if filter.topic %}{{ filter.topic.name }}{% endif %}
+            </span>
+          {% endfor %}
+        </div>
+      </div>
+      <span class="pill {% if section.is_active %}good{% else %}warn{% endif %}">
+        {% if section.is_active %}Activa{% else %}Inactiva{% endif %}
+      </span>
+    </div>
+    {% empty %}
+    <div class="item">
+      <div>
+        <div class="title">Sin secciones custom</div>
+        <div class="meta">Agrega una sección para personalizar el documento.</div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <form method="post" style="margin-top:14px">
+    {% csrf_token %}
+    <div class="form-grid">
+      <div>
+        <label for="id_section-title">Título</label>
+        {{ section_form.title }}
+      </div>
+      <div>
+        <label for="id_section-order">Orden</label>
+        {{ section_form.order }}
+      </div>
+      <div>
+        <label for="id_section-group_by">Agrupar por</label>
+        {{ section_form.group_by }}
+      </div>
+      <div>
+        <label for="id_section-section_type">Tipo</label>
+        {{ section_form.section_type }}
+      </div>
+      <div>
+        <label for="id_section-is_active">Activa</label>
+        {{ section_form.is_active }}
+      </div>
+      <div>
+        <label for="id_section-personas">Personas</label>
+        {{ section_form.personas }}
+      </div>
+      <div>
+        <label for="id_section-instituciones">Instituciones</label>
+        {{ section_form.instituciones }}
+      </div>
+      <div>
+        <label for="id_section-topics">Temas</label>
+        {{ section_form.topics }}
+      </div>
+    </div>
+    <div class="row" style="margin-top:12px">
+      <button class="btn" type="submit" name="add_section">Agregar sección</button>
+    </div>
+  </form>
+</div>
+
 <div class="grid cols" style="margin-top:16px">
   <div class="card">
     <h2>Últimas síntesis</h2>
@@ -208,8 +313,12 @@
           <div class="meta">{{ run.output_count }} historias</div>
         </div>
         <span class="pill info">{{ run.status }}</span>
-        <a href="{% url 'sintesis:run_report' run.id %}" target="_blank" class="btn ghost"
-          style="padding:4px 8px;font-size:11px">PDF</a>
+        <div class="row" style="margin-top:8px">
+          <a href="{% url 'sintesis:run_detail' run.id %}" target="_blank" class="btn ghost"
+            style="padding:4px 8px;font-size:11px">Ver documento</a>
+          <a href="{% url 'sintesis:run_pdf' run.id %}" target="_blank" class="btn ghost"
+            style="padding:4px 8px;font-size:11px">PDF</a>
+        </div>
       </div>
       {% empty %}
       <div class="item">

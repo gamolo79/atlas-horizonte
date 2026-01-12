@@ -1,6 +1,14 @@
 from django import forms
 
-from .models import SynthesisClient, SynthesisClientInterest, SynthesisSchedule
+from redpolitica.models import Institucion, Persona, Topic
+
+from .models import (
+    SynthesisClient,
+    SynthesisClientInterest,
+    SynthesisSchedule,
+    SynthesisSectionFilter,
+    SynthesisSectionTemplate,
+)
 
 
 class SynthesisClientForm(forms.ModelForm):
@@ -34,7 +42,58 @@ class SynthesisClientForm(forms.ModelForm):
 class SynthesisClientInterestForm(forms.ModelForm):
     class Meta:
         model = SynthesisClientInterest
-        fields = ["persona", "institucion", "topic", "note"]
+        fields = ["persona", "institucion", "topic", "interest_group", "note"]
+
+
+class SynthesisSectionTemplateForm(forms.ModelForm):
+    personas = forms.ModelMultipleChoiceField(
+        queryset=Persona.objects.none(),
+        required=False,
+        widget=forms.SelectMultiple,
+    )
+    instituciones = forms.ModelMultipleChoiceField(
+        queryset=Institucion.objects.none(),
+        required=False,
+        widget=forms.SelectMultiple,
+    )
+    topics = forms.ModelMultipleChoiceField(
+        queryset=Topic.objects.none(),
+        required=False,
+        widget=forms.SelectMultiple,
+    )
+
+    class Meta:
+        model = SynthesisSectionTemplate
+        fields = ["title", "order", "group_by", "section_type", "is_active"]
+
+    def __init__(self, *args, **kwargs):
+        persona_queryset = kwargs.pop("persona_queryset", None)
+        institucion_queryset = kwargs.pop("institucion_queryset", None)
+        topic_queryset = kwargs.pop("topic_queryset", None)
+        super().__init__(*args, **kwargs)
+        self.fields["personas"].queryset = persona_queryset or self.fields["personas"].queryset.none()
+        self.fields["instituciones"].queryset = (
+            institucion_queryset or self.fields["instituciones"].queryset.none()
+        )
+        self.fields["topics"].queryset = topic_queryset or self.fields["topics"].queryset.none()
+
+    def save(self, commit=True):
+        instance = super().save(commit=commit)
+        if commit:
+            self._save_filters(instance)
+        return instance
+
+    def save_filters(self, instance):
+        self._save_filters(instance)
+
+    def _save_filters(self, instance):
+        SynthesisSectionFilter.objects.filter(template=instance).delete()
+        for persona in self.cleaned_data.get("personas") or []:
+            SynthesisSectionFilter.objects.create(template=instance, persona=persona)
+        for institucion in self.cleaned_data.get("instituciones") or []:
+            SynthesisSectionFilter.objects.create(template=instance, institucion=institucion)
+        for topic in self.cleaned_data.get("topics") or []:
+            SynthesisSectionFilter.objects.create(template=instance, topic=topic)
 
 
 class SynthesisScheduleForm(forms.ModelForm):

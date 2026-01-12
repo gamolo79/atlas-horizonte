@@ -1,0 +1,9 @@
+{% extends "sintesis/base.html" %}
+{% load static %}
+
+{% block title %}Síntesis · {{ run.client.name }}{% endblock %}
+
+{% block content %}
+  <link rel="stylesheet" href="{% static 'css/sintesis_document.css' %}">
+  {% include "sintesis/run_document_body.html" with client=run.client logo_href=logo_href date_str=date_str sections=sections sources=sources %}
+{% endblock %}

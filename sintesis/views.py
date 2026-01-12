@@ -1,8 +1,10 @@
 from django.contrib import messages
 from django.core.management import call_command
+from django.http import FileResponse, Http404
 from django.db.models import Prefetch
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
+from django.templatetags.static import static
 from django.views.decorators.csrf import ensure_csrf_cookie
 
 from .forms import (
@@ -10,14 +12,20 @@ from .forms import (
     SynthesisClientInterestForm,
     SynthesisRunForm,
     SynthesisScheduleForm,
+    SynthesisSectionTemplateForm,
 )
+from redpolitica.models import Institucion, Persona, Topic
+
 from .models import (
     SynthesisClient,
     SynthesisClientInterest,
     SynthesisRun,
+    SynthesisRunSection,
     SynthesisSchedule,
+    SynthesisSectionTemplate,
     SynthesisStory,
 )
+from .run_builder import ensure_run_pdf
 
 
 
@@ -62,6 +70,12 @@ def client_detail(request, client_id):
     interest_form = SynthesisClientInterestForm(prefix="interest")
     schedule_form = SynthesisScheduleForm(prefix="schedule", initial={"client": client})
     run_form = SynthesisRunForm(prefix="run", initial={"client": client})
+    section_form = SynthesisSectionTemplateForm(
+        prefix="section",
+        persona_queryset=Persona.objects.all(),
+        institucion_queryset=Institucion.objects.all(),
+        topic_queryset=Topic.objects.all(),
+    )
 
     if request.method == "POST":
         if "save_client" in request.POST:
@@ -77,6 +91,21 @@ def client_detail(request, client_id):
                 interest.client = client
                 interest.save()
                 messages.success(request, "Interés agregado.")
+                return redirect("sintesis:client_detail", client_id=client.id)
+        elif "add_section" in request.POST:
+            section_form = SynthesisSectionTemplateForm(
+                request.POST,
+                prefix="section",
+                persona_queryset=Persona.objects.all(),
+                institucion_queryset=Institucion.objects.all(),
+                topic_queryset=Topic.objects.all(),
+            )
+            if section_form.is_valid():
+                section = section_form.save(commit=False)
+                section.client = client
+                section.save()
+                section_form.save_filters(section)
+                messages.success(request, "Sección agregada.")
                 return redirect("sintesis:client_detail", client_id=client.id)
         elif "add_schedule" in request.POST:
             schedule_form = SynthesisScheduleForm(request.POST, prefix="schedule")
@@ -106,12 +135,19 @@ def client_detail(request, client_id):
         .select_related("persona", "institucion", "topic")
         .order_by("-created_at")
     )
+    priority_interests = interests.filter(interest_group="priority")
+    general_interests = interests.filter(interest_group="general")
     schedules = SynthesisSchedule.objects.filter(client=client).order_by("-run_at")
     runs = SynthesisRun.objects.filter(client=client).order_by("-started_at")[:6]
     stories = (
         SynthesisStory.objects.filter(client=client)
         .prefetch_related("story_articles")
         .order_by("-created_at")[:6]
+    )
+    sections = (
+        SynthesisSectionTemplate.objects.filter(client=client)
+        .prefetch_related("filters")
+        .order_by("order", "id")
     )
 
     return render(
@@ -124,9 +160,13 @@ def client_detail(request, client_id):
             "schedule_form": schedule_form,
             "run_form": run_form,
             "interests": interests,
+            "priority_interests": priority_interests,
+            "general_interests": general_interests,
             "schedules": schedules,
             "runs": runs,
             "stories": stories,
+            "sections": sections,
+            "section_form": section_form,
             "active_tab": "clients",
         },
     )
@@ -195,21 +235,36 @@ def procesos(request):
 
 @ensure_csrf_cookie
 def run_report(request, run_id):
+    return run_detail(request, run_id)
+
+
+@ensure_csrf_cookie
+def run_detail(request, run_id):
     run = get_object_or_404(SynthesisRun, pk=run_id)
-    stories = (
-        SynthesisStory.objects.filter(run=run)
-        .prefetch_related("story_articles")
-        .order_by("-created_at")
+    sections = (
+        SynthesisRunSection.objects.filter(run=run)
+        .prefetch_related("stories__story_articles")
+        .order_by("order", "id")
     )
-    
-    date_str = timezone.localtime(run.started_at).strftime("%d de %B de %Y")
-    
+    date_str = timezone.localtime(run.started_at).strftime("%d/%m/%Y - %H:%M")
     return render(
         request,
-        "sintesis/sintesis_pdf.html",
+        "sintesis/run_detail.html",
         {
-            "client": run.client,
-            "stories": stories,
+            "run": run,
+            "sections": sections,
             "date_str": date_str,
+            "sources": run.stats_json.get("sources", []),
+            "logo_href": static("img/logo-Horizonte-sintesis-dark.png"),
+            "active_tab": "procesos",
         },
     )
+
+
+@ensure_csrf_cookie
+def run_pdf(request, run_id):
+    run = get_object_or_404(SynthesisRun, pk=run_id)
+    pdf_file = ensure_run_pdf(run)
+    if not pdf_file:
+        raise Http404("PDF no disponible.")
+    return FileResponse(pdf_file.open("rb"), as_attachment=True, filename=pdf_file.name)

@@ -1,0 +1,53 @@
+<div class="sintesis-doc">
+  <header class="doc-header">
+    <div class="doc-logo">
+      <img src="{{ logo_href }}" alt="Horizonte Síntesis">
+    </div>
+    <div class="doc-meta">
+      <h1>Síntesis de noticias</h1>
+      <div class="doc-client">{{ client.name }}</div>
+      <div class="doc-date">{{ date_str }}</div>
+    </div>
+  </header>
+
+  {% if sections %}
+    {% for section in sections %}
+      <section class="doc-section">
+        <div class="section-title">{{ section.title }}</div>
+        <div class="section-content">
+          {% if section.group_by == "institution" %}
+            {% regroup section.stories.all by group_label as grouped_stories %}
+            {% for group in grouped_stories %}
+              {% if group.grouper %}
+                <div class="section-subtitle">{{ group.grouper }}</div>
+              {% endif %}
+              {% for story in group.list %}
+                {% include "sintesis/story_card.html" with story=story %}
+              {% endfor %}
+            {% endfor %}
+          {% else %}
+            {% for story in section.stories.all %}
+              {% include "sintesis/story_card.html" with story=story %}
+            {% empty %}
+              <div class="empty-state">Sin historias para esta sección.</div>
+            {% endfor %}
+          {% endif %}
+        </div>
+      </section>
+    {% endfor %}
+  {% else %}
+    <div class="empty-state">No hay historias para este reporte.</div>
+  {% endif %}
+
+  <footer class="doc-footer">
+    <div class="footer-title">Fuentes</div>
+    <div class="chip-list">
+      {% for source in sources %}
+        <span class="chip">{{ source }}</span>
+      {% empty %}
+        <span class="chip">Sin fuentes</span>
+      {% endfor %}
+    </div>
+    <div class="footer-note">Generado por Atlas Horizonte · CONFIDENCIAL</div>
+  </footer>
+</div>

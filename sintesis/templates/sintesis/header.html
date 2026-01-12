@@ -1,5 +1,9 @@
+{% load static %}
 <div class="nav">
-  <div class="brand">Síntesis</div>
+  <div class="brand">
+    <img src="{% static 'img/logo-Horizonte-sintesis-dark.png' %}" alt="Horizonte Síntesis">
+    <span>Síntesis</span>
+  </div>
   <div class="tabs">
     <a class="tab {% if active_tab == 'home' %}active{% endif %}" href="{% url 'sintesis:home' %}">Inicio</a>
     <a class="tab {% if active_tab == 'clients' %}active{% endif %}" href="{% url 'sintesis:clients' %}">Clientes</a>

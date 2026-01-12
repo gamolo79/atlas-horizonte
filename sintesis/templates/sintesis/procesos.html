@@ -94,8 +94,12 @@
         <div class="meta">{{ run.output_count }} historias · {{ run.status }}</div>
       </div>
       <span class="pill info">{{ run.status }}</span>
-      <a href="{% url 'sintesis:run_report' run.id %}" target="_blank" class="btn ghost"
-        style="padding:4px 8px;font-size:11px">PDF</a>
+      <div class="row" style="margin-top:8px">
+        <a href="{% url 'sintesis:run_detail' run.id %}" target="_blank" class="btn ghost"
+          style="padding:4px 8px;font-size:11px">Ver documento</a>
+        <a href="{% url 'sintesis:run_pdf' run.id %}" target="_blank" class="btn ghost"
+          style="padding:4px 8px;font-size:11px">PDF</a>
+      </div>
     </div>
     {% empty %}
     <div class="item">
