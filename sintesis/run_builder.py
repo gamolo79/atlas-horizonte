@@ -13,7 +13,12 @@ from django.db.models import Q
 from django.core.files.base import ContentFile
 from django.template.loader import render_to_string
 from django.utils import timezone
-from weasyprint import HTML
+try:
+    from weasyprint import HTML
+    WEASYPRINT_AVAILABLE = True
+except (ImportError, OSError):
+    WEASYPRINT_AVAILABLE = False
+    logger.warning("WeasyPrint not available. PDF generation will be disabled.")
 
 from atlas_core.text_utils import normalize_name, tokenize
 from monitor.models import Article
@@ -486,6 +491,8 @@ def render_run_html(run: SynthesisRun, is_pdf: bool = False) -> str:
 
 
 def generate_run_pdf(run: SynthesisRun) -> Optional[str]:
+    if not WEASYPRINT_AVAILABLE:
+        return None
     if not run.output_count:
         return None
     html = render_run_html(run, is_pdf=True)

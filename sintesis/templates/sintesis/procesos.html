@@ -97,8 +97,10 @@
       <div class="row" style="margin-top:8px">
         <a href="{% url 'sintesis:run_detail' run.id %}" target="_blank" class="btn ghost"
           style="padding:4px 8px;font-size:11px">Ver documento</a>
+        {% if run.pdf_file %}
         <a href="{% url 'sintesis:run_pdf' run.id %}" target="_blank" class="btn ghost"
           style="padding:4px 8px;font-size:11px">PDF</a>
+        {% endif %}
       </div>
     </div>
     {% empty %}
