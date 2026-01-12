@@ -278,6 +278,7 @@ class SynthesisStory(models.Model):
     summary = models.TextField()
     central_idea = models.TextField(blank=True)
     labels_json = models.JSONField(default=list)
+    group_signals_json = models.JSONField(default=list, blank=True)
     article_count = models.PositiveIntegerField(default=0)
     unique_sources_count = models.PositiveIntegerField(default=0)
     source_names_json = models.JSONField(default=list, blank=True)

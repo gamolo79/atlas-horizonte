@@ -10,6 +10,7 @@ from redpolitica.models import Persona
 from sintesis.models import SynthesisClient, SynthesisClientInterest, SynthesisRun
 from sintesis.management.commands.run_sintesis import Command
 from sintesis.run_builder import build_run, build_run_document
+from sintesis.services import build_profile, group_profiles
 
 
 class SynthesisRunBuilderTests(TestCase):
@@ -216,3 +217,81 @@ class SynthesisRunPdfFailureTests(TestCase):
         run = SynthesisRun.objects.get(client=self.client)
         self.assertIn(run.status, {"completed", "failed"})
         self.assertNotEqual(run.status, "running")
+
+
+class StoryGroupingSimilarityTests(TestCase):
+    def setUp(self):
+        self.source = Source.objects.create(
+            name="Medio Uno",
+            source_type="rss",
+            url="https://medio.local",
+        )
+
+    def _create_article(
+        self,
+        title,
+        central_idea,
+        labels,
+        mention_type="institucion",
+        mention_id=1,
+        mention_name="Fiscalía",
+    ):
+        article = Article.objects.create(
+            source=self.source,
+            url=f"https://medio.local/{title.replace(' ', '-').lower()}",
+            title=title,
+            text="Texto de prueba.",
+            published_at=timezone.now(),
+        )
+        classification = Classification.objects.create(
+            article=article,
+            central_idea=central_idea,
+            article_type="informativo",
+            labels_json=labels,
+            model_name="test",
+        )
+        Mention.objects.create(
+            classification=classification,
+            target_type=mention_type,
+            target_id=mention_id,
+            target_name=mention_name,
+            sentiment="neutro",
+            confidence=0.9,
+        )
+        return article
+
+    def test_different_stories_with_shared_entity_do_not_group(self):
+        article_a = self._create_article(
+            "Feminicidio en el centro de la ciudad",
+            "Caso de feminicidio en el centro",
+            ["violencia", "mujeres"],
+        )
+        article_b = self._create_article(
+            "Rescatan animales por maltrato en domicilio",
+            "Maltrato animal detectado en un domicilio",
+            ["animales", "proteccion"],
+        )
+        profiles = [build_profile(article_a), build_profile(article_b)]
+        groups = group_profiles(profiles)
+        self.assertEqual(len(groups), 2)
+
+    def test_similar_titles_and_entities_group_together(self):
+        article_a = self._create_article(
+            "Detienen a Juan por robo en el centro",
+            "Detención por robo en el centro",
+            ["seguridad", "robo"],
+            mention_type="persona",
+            mention_id=10,
+            mention_name="Juan Pérez",
+        )
+        article_b = self._create_article(
+            "Juan detenido por robo en el centro",
+            "Detención por robo en el centro",
+            ["robo", "seguridad"],
+            mention_type="persona",
+            mention_id=10,
+            mention_name="Juan Pérez",
+        )
+        profiles = [build_profile(article_a), build_profile(article_b)]
+        groups = group_profiles(profiles)
+        self.assertEqual(len(groups), 1)

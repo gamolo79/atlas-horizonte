@@ -232,6 +232,57 @@ def _matches_section(
     return False
 
 
+def _extract_client_criteria(
+    client: SynthesisClient,
+) -> Tuple[Set[int], Set[int], Set[int], Set[str]]:
+    interests = client.interests.select_related("persona", "institucion", "topic").all()
+    personas, instituciones, topics, _tokens = _extract_interest_targets(interests)
+    if client.persona_id:
+        personas.add(client.persona_id)
+    if client.institucion_id:
+        instituciones.add(client.institucion_id)
+    keyword_tokens = _keyword_tokens(client)
+    return personas, instituciones, topics, keyword_tokens
+
+
+def _matches_client_criteria(
+    article: Article,
+    personas: Set[int],
+    instituciones: Set[int],
+    topics: Set[int],
+    keyword_tokens: Set[str],
+) -> bool:
+    classification = getattr(article, "classification", None)
+    if not classification:
+        return False
+
+    mentions = classification.mentions.all()
+    for mention in mentions:
+        if mention.target_type == "persona" and mention.target_id in personas:
+            return True
+        if mention.target_type == "institucion" and mention.target_id in instituciones:
+            return True
+        if mention.target_type == "tema" and mention.target_id in topics:
+            return True
+
+    if not keyword_tokens:
+        return False
+
+    text_blob = " ".join(
+        [
+            classification.central_idea or "",
+            article.title or "",
+            " ".join(classification.labels_json or []),
+        ]
+    )
+    normalized_blob = normalize_name(text_blob)
+    labels = [normalize_name(label) for label in classification.labels_json or []]
+    for keyword in keyword_tokens:
+        if keyword in labels or keyword in normalized_blob:
+            return True
+    return False
+
+
 def _institution_key(article: Article, spec: SectionSpec) -> Optional[str]:
     classification = getattr(article, "classification", None)
     if not classification:
@@ -314,6 +365,8 @@ def build_run_document(run: SynthesisRun) -> int:
     client = run.client
     section_specs = _build_section_specs(client)
     keyword_tokens = _keyword_tokens(client)
+    personas, instituciones, topics, criteria_keywords = _extract_client_criteria(client)
+    has_criteria = bool(personas or instituciones or topics or criteria_keywords)
 
     article_queryset = (
         Article.objects.filter(status="processed")
@@ -321,7 +374,27 @@ def build_run_document(run: SynthesisRun) -> int:
         .prefetch_related("classification__mentions")
         .order_by("-published_at", "-fetched_at")
     )
-    article_queryset = _article_in_range(article_queryset, run.date_from, run.date_to)
+    if has_criteria:
+        article_queryset = _article_in_range(article_queryset, run.date_from, run.date_to)
+    else:
+        cutoff = timezone.now() - timedelta(hours=24)
+        article_queryset = article_queryset.filter(
+            Q(published_at__gte=cutoff) | Q(fetched_at__gte=cutoff)
+        )[:200]
+
+    article_list = list(article_queryset)
+    if has_criteria:
+        article_list = [
+            article
+            for article in article_list
+            if _matches_client_criteria(
+                article,
+                personas,
+                instituciones,
+                topics,
+                criteria_keywords,
+            )
+        ]
 
     assigned_article_ids: Set[int] = set()
     created_stories = 0
@@ -330,13 +403,17 @@ def build_run_document(run: SynthesisRun) -> int:
     log_lines: List[str] = []
 
     for spec in section_specs:
-        if not (spec.personas or spec.instituciones or spec.topics or spec.tokens or keyword_tokens):
+        if has_criteria and not (
+            spec.personas or spec.instituciones or spec.topics or spec.tokens or keyword_tokens
+        ):
             continue
         matching_articles = []
-        for article in article_queryset:
+        for article in article_list:
             if article.id in assigned_article_ids:
                 continue
-            if _matches_section(article, spec, keyword_tokens):
+            if not has_criteria:
+                matching_articles.append(article)
+            elif _matches_section(article, spec, keyword_tokens):
                 matching_articles.append(article)
 
         if not matching_articles:
@@ -383,6 +460,7 @@ def build_run_document(run: SynthesisRun) -> int:
                         summary=story_text["summary"],
                         central_idea=profiles[0].central_idea if profiles else "",
                         labels_json=list(group["labels"]),
+                        group_signals_json=group.get("signals", []),
                         article_count=len(profiles),
                         unique_sources_count=unique_sources_count,
                         source_names_json=source_names,
