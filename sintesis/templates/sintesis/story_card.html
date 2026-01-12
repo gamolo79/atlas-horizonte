@@ -3,44 +3,67 @@
   <div class="story-summary">{{ story.summary|linebreaksbr }}</div>
 
   <div class="story-meta">
-    <div class="meta-block">
-      <span class="meta-label">Medios ({{ story.unique_sources_count }})</span>
-      <div class="chip-list">
-        {% for item in story.story_articles.all %}
+    <!-- Row 1: Sources & Tags -->
+    <div class="meta-row">
+      {% if story.story_articles.exists %}
+      <div class="meta-group">
+        <span class="meta-label">Fuentes:</span>
+        <div class="chip-list">
+          {% for item in story.story_articles.all %}
           <a href="{{ item.source_url }}" target="_blank" class="chip link-chip">
             {{ item.source_name }}
           </a>
-        {% endfor %}
-      </div>
-    </div>
-
-    {% if story.labels_json %}
-      <div class="meta-block">
-        <span class="meta-label">Etiquetas</span>
-        <div class="chip-list">
-          {% for label in story.labels_json %}
-            <span class="chip">{{ label }}</span>
           {% endfor %}
         </div>
       </div>
-    {% endif %}
+      {% endif %}
 
-    <div class="meta-grid">
-      <div class="meta-item">
-        <span class="meta-label">Tipo</span>
+      {% if story.labels_json %}
+      <div class="meta-group">
+        <span class="meta-label">Temas:</span>
         <div class="chip-list">
-          <span class="chip">Info {{ story.type_counts_json.informativo|default:0 }}</span>
-          <span class="chip">Opinión {{ story.type_counts_json.opinion|default:0 }}</span>
+          {% for label in story.labels_json %}
+          <span class="chip">{{ label }}</span>
+          {% endfor %}
         </div>
       </div>
-      <div class="meta-item">
-        <span class="meta-label">Sentimiento</span>
-        <div class="chip-list">
-          <span class="chip">Pos {{ story.sentiment_counts_json.positivo|default:0 }}</span>
-          <span class="chip">Neu {{ story.sentiment_counts_json.neutro|default:0 }}</span>
-          <span class="chip">Neg {{ story.sentiment_counts_json.negativo|default:0 }}</span>
-        </div>
-      </div>
+      {% endif %}
     </div>
+
+    <!-- Row 2: Type & Sentiment (if available) -->
+    {% if story.type_counts_json or story.sentiment_counts_json %}
+    <div class="meta-row" style="margin-top: 12px;">
+      {% if story.type_counts_json %}
+      <div class="meta-group">
+        <span class="meta-label">Tipo:</span>
+        <div class="chip-list">
+          {% if story.type_counts_json.informativo %}
+          <span class="chip">Info: {{ story.type_counts_json.informativo }}</span>
+          {% endif %}
+          {% if story.type_counts_json.opinion %}
+          <span class="chip">Opinión: {{ story.type_counts_json.opinion }}</span>
+          {% endif %}
+        </div>
+      </div>
+      {% endif %}
+
+      {% if story.sentiment_counts_json %}
+      <div class="meta-group">
+        <span class="meta-label">Sentimiento:</span>
+        <div class="chip-list">
+          {% if story.sentiment_counts_json.positivo %}
+          <span class="chip">Pos: {{ story.sentiment_counts_json.positivo }}</span>
+          {% endif %}
+          {% if story.sentiment_counts_json.neutro %}
+          <span class="chip">Neu: {{ story.sentiment_counts_json.neutro }}</span>
+          {% endif %}
+          {% if story.sentiment_counts_json.negativo %}
+          <span class="chip">Neg: {{ story.sentiment_counts_json.negativo }}</span>
+          {% endif %}
+        </div>
+      </div>
+      {% endif %}
+    </div>
+    {% endif %}
   </div>
 </article>
