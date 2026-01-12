@@ -71,6 +71,7 @@ def client_detail(request, client_id):
     interest_form = SynthesisClientInterestForm(prefix="interest")
     schedule_form = SynthesisScheduleForm(prefix="schedule", initial={"client": client})
     run_form = SynthesisRunForm(prefix="run", initial={"client": client})
+    editing_section = None
     section_form = SynthesisSectionTemplateForm(
         prefix="section",
         persona_queryset=Persona.objects.all(),
@@ -107,6 +108,28 @@ def client_detail(request, client_id):
                 section.save()
                 section_form.save_filters(section)
                 messages.success(request, "Sección agregada.")
+                return redirect("sintesis:client_detail", client_id=client.id)
+        elif "update_section" in request.POST:
+            section_id = request.POST.get("section_id")
+            editing_section = get_object_or_404(
+                SynthesisSectionTemplate,
+                pk=section_id,
+                client=client,
+            )
+            section_form = SynthesisSectionTemplateForm(
+                request.POST,
+                instance=editing_section,
+                prefix="section",
+                persona_queryset=Persona.objects.all(),
+                institucion_queryset=Institucion.objects.all(),
+                topic_queryset=Topic.objects.all(),
+            )
+            if section_form.is_valid():
+                section = section_form.save(commit=False)
+                section.client = client
+                section.save()
+                section_form.save_filters(section)
+                messages.success(request, "Sección actualizada.")
                 return redirect("sintesis:client_detail", client_id=client.id)
         elif "add_schedule" in request.POST:
             schedule_form = SynthesisScheduleForm(request.POST, prefix="schedule")
@@ -145,6 +168,29 @@ def client_detail(request, client_id):
                 )
                 messages.success(request, "Síntesis en cola.")
                 return redirect("sintesis:client_detail", client_id=client.id)
+    else:
+        section_id = request.GET.get("edit_section")
+        if section_id:
+            editing_section = get_object_or_404(
+                SynthesisSectionTemplate,
+                pk=section_id,
+                client=client,
+            )
+            filters = editing_section.filters.all()
+            section_form = SynthesisSectionTemplateForm(
+                prefix="section",
+                instance=editing_section,
+                initial={
+                    "personas": [item.persona_id for item in filters if item.persona_id],
+                    "instituciones": [
+                        item.institucion_id for item in filters if item.institucion_id
+                    ],
+                    "topics": [item.topic_id for item in filters if item.topic_id],
+                },
+                persona_queryset=Persona.objects.all(),
+                institucion_queryset=Institucion.objects.all(),
+                topic_queryset=Topic.objects.all(),
+            )
 
     client_form = SynthesisClientForm(instance=client, prefix="client")
     interests = (
@@ -184,6 +230,7 @@ def client_detail(request, client_id):
             "stories": stories,
             "sections": sections,
             "section_form": section_form,
+            "editing_section": editing_section,
             "active_tab": "clients",
         },
     )
@@ -324,4 +371,14 @@ def delete_interest(request, interest_id):
     if request.method == "POST":
         interest.delete()
         messages.success(request, "Interés eliminado.")
+    return redirect("sintesis:client_detail", client_id=client_id)
+
+
+@ensure_csrf_cookie
+def delete_section(request, section_id):
+    section = get_object_or_404(SynthesisSectionTemplate, pk=section_id)
+    client_id = section.client_id
+    if request.method == "POST":
+        section.delete()
+        messages.success(request, "Sección eliminada.")
     return redirect("sintesis:client_detail", client_id=client_id)
