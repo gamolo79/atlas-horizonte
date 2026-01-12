@@ -1,3 +1,5 @@
+from datetime import date, datetime
+
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 
@@ -58,6 +60,12 @@ class Command(BaseCommand):
 
     def _parse_date(self, value):
         if not value:
+            return None
+        if isinstance(value, date) and not isinstance(value, datetime):
+            return value
+        if isinstance(value, datetime):
+            return value.date()
+        if not isinstance(value, str):
             return None
         try:
             return timezone.datetime.strptime(value, "%Y-%m-%d").date()
