@@ -20,10 +20,6 @@ from .models import (
 )
 
 
-def _format_datetime(value):
-    if not value:
-        return "—"
-    return timezone.localtime(value).strftime("%d/%m/%Y %H:%M")
 
 
 @ensure_csrf_cookie
@@ -132,7 +128,6 @@ def client_detail(request, client_id):
             "runs": runs,
             "stories": stories,
             "active_tab": "clients",
-            "format_datetime": _format_datetime,
         },
     )
 
@@ -194,6 +189,27 @@ def procesos(request):
             "schedules": schedules,
             "runs": runs,
             "active_tab": "procesos",
-            "format_datetime": _format_datetime,
+        },
+    )
+
+
+@ensure_csrf_cookie
+def run_report(request, run_id):
+    run = get_object_or_404(SynthesisRun, pk=run_id)
+    stories = (
+        SynthesisStory.objects.filter(run=run)
+        .prefetch_related("story_articles")
+        .order_by("-created_at")
+    )
+    
+    date_str = timezone.localtime(run.started_at).strftime("%d de %B de %Y")
+    
+    return render(
+        request,
+        "sintesis/sintesis_pdf.html",
+        {
+            "client": run.client,
+            "stories": stories,
+            "date_str": date_str,
         },
     )
