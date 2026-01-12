@@ -1,0 +1,63 @@
+{% load static %}
+<!doctype html>
+<html lang="es">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Síntesis · {{ client.name }} · {{ date_str }}</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Merriweather:ital,wght@0,300;0,400;0,700;1,300&family=Lexend:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet">
+
+    <link rel="stylesheet" href="{% static 'css/sintesis_print.css' %}">
+</head>
+
+<body>
+    <div class="print-wrap">
+        <div class="header">
+            <div class="logo">
+                <img src="{% static 'img/logo-horizonte-monitor.png' %}" alt="Horizonte Monitor">
+            </div>
+            <div class="meta">
+                <h1>Síntesis Informativa</h1>
+                <div class="client-name">{{ client.name }}</div>
+                <div class="date">{{ date_str }}</div>
+            </div>
+        </div>
+
+        <div class="content">
+            {% for story in stories %}
+            <article class="story">
+                <h2 class="story-title">{{ story.title }}</h2>
+                <div class="story-summary">
+                    {{ story.summary|linebreaks }}
+                </div>
+
+                <div class="story-meta">
+                    <div class="sources-list">
+                        {% for item in story.story_articles.all %}
+                        <a href="{{ item.source_url }}" target="_blank" class="source-chip">
+                            {{ item.source_name }}
+                        </a>
+                        {% endfor %}
+                    </div>
+                </div>
+            </article>
+            {% empty %}
+            <div class="empty-state">
+                <p>No hay historias para este reporte.</p>
+            </div>
+            {% endfor %}
+        </div>
+
+        <div class="footer">
+            <p>Generado por Atlas Horizonte Monitor · CONFIDENCIAL</p>
+        </div>
+    </div>
+</body>
+
+</html>

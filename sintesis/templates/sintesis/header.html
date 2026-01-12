@@ -1,0 +1,12 @@
+<div class="nav">
+  <div class="brand">Síntesis</div>
+  <div class="tabs">
+    <a class="tab {% if active_tab == 'home' %}active{% endif %}" href="{% url 'sintesis:home' %}">Inicio</a>
+    <a class="tab {% if active_tab == 'clients' %}active{% endif %}" href="{% url 'sintesis:clients' %}">Clientes</a>
+    <a class="tab {% if active_tab == 'procesos' %}active{% endif %}" href="{% url 'sintesis:procesos' %}">Procesos</a>
+  </div>
+  <div class="row">
+    <a class="btn ghost" href="/monitor/">Monitor</a>
+    <a class="btn ghost" href="/">Atlas</a>
+  </div>
+</div>

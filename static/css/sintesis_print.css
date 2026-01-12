@@ -1,0 +1,135 @@
+:root {
+    --primary: #0f1722;
+    --accent: #19c37d;
+    --text: #1a202c;
+    --muted: #4a5568;
+    --bg: #ffffff;
+    --font-heading: 'Lexend', sans-serif;
+    --font-body: 'Merriweather', serif;
+}
+
+@page {
+    margin: 1.5cm;
+    size: A4;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    font-family: var(--font-body);
+    color: var(--text);
+    background: var(--bg);
+    font-size: 11pt;
+    line-height: 1.6;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+}
+
+.print-wrap {
+    max-width: 21cm;
+    margin: 0 auto;
+}
+
+/* Header */
+.header {
+    display: flex;
+    align-items: center;
+    gap: 2rem;
+    margin-bottom: 3rem;
+    border-bottom: 2px solid var(--primary);
+    padding-bottom: 1.5rem;
+}
+
+.logo img {
+    height: 60px;
+    width: auto;
+}
+
+.header .meta h1 {
+    font-family: var(--font-heading);
+    font-size: 24pt;
+    font-weight: 700;
+    margin: 0;
+    color: var(--primary);
+    text-transform: uppercase;
+    letter-spacing: -0.5px;
+}
+
+.client-name {
+    font-family: var(--font-heading);
+    font-size: 14pt;
+    font-weight: 500;
+    color: var(--accent);
+    margin-top: 0.25rem;
+}
+
+.date {
+    font-family: var(--font-heading);
+    font-size: 10pt;
+    color: var(--muted);
+    margin-top: 0.25rem;
+}
+
+/* Content */
+.story {
+    margin-bottom: 2.5rem;
+    page-break-inside: avoid;
+}
+
+.story-title {
+    font-family: var(--font-heading);
+    font-size: 14pt;
+    font-weight: 600;
+    color: var(--primary);
+    margin: 0 0 0.5rem 0;
+}
+
+.story-summary {
+    font-size: 11pt;
+    color: var(--text);
+    text-align: justify;
+    margin-bottom: 0.75rem;
+}
+
+.story-meta {
+    margin-top: 0.5rem;
+}
+
+.sources-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.source-chip {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    background: #f0f4f8;
+    color: var(--muted);
+    font-family: var(--font-heading);
+    font-size: 8pt;
+    text-decoration: none;
+    border: 1px solid #dae1e7;
+}
+
+.source-chip:visited {
+    color: var(--muted);
+}
+
+/* Footer */
+.footer {
+    margin-top: 4rem;
+    border-top: 1px solid #e2e8f0;
+    padding-top: 1rem;
+    text-align: center;
+    font-family: var(--font-heading);
+    font-size: 8pt;
+    color: var(--muted);
+}
+
+@media print {
+    body {
+        background: white;
+    }
+}

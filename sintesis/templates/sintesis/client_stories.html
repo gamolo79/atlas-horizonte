@@ -1,0 +1,39 @@
+{% extends "sintesis/base.html" %}
+
+{% block title %}Síntesis · {{ client.name }}{% endblock %}
+
+{% block content %}
+  <div class="card">
+    <div class="row" style="justify-content:space-between">
+      <div>
+        <h2>Síntesis completas · {{ client.name }}</h2>
+        <p class="muted">Historias agrupadas por coincidencia de ideas centrales, etiquetas y menciones.</p>
+      </div>
+      <a class="btn ghost" href="{% url 'sintesis:client_detail' client.id %}">Volver al cliente</a>
+    </div>
+
+    <div class="list" style="margin-top:12px">
+      {% for story in stories %}
+        <div class="item">
+          <div>
+            <div class="title">{{ story.title }}</div>
+            <div class="meta">{{ story.summary }}</div>
+            <div class="meta">{{ story.article_count }} notas</div>
+          </div>
+          <div class="chips">
+            {% for item in story.story_articles.all %}
+              <span class="chip"><a href="{{ item.source_url }}" target="_blank">{{ item.source_name }}</a></span>
+            {% endfor %}
+          </div>
+        </div>
+      {% empty %}
+        <div class="item">
+          <div>
+            <div class="title">Sin historias todavía</div>
+            <div class="meta">Ejecuta una síntesis manual o espera la programación.</div>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+{% endblock %}

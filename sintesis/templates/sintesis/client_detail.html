@@ -1,0 +1,225 @@
+{% extends "sintesis/base.html" %}
+
+{% block title %}Síntesis · {{ client.name }}{% endblock %}
+
+{% block content %}
+<div class="card">
+  <h2>Cliente · {{ client.name }}</h2>
+  <p class="muted">Configura los intereses editoriales, etiquetas clave y agenda de síntesis.</p>
+  <form method="post">
+    {% csrf_token %}
+    <div class="form-grid">
+      <div>
+        <label for="id_client-name">Nombre</label>
+        {{ client_form.name }}
+      </div>
+      <div>
+        <label for="id_client-persona">Persona Atlas</label>
+        {{ client_form.persona }}
+      </div>
+      <div>
+        <label for="id_client-institucion">Institución Atlas</label>
+        {{ client_form.institucion }}
+      </div>
+      <div>
+        <label for="id_client-description">Descripción</label>
+        {{ client_form.description }}
+      </div>
+      <div>
+        <label for="id_client-keyword_tags">Tags clave</label>
+        {{ client_form.keyword_tags }}
+      </div>
+      <div>
+        <label for="id_client-is_active">Activo</label>
+        {{ client_form.is_active }}
+      </div>
+    </div>
+    <div class="row" style="margin-top:12px">
+      <button class="btn" type="submit" name="save_client">Guardar cambios</button>
+      <a class="btn ghost" href="{% url 'sintesis:client_stories' client.id %}">Ver síntesis completas</a>
+    </div>
+  </form>
+</div>
+
+<div class="grid cols" style="margin-top:16px">
+  <div class="card">
+    <h2>Intereses editoriales</h2>
+    <p class="muted">Selecciona personas, instituciones o temas que priorizan la síntesis.</p>
+    <div class="list">
+      {% for interest in interests %}
+      <div class="item">
+        <div>
+          <div class="title">
+            {% if interest.persona %}{{ interest.persona.nombre_completo }}{% endif %}
+            {% if interest.institucion %}{{ interest.institucion.nombre }}{% endif %}
+            {% if interest.topic %}{{ interest.topic.name }}{% endif %}
+          </div>
+          {% if interest.note %}<div class="meta">{{ interest.note }}</div>{% endif %}
+        </div>
+        <span class="pill info">{{ interest.created_at|date:"d/m/Y" }}</span>
+      </div>
+      {% empty %}
+      <div class="item">
+        <div>
+          <div class="title">Sin intereses definidos</div>
+          <div class="meta">Agrega un interés para priorizar historias.</div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+    <form method="post" style="margin-top:14px">
+      {% csrf_token %}
+      <div class="form-grid">
+        <div>
+          <label for="id_interest-persona">Persona</label>
+          {{ interest_form.persona }}
+        </div>
+        <div>
+          <label for="id_interest-institucion">Institución</label>
+          {{ interest_form.institucion }}
+        </div>
+        <div>
+          <label for="id_interest-topic">Tema</label>
+          {{ interest_form.topic }}
+        </div>
+        <div>
+          <label for="id_interest-note">Nota</label>
+          {{ interest_form.note }}
+        </div>
+      </div>
+      <div class="row" style="margin-top:12px">
+        <button class="btn" type="submit" name="add_interest">Agregar interés</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2>Agenda de síntesis</h2>
+    <p class="muted">Programa horarios específicos para este cliente.</p>
+    <div class="list">
+      {% for schedule in schedules %}
+      <div class="item">
+        <div>
+          <div class="title">{{ schedule.name|default:"Programación" }}</div>
+          <div class="meta">{{ schedule.run_at|date:"d/m/Y H:i"|default:"—" }}</div>
+        </div>
+        <span class="pill {% if schedule.is_active %}good{% else %}warn{% endif %}">
+          {% if schedule.is_active %}Activo{% else %}Inactivo{% endif %}
+        </span>
+      </div>
+      {% empty %}
+      <div class="item">
+        <div>
+          <div class="title">Sin programaciones</div>
+          <div class="meta">Agrega horarios desde el formulario inferior.</div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+    <form method="post" style="margin-top:14px">
+      {% csrf_token %}
+      <div class="form-grid">
+        <div>
+          <label for="id_schedule-client">Cliente</label>
+          {{ schedule_form.client }}
+        </div>
+        <div>
+          <label for="id_schedule-name">Etiqueta</label>
+          {{ schedule_form.name }}
+        </div>
+        <div>
+          <label for="id_schedule-run_at">Fecha y hora</label>
+          {{ schedule_form.run_at }}
+        </div>
+        <div>
+          <label for="id_schedule-is_active">Activo</label>
+          {{ schedule_form.is_active }}
+        </div>
+      </div>
+      <div class="row" style="margin-top:12px">
+        <button class="btn" type="submit" name="add_schedule">Guardar programación</button>
+      </div>
+    </form>
+
+    <div class="card" style="margin-top:16px">
+      <h2>Ejecutar ahora</h2>
+      <form method="post">
+        {% csrf_token %}
+        <div class="form-grid">
+          <div>
+            <label for="id_run-client">Cliente</label>
+            {{ run_form.client }}
+          </div>
+          <div>
+            <label for="id_run-date_from">Desde</label>
+            {{ run_form.date_from }}
+          </div>
+          <div>
+            <label for="id_run-date_to">Hasta</label>
+            {{ run_form.date_to }}
+          </div>
+        </div>
+        <div class="row" style="margin-top:12px">
+          <button class="btn" type="submit" name="run_manual">Correr síntesis</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="grid cols" style="margin-top:16px">
+  <div class="card">
+    <h2>Últimas síntesis</h2>
+    <div class="list">
+      {% for story in stories %}
+      <div class="item">
+        <div>
+          <div class="title">{{ story.title }}</div>
+          <div class="meta">{{ story.summary }}</div>
+          <div class="meta">{{ story.article_count }} notas</div>
+        </div>
+        <div class="chips">
+          {% for item in story.story_articles.all %}
+          <span class="chip"><a href="{{ item.source_url }}" target="_blank">{{ item.source_name }}</a></span>
+          {% endfor %}
+        </div>
+      </div>
+      {% empty %}
+      <div class="item">
+        <div>
+          <div class="title">Aún no hay síntesis</div>
+          <div class="meta">Ejecuta un proceso para generar resúmenes.</div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Historial de ejecuciones</h2>
+    <div class="list">
+      {% for run in runs %}
+      <div class="item">
+        <div>
+          <div class="title">{{ run.get_run_type_display }} · {{ run.status|upper }}</div>
+          <div class="meta">{{ run.started_at|date:"d/m/Y H:i"|default:"—" }}</div>
+          <div class="meta">{{ run.output_count }} historias</div>
+        </div>
+        <span class="pill info">{{ run.status }}</span>
+        <a href="{% url 'sintesis:run_report' run.id %}" target="_blank" class="btn ghost"
+          style="padding:4px 8px;font-size:11px">PDF</a>
+      </div>
+      {% empty %}
+      <div class="item">
+        <div>
+          <div class="title">Sin ejecuciones registradas</div>
+          <div class="meta">Las ejecuciones aparecerán aquí.</div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endblock %}

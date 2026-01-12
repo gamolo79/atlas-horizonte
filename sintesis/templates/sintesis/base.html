@@ -1,0 +1,124 @@
+{% load static %}
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>{% block title %}Síntesis · Atlas{% endblock %}</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/monitor-design-system.css' %}">
+
+  <style>
+    :root{
+      --bg:#0b0f14;
+      --panel:#0f1722;
+      --panel2:#0c1420;
+      --stroke:rgba(166,190,200,.16);
+      --text:#e7eef5;
+      --muted:rgba(231,238,245,.70);
+
+      --g:#19c37d;
+      --g2:#0fb36f;
+      --warn:#f5a524;
+      --info:#5ec5ff;
+
+      --r:18px;
+      --shadow:0 14px 40px rgba(0,0,0,.45);
+      --max:1180px;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family:Lexend,system-ui,-apple-system,Segoe UI,Roboto,Arial;
+      background:
+        radial-gradient(1100px 600px at 15% 0%, rgba(25,195,125,.10), transparent 55%),
+        radial-gradient(900px 500px at 85% 15%, rgba(15,179,111,.10), transparent 60%),
+        var(--bg);
+      color:var(--text);
+    }
+    a{color:inherit;text-decoration:none}
+    .wrap{max-width:var(--max);margin:0 auto;padding:18px}
+    .card{
+      border:1px solid var(--stroke);
+      background:linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.01));
+      border-radius:var(--r);
+      box-shadow:var(--shadow);
+      padding:14px;
+    }
+    .grid{display:grid;gap:14px}
+    .grid.cols{grid-template-columns:1.4fr .6fr}
+    @media(max-width:980px){.grid.cols{grid-template-columns:1fr}}
+
+    .btn{
+      padding:10px 12px;border-radius:14px;border:1px solid var(--stroke);
+      background:rgba(25,195,125,.12);
+      color:var(--text);font-weight:800;font-size:13px;
+    }
+    .btn.ghost{background:rgba(255,255,255,.02);color:var(--muted);font-weight:500}
+
+    .pill{
+      padding:6px 10px;border-radius:999px;font-size:12px;border:1px solid var(--stroke);
+      background:rgba(255,255,255,.02);color:var(--muted);white-space:nowrap
+    }
+    .pill.good{border-color:rgba(25,195,125,.4);background:rgba(25,195,125,.12);color:var(--text)}
+    .pill.warn{border-color:rgba(245,165,36,.4);background:rgba(245,165,36,.12);color:var(--text)}
+    .pill.info{border-color:rgba(94,197,255,.4);background:rgba(94,197,255,.12);color:var(--text)}
+
+    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+    .muted{color:var(--muted);font-size:12px;line-height:1.5}
+
+    .nav{
+      display:flex;gap:12px;flex-wrap:wrap;align-items:center;justify-content:space-between;
+      padding:14px;border-radius:18px;border:1px solid var(--stroke);
+      background:rgba(0,0,0,.22);margin-bottom:12px;
+    }
+    .nav .brand{font-weight:900;font-size:18px}
+    .nav .tabs{display:flex;gap:8px;flex-wrap:wrap}
+    .nav .tab{
+      padding:8px 12px;border-radius:12px;border:1px solid var(--stroke);
+      color:var(--muted);font-size:13px
+    }
+    .nav .tab.active{background:rgba(25,195,125,.16);color:var(--text);font-weight:700}
+
+    .list{display:flex;flex-direction:column;gap:10px}
+    .item{
+      padding:12px;border-radius:14px;border:1px solid var(--stroke);
+      background:rgba(0,0,0,.14);
+    }
+    .title{font-weight:800;font-size:14px}
+    .meta{font-size:12px;color:var(--muted);margin-top:6px}
+
+    input, select, textarea{
+      width:100%;padding:10px 12px;border-radius:12px;border:1px solid var(--stroke);
+      background:rgba(0,0,0,.25);color:var(--text);
+      font-family:inherit;font-size:13px;
+    }
+    label{font-size:12px;color:var(--muted);display:block;margin-bottom:6px}
+    .form-grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(210px,1fr))}
+    .chips{display:flex;gap:6px;flex-wrap:wrap}
+    .chip{
+      padding:6px 10px;border-radius:999px;font-size:11px;border:1px solid var(--stroke);
+      background:rgba(255,255,255,.04);color:var(--text)
+    }
+    .chip a{color:inherit}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    {% include "sintesis/header.html" %}
+    {% if messages %}
+      <div class="list">
+        {% for message in messages %}
+          <div class="item">
+            <div class="title">{{ message }}</div>
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+    {% block content %}{% endblock %}
+  </div>
+</body>
+</html>

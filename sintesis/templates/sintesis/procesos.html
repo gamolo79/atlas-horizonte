@@ -1,0 +1,110 @@
+{% extends "sintesis/base.html" %}
+
+{% block title %}Síntesis · Procesos{% endblock %}
+
+{% block content %}
+<div class="grid cols">
+  <div class="card">
+    <h2>Programaciones</h2>
+    <p class="muted">Agenda ejecuciones por cliente y controla frecuencias.</p>
+    <div class="list">
+      {% for schedule in schedules %}
+      <div class="item">
+        <div>
+          <div class="title">{{ schedule.client.name }}</div>
+          <div class="meta">{{ schedule.name|default:"Programación" }} · {{ schedule.run_at|date:"d/m/Y H:i"|default:"—"
+            }}</div>
+        </div>
+        <span class="pill {% if schedule.is_active %}good{% else %}warn{% endif %}">
+          {% if schedule.is_active %}Activo{% else %}Inactivo{% endif %}
+        </span>
+      </div>
+      {% empty %}
+      <div class="item">
+        <div>
+          <div class="title">Sin programaciones</div>
+          <div class="meta">Usa el formulario para agregar nuevas.</div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Nueva programación</h2>
+    <form method="post">
+      {% csrf_token %}
+      <div class="form-grid">
+        <div>
+          <label for="id_schedule-client">Cliente</label>
+          {{ schedule_form.client }}
+        </div>
+        <div>
+          <label for="id_schedule-name">Etiqueta</label>
+          {{ schedule_form.name }}
+        </div>
+        <div>
+          <label for="id_schedule-run_at">Fecha y hora</label>
+          {{ schedule_form.run_at }}
+        </div>
+        <div>
+          <label for="id_schedule-is_active">Activo</label>
+          {{ schedule_form.is_active }}
+        </div>
+      </div>
+      <div class="row" style="margin-top:12px">
+        <button class="btn" type="submit" name="add_schedule">Guardar programación</button>
+      </div>
+    </form>
+
+    <div class="card" style="margin-top:16px">
+      <h2>Ejecutar síntesis manual</h2>
+      <form method="post">
+        {% csrf_token %}
+        <div class="form-grid">
+          <div>
+            <label for="id_run-client">Cliente</label>
+            {{ run_form.client }}
+          </div>
+          <div>
+            <label for="id_run-date_from">Desde</label>
+            {{ run_form.date_from }}
+          </div>
+          <div>
+            <label for="id_run-date_to">Hasta</label>
+            {{ run_form.date_to }}
+          </div>
+        </div>
+        <div class="row" style="margin-top:12px">
+          <button class="btn" type="submit" name="run_manual">Correr síntesis</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="card" style="margin-top:16px">
+  <h2>Historial de procesos</h2>
+  <div class="list">
+    {% for run in runs %}
+    <div class="item">
+      <div>
+        <div class="title">{{ run.client.name }} · {{ run.get_run_type_display }}</div>
+        <div class="meta">{{ run.started_at|date:"d/m/Y H:i"|default:"—" }}</div>
+        <div class="meta">{{ run.output_count }} historias · {{ run.status }}</div>
+      </div>
+      <span class="pill info">{{ run.status }}</span>
+      <a href="{% url 'sintesis:run_report' run.id %}" target="_blank" class="btn ghost"
+        style="padding:4px 8px;font-size:11px">PDF</a>
+    </div>
+    {% empty %}
+    <div class="item">
+      <div>
+        <div class="title">No hay procesos aún</div>
+        <div class="meta">Cuando se ejecuten aparecerán aquí.</div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}
