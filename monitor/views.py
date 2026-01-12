@@ -22,7 +22,7 @@ from monitor.management.commands.fetch_sources import (
     fetch_url_content,
 )
 from monitor.models import Article, Classification, EditorialReview, Mention, ProcessRun, Source
-from weasyprint import HTML
+
 
 from monitor.services import get_display_name, get_aliases
 from redpolitica.models import Institucion, Persona, Topic
@@ -129,6 +129,7 @@ def _apply_date_filters(queryset, date_from, date_to):
 
 
 def _render_pdf(request, template_name, context, filename):
+    from weasyprint import HTML
     html = render_to_string(template_name, context)
     base_url = request.build_absolute_uri("/")
     pdf = HTML(string=html, base_url=base_url).write_pdf()

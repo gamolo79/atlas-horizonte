@@ -7,20 +7,21 @@
   /* Dark Mode (Web Default) */
   --doc-bg: #0b1117;
   --doc-panel: #161b22;
-  --doc-border: rgba(249, 115, 22, 0.15);
+  --doc-border: rgba(249, 115, 22, 0.25);
   --doc-text: #e6edf3;
   --doc-muted: #8d96a0;
 
   --doc-accent: var(--color-orange-vibrant);
   --doc-accent-hover: var(--color-orange-dark);
 
-  --doc-chip-bg: rgba(249, 115, 22, 0.1);
-  --doc-chip-border: rgba(249, 115, 22, 0.2);
+  --doc-chip-bg: rgba(249, 115, 22, 0.15);
+  --doc-chip-border: rgba(249, 115, 22, 0.3);
   --doc-chip-text: #fdba74;
 
   /* Fonts */
   --font-heading: "Lexend", sans-serif;
-  --font-body: "Merriweather", serif;
+  --font-body: "Lexend", sans-serif;
+  /* User requested Lexend for report source */
 }
 
 body {

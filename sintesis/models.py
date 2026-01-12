@@ -160,16 +160,20 @@ class SynthesisSectionFilter(models.Model):
         blank=True,
         related_name="sintesis_section_filters",
     )
-    note = models.CharField(max_length=255, blank=True)
+    keywords = models.CharField(
+        max_length=500,
+        blank=True,
+        help_text="Lista de palabras clave o etiquetas separadas por comas.",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         ordering = ["template", "id"]
 
     def clean(self):
-        targets = [self.persona_id, self.institucion_id, self.topic_id]
-        if sum(1 for value in targets if value) != 1:
-            raise ValidationError("Selecciona exactamente un tipo de filtro.")
+        targets = [self.persona_id, self.institucion_id, self.topic_id, self.keywords]
+        if not any(targets):
+            raise ValidationError("Debes especificar al menos un criterio de filtro.")
 
     def __str__(self) -> str:
         if self.persona_id:

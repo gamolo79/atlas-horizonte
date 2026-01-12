@@ -118,6 +118,10 @@ def _extract_section_filters(
         if item.topic_id:
             topics.add(item.topic_id)
             tokens.update(_tokenize_values([item.topic.name]))
+        # Keywords support
+        if hasattr(item, "keywords") and item.keywords:
+            raw_keywords = [k.strip() for k in item.keywords.split(",") if k.strip()]
+            tokens.update(_tokenize_values(raw_keywords))
     return personas, instituciones, topics, tokens
 
 
@@ -143,31 +147,41 @@ def _build_section_specs(client: SynthesisClient) -> List[SectionSpec]:
         priority_instituciones.add(client.institucion_id)
         priority_tokens.update(_tokenize_values([client.institucion.nombre]))
 
-    specs: List[SectionSpec] = [
-        SectionSpec(
-            title="Notas principales",
-            order=10,
-            group_by="story",
-            template=None,
-            section_type="priority",
-            personas=priority_personas,
-            instituciones=priority_instituciones,
-            topics=priority_topics,
-            tokens=priority_tokens,
-        )
-    ]
-
+    # Check if there is already a custom section for "Notas principales" (order < 100 or check title)
+    # We load templates first to check
     templates = (
         client.section_templates.filter(is_active=True)
         .prefetch_related("filters")
         .order_by("order", "id")
     )
+    
+    # Heuristic: If any template has order < 50, we assume the user is controlling the top sections manually.
+    # Otherwise, we inject the legacy "Notas principales" at order 10.
+    has_custom_main = any(t.order < 50 for t in templates)
+
+    specs: List[SectionSpec] = []
+
+    if not has_custom_main and (priority_personas or priority_instituciones or priority_topics):
+         specs.append(
+            SectionSpec(
+                title="Notas principales",
+                order=10,
+                group_by="story",
+                template=None,
+                section_type="priority",
+                personas=priority_personas,
+                instituciones=priority_instituciones,
+                topics=priority_topics,
+                tokens=priority_tokens,
+            )
+        )
+
     for template in templates:
         personas, instituciones, topics, tokens = _extract_section_filters(template)
         specs.append(
             SectionSpec(
                 title=template.title,
-                order=100 + template.order,
+                order=template.order, # Use exact order from DB
                 group_by=template.group_by,
                 template=template,
                 section_type=template.section_type,

@@ -61,10 +61,15 @@ class SynthesisSectionTemplateForm(forms.ModelForm):
         required=False,
         widget=forms.SelectMultiple,
     )
+    keywords = forms.CharField(
+        required=False,
+        widget=forms.Textarea(attrs={"rows": 2, "placeholder": "palabras, clave, separadas, por, comas"}),
+        help_text="Lista de palabras para filtrar (además de personas/instituciones).",
+    )
 
     class Meta:
         model = SynthesisSectionTemplate
-        fields = ["title", "order", "group_by", "section_type", "is_active"]
+        fields = ["title", "order", "group_by", "section_type", "is_active", "keywords"]
 
     def __init__(self, *args, **kwargs):
         persona_queryset = kwargs.pop("persona_queryset", None)
@@ -76,6 +81,12 @@ class SynthesisSectionTemplateForm(forms.ModelForm):
             institucion_queryset or self.fields["instituciones"].queryset.none()
         )
         self.fields["topics"].queryset = topic_queryset or self.fields["topics"].queryset.none()
+
+        # Pre-fill keywords if editing
+        if self.instance.pk:
+            # Join all keywords from filters that have them
+            keyword_filters = self.instance.filters.exclude(keywords="").values_list("keywords", flat=True)
+            self.fields["keywords"].initial = ", ".join(keyword_filters)
 
     def save(self, commit=True):
         instance = super().save(commit=commit)
@@ -94,6 +105,11 @@ class SynthesisSectionTemplateForm(forms.ModelForm):
             SynthesisSectionFilter.objects.create(template=instance, institucion=institucion)
         for topic in self.cleaned_data.get("topics") or []:
             SynthesisSectionFilter.objects.create(template=instance, topic=topic)
+        
+        # Save keywords
+        raw_keywords = self.cleaned_data.get("keywords", "")
+        if raw_keywords.strip():
+            SynthesisSectionFilter.objects.create(template=instance, keywords=raw_keywords.strip())
 
 
 class SynthesisScheduleForm(forms.ModelForm):
