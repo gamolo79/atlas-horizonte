@@ -69,6 +69,7 @@ INSTALLED_APPS = [
     "rest_framework",   # si no lo agregaste antes
     "redpolitica",      # <- nuestra app
     "monitor",
+    "sintesis",
 ]
 
 MIDDLEWARE = [

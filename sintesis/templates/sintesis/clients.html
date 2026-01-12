@@ -1,0 +1,70 @@
+{% extends "sintesis/base.html" %}
+
+{% block title %}Síntesis · Clientes{% endblock %}
+
+{% block content %}
+  <div class="grid cols">
+    <div class="card">
+      <h2>Clientes</h2>
+      <div class="list">
+        {% for client in clients %}
+          <a class="item" href="{% url 'sintesis:client_detail' client.id %}">
+            <div>
+              <div class="title">{{ client.name }}</div>
+              <div class="meta">
+                {% if client.persona %}Persona{% elif client.institucion %}Institución{% else %}Cliente{% endif %}
+                · {{ client.stories.count }} síntesis
+              </div>
+            </div>
+            <span class="pill {% if client.is_active %}good{% else %}warn{% endif %}">
+              {% if client.is_active %}Activo{% else %}Inactivo{% endif %}
+            </span>
+          </a>
+        {% empty %}
+          <div class="item">
+            <div>
+              <div class="title">No hay clientes registrados</div>
+              <div class="meta">Crea el primero con el formulario de la derecha.</div>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Nuevo cliente</h2>
+      <form method="post">
+        {% csrf_token %}
+        <div class="form-grid">
+          <div>
+            <label for="id_name">Nombre visible</label>
+            {{ form.name }}
+          </div>
+          <div>
+            <label for="id_persona">Persona Atlas</label>
+            {{ form.persona }}
+          </div>
+          <div>
+            <label for="id_institucion">Institución Atlas</label>
+            {{ form.institucion }}
+          </div>
+          <div>
+            <label for="id_description">Descripción</label>
+            {{ form.description }}
+          </div>
+          <div>
+            <label for="id_keyword_tags">Tags clave</label>
+            {{ form.keyword_tags }}
+          </div>
+          <div>
+            <label for="id_is_active">Activo</label>
+            {{ form.is_active }}
+          </div>
+        </div>
+        <div class="row" style="margin-top:12px">
+          <button class="btn" type="submit">Guardar cliente</button>
+        </div>
+      </form>
+    </div>
+  </div>
+{% endblock %}
