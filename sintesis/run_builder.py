@@ -319,7 +319,8 @@ def build_run_document(run: SynthesisRun) -> int:
     keyword_tokens = _keyword_tokens(client)
 
     article_queryset = (
-        Article.objects.select_related("source", "classification")
+        Article.objects.filter(status="processed")
+        .select_related("source", "classification")
         .prefetch_related("classification__mentions")
         .order_by("-published_at", "-fetched_at")
     )

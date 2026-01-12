@@ -268,3 +268,13 @@ def run_pdf(request, run_id):
     if not pdf_file:
         raise Http404("PDF no disponible.")
     return FileResponse(pdf_file.open("rb"), as_attachment=True, filename=pdf_file.name)
+
+
+@ensure_csrf_cookie
+def delete_interest(request, interest_id):
+    interest = get_object_or_404(SynthesisClientInterest, pk=interest_id)
+    client_id = interest.client_id
+    if request.method == "POST":
+        interest.delete()
+        messages.success(request, "Interés eliminado.")
+    return redirect("sintesis:client_detail", client_id=client_id)
