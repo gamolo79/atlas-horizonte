@@ -1,6 +1,7 @@
+import subprocess
+
 from django.contrib import messages
-from django.core.management import call_command
-from django.http import FileResponse, Http404
+from django.http import FileResponse, Http404, JsonResponse
 from django.db.models import Prefetch
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -25,7 +26,7 @@ from .models import (
     SynthesisSectionTemplate,
     SynthesisStory,
 )
-from .run_builder import ensure_run_pdf
+from .run_builder import ensure_run_pdf, resolve_date_range
 
 
 
@@ -120,13 +121,29 @@ def client_detail(request, client_id):
             run_form = SynthesisRunForm(request.POST, prefix="run")
             if run_form.is_valid():
                 data = run_form.cleaned_data
-                call_command(
-                    "run_sintesis",
-                    client_id=data["client"].id,
-                    date_from=data.get("date_from"),
-                    date_to=data.get("date_to"),
+                date_from, date_to = resolve_date_range(
+                    data.get("date_from"),
+                    data.get("date_to"),
                 )
-                messages.success(request, "Síntesis ejecutada.")
+                run = SynthesisRun.objects.create(
+                    client=data["client"],
+                    date_from=date_from,
+                    date_to=date_to,
+                    run_type="manual",
+                    status="queued",
+                )
+                subprocess.Popen(  # noqa: S603
+                    [
+                        "/srv/atlas/venv/bin/python",
+                        "manage.py",
+                        "run_sintesis",
+                        "--run-id",
+                        str(run.id),
+                    ],
+                    cwd="/srv/atlas",
+                    close_fds=True,
+                )
+                messages.success(request, "Síntesis en cola.")
                 return redirect("sintesis:client_detail", client_id=client.id)
 
     client_form = SynthesisClientForm(instance=client, prefix="client")
@@ -208,13 +225,29 @@ def procesos(request):
             run_form = SynthesisRunForm(request.POST, prefix="run")
             if run_form.is_valid():
                 data = run_form.cleaned_data
-                call_command(
-                    "run_sintesis",
-                    client_id=data["client"].id,
-                    date_from=data.get("date_from"),
-                    date_to=data.get("date_to"),
+                date_from, date_to = resolve_date_range(
+                    data.get("date_from"),
+                    data.get("date_to"),
                 )
-                messages.success(request, "Síntesis ejecutada.")
+                run = SynthesisRun.objects.create(
+                    client=data["client"],
+                    date_from=date_from,
+                    date_to=date_to,
+                    run_type="manual",
+                    status="queued",
+                )
+                subprocess.Popen(  # noqa: S603
+                    [
+                        "/srv/atlas/venv/bin/python",
+                        "manage.py",
+                        "run_sintesis",
+                        "--run-id",
+                        str(run.id),
+                    ],
+                    cwd="/srv/atlas",
+                    close_fds=True,
+                )
+                messages.success(request, "Síntesis en cola.")
                 return redirect("sintesis:procesos")
 
     schedules = SynthesisSchedule.objects.select_related("client").order_by("-run_at")
@@ -268,6 +301,20 @@ def run_pdf(request, run_id):
     if not pdf_file:
         raise Http404("PDF no disponible.")
     return FileResponse(pdf_file.open("rb"), as_attachment=True, filename=pdf_file.name)
+
+
+@ensure_csrf_cookie
+def run_status(request, run_id):
+    run = get_object_or_404(SynthesisRun, pk=run_id)
+    return JsonResponse(
+        {
+            "id": run.id,
+            "status": run.status,
+            "output_count": run.output_count,
+            "finished_at": run.finished_at.isoformat() if run.finished_at else None,
+            "error_message": run.error_message,
+        }
+    )
 
 
 @ensure_csrf_cookie

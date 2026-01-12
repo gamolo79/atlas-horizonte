@@ -160,6 +160,9 @@ STATICFILES_DIRS = [
 
 # Carpeta DESTINO donde collectstatic copia TODO (admin + tus assets)
 STATIC_ROOT = "/srv/atlas/staticfiles"
+
+# Sintesis settings
+SINTESIS_ENABLE_PDF = os.environ.get("SINTESIS_ENABLE_PDF", "false").lower() == "true"
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 

@@ -211,9 +211,10 @@ class SynthesisRun(models.Model):
         ("scheduled", "Programado"),
     ]
     STATUS_CHOICES = [
-        ("ok", "OK"),
-        ("error", "Error"),
+        ("queued", "En cola"),
         ("running", "En ejecución"),
+        ("completed", "Completado"),
+        ("failed", "Fallido"),
     ]
 
     client = models.ForeignKey(
@@ -233,9 +234,10 @@ class SynthesisRun(models.Model):
     date_to = models.DateField(null=True, blank=True)
     started_at = models.DateTimeField(auto_now_add=True)
     finished_at = models.DateTimeField(null=True, blank=True)
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="running")
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="queued")
     output_count = models.PositiveIntegerField(default=0)
     log_text = models.TextField(blank=True)
+    error_message = models.TextField(blank=True)
     html_snapshot = models.TextField(blank=True)
     stats_json = models.JSONField(default=dict, blank=True)
     pdf_file = models.FileField(
