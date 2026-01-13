@@ -92,6 +92,8 @@ def generate_synthesis_run(
         status="running",
         window_start=window_start_dt,
         window_end=window_end_dt,
+        date_from=window_start_dt.date(),
+        date_to=window_end_dt.date(),
     )
 
     try:
@@ -100,10 +102,19 @@ def generate_synthesis_run(
             .prefetch_related("filters")
             .order_by("order", "id")
         )
-        section_payloads = build_section_payloads(run, templates, (window_start_dt, window_end_dt))
-        persist_run(run, section_payloads)
-        html_snapshot = render_run_to_html_snapshot(run.id)
-        run.html_snapshot = html_snapshot
+        if not templates:
+            logger.info(
+                "No section templates found for client %s. Falling back to legacy run builder.",
+                client.id,
+            )
+            from sintesis.run_builder import build_run_document
+
+            build_run_document(run)
+        else:
+            section_payloads = build_section_payloads(run, templates, (window_start_dt, window_end_dt))
+            persist_run(run, section_payloads)
+            html_snapshot = render_run_to_html_snapshot(run.id)
+            run.html_snapshot = html_snapshot
         run.status = "completed"
         run.finished_at = timezone.now()
         run.save(update_fields=["html_snapshot", "status", "finished_at"])
