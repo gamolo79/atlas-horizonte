@@ -11,6 +11,7 @@ from django.conf import settings
 from django.core.files.base import ContentFile
 from django.db import transaction
 from django.db.models import Prefetch, Q
+from django.db.models.fields.files import FieldFile
 from django.template.loader import render_to_string
 from django.utils import timezone
 
@@ -341,7 +342,7 @@ def render_run_to_html_snapshot(run_id: int) -> str:
     )
 
 
-def generate_pdf(run_id: int) -> Optional[str]:
+def generate_pdf(run_id: int) -> Optional[FieldFile]:
     if not settings.SINTESIS_ENABLE_PDF:
         return None
     run = SynthesisRun.objects.get(pk=run_id)
