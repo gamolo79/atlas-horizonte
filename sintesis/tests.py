@@ -9,7 +9,7 @@ from monitor.models import Article, Classification, Mention, Source
 from redpolitica.models import Persona
 from sintesis.models import SynthesisClient, SynthesisClientInterest, SynthesisRun
 from sintesis.management.commands.run_sintesis import Command
-from sintesis.run_builder import build_run, build_run_document
+from sintesis._legacy_run_builder import build_run, build_run_document
 from sintesis.services import build_profile, group_profiles
 
 
@@ -211,7 +211,7 @@ class SynthesisRunPdfFailureTests(TestCase):
             confidence=0.9,
         )
 
-    @mock.patch("sintesis.run_builder.generate_run_pdf", side_effect=Exception("PDF error"))
+    @mock.patch("sintesis._legacy_run_builder.generate_run_pdf", side_effect=Exception("PDF error"))
     def test_run_completes_when_pdf_fails(self, _generate_run_pdf):
         Command().handle(client_id=self.client.id)
         run = SynthesisRun.objects.get(client=self.client)

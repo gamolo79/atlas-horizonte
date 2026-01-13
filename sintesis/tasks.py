@@ -107,7 +107,7 @@ def generate_synthesis_run(
                 "No section templates found for client %s. Falling back to legacy run builder.",
                 client.id,
             )
-            from sintesis.run_builder import build_run_document
+            from sintesis._legacy_run_builder import build_run_document
 
             build_run_document(run)
         else:

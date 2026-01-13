@@ -332,11 +332,14 @@ def run_pdf(request, run_id):
         logger.warning("PDF requested for run %s but it has no stories", run_id)
         raise Http404("Este reporte no tiene historias para generar PDF.")
 
-    pdf_file = run.pdf_file
-    if not pdf_file:
-        pdf_file = generate_pdf_service(run.id)
-    if not pdf_file:
+    # Si no existe PDF, generarlo
+    if not run.pdf_file:
+        generate_pdf_service(run.id)
+        # Recargar el objeto run desde la DB para obtener el archivo generado
+        run.refresh_from_db()
+
+    if not run.pdf_file:
         logger.error("Failed to generate PDF for run %s", run_id)
         raise Http404("Error al generar el PDF. Verifique que WeasyPrint esté instalado.")
 
-    return FileResponse(pdf_file.open("rb"), as_attachment=True, filename=pdf_file.name)
+    return FileResponse(run.pdf_file.open("rb"), as_attachment=True, filename=run.pdf_file.name)
