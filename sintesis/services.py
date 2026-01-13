@@ -200,6 +200,10 @@ def group_profiles(profiles: Sequence[ArticleProfile], threshold: float = 0.65) 
                 if details["idea_score"] < idea_gate and len(tag_overlap) <= 1:
                     continue
 
+            if normalized_idea and group.get("central_idea"):
+                if normalized_idea == group["central_idea"]:
+                    score = max(score, 0.9)
+
             if score > best_score:
                 best_score = score
                 best_group = group

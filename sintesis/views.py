@@ -321,9 +321,14 @@ def run_report(request, run_id):
 @ensure_csrf_cookie
 def run_detail(request, run_id):
     run = get_object_or_404(SynthesisRun, pk=run_id)
+    ordered_stories = SynthesisStory.objects.order_by(
+        "group_label",
+        "-created_at",
+        "id",
+    ).prefetch_related("story_articles")
     sections = (
         SynthesisRunSection.objects.filter(run=run)
-        .prefetch_related("stories__story_articles")
+        .prefetch_related(Prefetch("stories", queryset=ordered_stories))
         .order_by("order", "id")
     )
     date_str = timezone.localtime(run.started_at).strftime("%d/%m/%Y - %H:%M")

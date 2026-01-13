@@ -11,7 +11,7 @@ from typing import Dict, Iterable, List, Optional, Sequence, Set, Tuple
 from django.conf import settings
 from django.contrib.staticfiles import finders
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Prefetch, Q
 from django.core.files.base import ContentFile
 from django.template.loader import render_to_string
 from django.utils import timezone
@@ -27,7 +27,7 @@ from sintesis.models import (
     SynthesisStory,
     SynthesisStoryArticle,
 )
-from sintesis.services import build_profile, generate_story_text, group_profiles
+from sintesis.services import build_profile, generate_story_text, group_profiles, jaccard_similarity
 
 
 logger = logging.getLogger(__name__)
@@ -354,6 +354,13 @@ def _build_story_metrics(profiles: Sequence) -> Tuple[int, List[str], Dict[str, 
     )
 
 
+def _group_signature_tokens(group: dict) -> Set[str]:
+    tokens: Set[str] = set()
+    tokens.update(group.get("title_tokens", set()))
+    tokens.update(group.get("idea_tokens", set()))
+    return tokens
+
+
 def build_run(
     client: SynthesisClient,
     date_from=None,
@@ -411,6 +418,8 @@ def build_run_document(run: SynthesisRun) -> int:
         ]
 
     assigned_article_ids: Set[int] = set()
+    seen_story_signatures: List[Set[str]] = []
+    dedupe_threshold = getattr(settings, "SINTESIS_STORY_DEDUP_THRESHOLD", 0.62)
     created_stories = 0
     run_sections: List[SynthesisRunSection] = []
     run_sources: Set[str] = set()
@@ -460,8 +469,18 @@ def build_run_document(run: SynthesisRun) -> int:
             profiles = [build_profile(article) for article in group_articles]
             groups = group_profiles(profiles)
             for group in groups:
-                story_text = generate_story_text(group)
                 profiles = group["profiles"]
+                signature_tokens = _group_signature_tokens(group)
+                if signature_tokens:
+                    is_duplicate = any(
+                        jaccard_similarity(signature_tokens, seen_tokens) >= dedupe_threshold
+                        for seen_tokens in seen_story_signatures
+                    )
+                    if is_duplicate:
+                        for profile in profiles:
+                            assigned_article_ids.add(profile.article.id)
+                        continue
+                story_text = generate_story_text(group)
                 unique_sources_count, source_names, type_counts, sentiment_counts = (
                     _build_story_metrics(profiles)
                 )
@@ -499,6 +518,8 @@ def build_run_document(run: SynthesisRun) -> int:
                 section_article_count += len(profiles)
                 section_sources.update(source_names)
                 run_sources.update(source_names)
+                if signature_tokens:
+                    seen_story_signatures.append(signature_tokens)
 
         if section_story_count:
             section.stats_json = {
@@ -556,8 +577,13 @@ def render_run_html(run: SynthesisRun, is_pdf: bool = False) -> str:
     else:
         logo_href = settings.STATIC_URL + logo_name
 
+    ordered_stories = SynthesisStory.objects.order_by(
+        "group_label",
+        "-created_at",
+        "id",
+    ).prefetch_related("story_articles")
     sections = (
-        run.sections.prefetch_related("stories__story_articles")
+        run.sections.prefetch_related(Prefetch("stories", queryset=ordered_stories))
         .order_by("order", "id")
         .all()
     )
