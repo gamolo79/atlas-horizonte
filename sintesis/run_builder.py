@@ -28,6 +28,7 @@ from sintesis.models import (
     SynthesisStoryArticle,
 )
 from sintesis.services import build_profile, generate_story_text, group_profiles, jaccard_similarity
+from sintesis.services.pipeline import make_story_fingerprint
 
 
 logger = logging.getLogger(__name__)
@@ -484,6 +485,10 @@ def build_run_document(run: SynthesisRun) -> int:
                 unique_sources_count, source_names, type_counts, sentiment_counts = (
                     _build_story_metrics(profiles)
                 )
+                story_fingerprint = make_story_fingerprint(
+                    [profile.article for profile in profiles],
+                    profiles[0].central_idea if profiles else "",
+                )
                 with transaction.atomic():
                     story = SynthesisStory.objects.create(
                         client=client,
@@ -502,6 +507,7 @@ def build_run_document(run: SynthesisRun) -> int:
                         group_label=group_label or "",
                         date_from=run.date_from,
                         date_to=run.date_to,
+                        story_fingerprint=story_fingerprint,
                     )
                     for profile in profiles:
                         article = profile.article

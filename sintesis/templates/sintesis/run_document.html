@@ -4,17 +4,51 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Síntesis · {{ client.name }} · {{ date_str }}</title>
-
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link
-    href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600;700;800&family=Merriweather:wght@300;400;600;700&display=swap"
-    rel="stylesheet">
-
-  <link rel="stylesheet" href="{{ css_href }}">
+  <title>Reporte Síntesis</title>
+  <link rel="stylesheet" href="{% static 'css/sintesis.css' %}">
+  <style>
+    body { background: #0a0f14; }
+    .wrap { max-width: 960px; }
+  </style>
 </head>
-<body class="{% if is_pdf %}pdf-mode{% else %}web-mode{% endif %}">
-  {% include "sintesis/run_document_body.html" %}
+<body>
+  <div class="wrap">
+    <div class="card">
+      <div class="row" style="justify-content: space-between;">
+        <div>
+          <h2 class="section-title">{{ client.name }}</h2>
+          <div class="muted">{{ date_str }}</div>
+        </div>
+        <img src="{% static 'img/horizonte-sintesis-dark.svg' %}" alt="Horizonte Síntesis" style="height:32px;">
+      </div>
+    </div>
+
+    {% for section in sections %}
+      <div class="card" style="margin-top:16px;">
+        <h3 class="section-title">{{ section.title }}</h3>
+        <div class="list">
+          {% for story in section.stories.all %}
+            {% ifchanged story.group_label %}
+              {% if story.group_label %}
+                <div class="muted" style="margin-top:8px;">{{ story.group_label }}</div>
+              {% endif %}
+            {% endifchanged %}
+            <div class="story">
+              <h4>{{ story.title }}</h4>
+              <div class="summary">{{ story.summary }}</div>
+              <div class="row" style="margin-top:8px;">
+                <span class="badge">{{ story.article_count }} artículos</span>
+              </div>
+              <div class="chips">
+                {% for item in story.story_articles.all %}
+                  <span class="chip-link">{{ item.source_name }}</span>
+                {% endfor %}
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+    {% endfor %}
+  </div>
 </body>
 </html>

@@ -67,9 +67,10 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
 # apps de Django…
     "rest_framework",   # si no lo agregaste antes
+    "django_celery_beat",
     "redpolitica",      # <- nuestra app
     "monitor",
-    "sintesis",
+    "sintesis.apps.SintesisConfig",
 ]
 
 MIDDLEWARE = [
@@ -163,6 +164,13 @@ STATIC_ROOT = "/srv/atlas/staticfiles"
 
 # Sintesis settings
 SINTESIS_ENABLE_PDF = os.environ.get("SINTESIS_ENABLE_PDF", "false").lower() == "true"
+
+# Celery
+CELERY_BROKER_URL = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
+CELERY_RESULT_BACKEND = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
+CELERY_ACCEPT_CONTENT = ["json"]
+CELERY_TASK_SERIALIZER = "json"
+CELERY_RESULT_SERIALIZER = "json"
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 

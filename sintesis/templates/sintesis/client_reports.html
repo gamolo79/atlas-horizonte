@@ -1,0 +1,23 @@
+{% extends "sintesis/base.html" %}
+{% block title %}Reportes de {{ client.name }} · Síntesis{% endblock %}
+{% block content %}
+  <div class="row" style="justify-content: space-between;">
+    <h2 class="section-title">Reportes de {{ client.name }}</h2>
+    <a class="btn ghost" href="{% url 'sintesis:client_detail' client.id %}">Volver al cliente</a>
+  </div>
+  <div class="list">
+    {% for run in runs %}
+      <div class="item">
+        <div class="row" style="justify-content: space-between;">
+          <div>
+            <strong>Reporte #{{ run.id }}</strong>
+            <div class="muted">{{ run.started_at|date:"d/m/Y H:i" }} · {{ run.get_status_display }}</div>
+          </div>
+          <a class="btn secondary" href="{% url 'sintesis:report_detail' run.id %}">Ver detalle</a>
+        </div>
+      </div>
+    {% empty %}
+      <p class="muted">No hay reportes.</p>
+    {% endfor %}
+  </div>
+{% endblock %}

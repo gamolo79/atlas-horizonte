@@ -1,0 +1,105 @@
+{% extends "sintesis/base.html" %}
+{% block title %}Reporte #{{ run.id }} · Síntesis{% endblock %}
+{% block content %}
+  <div class="card">
+    <div class="row" style="justify-content: space-between;">
+      <div>
+        <h2 class="section-title">{{ run.client.name }} · Reporte #{{ run.id }}</h2>
+        <div class="muted">{{ date_str }} · Ventana {{ run.window_start|date:"d/m/Y H:i" }} - {{ run.window_end|date:"d/m/Y H:i" }} · Versión {{ run.version }}</div>
+      </div>
+      <div class="row">
+        <a class="btn secondary" href="{% url 'sintesis:run_pdf' run.id %}">Descargar PDF</a>
+        <a class="btn ghost" href="https://wa.me/?text={{ share_url|urlencode }}" target="_blank" rel="noopener">WhatsApp</a>
+        <a class="btn ghost" href="https://t.me/share/url?url={{ share_url|urlencode }}" target="_blank" rel="noopener">Telegram</a>
+        <button class="btn ghost" type="button" data-share="{{ share_url }}">Copiar enlace</button>
+      </div>
+    </div>
+  </div>
+
+  <form method="post" class="card" style="margin-top:16px;">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="save_review">
+    <h3 class="section-title">Revisión global</h3>
+    <textarea name="review_text" rows="3">{{ run.review_text }}</textarea>
+
+    {% for section in sections %}
+      <div class="item" style="margin-top:12px;">
+        <strong>{{ section.title }}</strong>
+        <textarea name="section_review_{{ section.id }}" rows="2">{{ section.review_text }}</textarea>
+      </div>
+    {% endfor %}
+    <div class="row" style="margin-top:12px;">
+      <button class="btn" type="submit">Guardar revisión</button>
+    </div>
+  </form>
+
+  <div class="card" style="margin-top:16px;">
+    <h3 class="section-title">Regenerar sección</h3>
+    <div class="list">
+      {% for section in sections %}
+        {% if section.template_id %}
+          <form method="post" class="item">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="regenerate_section">
+            <input type="hidden" name="template_id" value="{{ section.template_id }}">
+            <div class="row" style="justify-content: space-between;">
+              <div>
+                <strong>{{ section.title }}</strong>
+                <div class="muted">Versión actual: {{ run.version }}</div>
+              </div>
+              <button class="btn secondary" type="submit">Regenerar sección</button>
+            </div>
+          </form>
+        {% endif %}
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:16px;">
+    <h3 class="section-title">Secciones</h3>
+    {% for section in sections %}
+      <div style="margin-top:12px;">
+        <h4>{{ section.title }}</h4>
+        {% if section.stories.all|length == 0 %}
+          <p class="muted">Sin historias en esta sección.</p>
+        {% endif %}
+        <div class="list">
+          {% for story in section.stories.all %}
+            {% ifchanged story.group_label %}
+              {% if story.group_label %}
+                <div class="muted" style="margin-top:8px;">{{ story.group_label }}</div>
+              {% endif %}
+            {% endifchanged %}
+            <div class="story">
+              <h4>{{ story.title }}</h4>
+              <div class="summary">{{ story.summary }}</div>
+              <div class="row" style="margin-top:8px;">
+                <span class="badge">{{ story.article_count }} artículos</span>
+              </div>
+              <div class="chips">
+                {% for item in story.story_articles.all %}
+                  <a class="chip-link" href="{{ item.source_url }}" target="_blank" rel="noopener">{{ item.source_name }}</a>
+                {% endfor %}
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+
+  <form method="post" class="card" style="margin-top:16px;">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="send_email">
+    <h3 class="section-title">Compartir por correo</h3>
+    <div class="form-grid">
+      <div>
+        <label for="email_to">Correo destino</label>
+        <input type="email" id="email_to" name="email_to" placeholder="cliente@dominio.com">
+      </div>
+      <div class="row" style="align-items:end;">
+        <button class="btn" type="submit">Enviar</button>
+      </div>
+    </div>
+  </form>
+{% endblock %}
