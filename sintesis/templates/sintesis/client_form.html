@@ -1,0 +1,124 @@
+{% extends "sintesis/base.html" %}
+{% block title %}{% if client %}Editar cliente{% else %}Nuevo cliente{% endif %} · Síntesis{% endblock %}
+{% block content %}
+  <div class="card">
+    <h2 class="section-title">{% if client %}Editar cliente{% else %}Crear cliente{% endif %}</h2>
+    <form method="post">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="{% if client %}save_client{% else %}create_client{% endif %}">
+      <div class="form-grid">
+        {% for field in form %}
+          {% if field.is_hidden %}
+            {{ field }}
+          {% else %}
+            <div>
+              <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+              {{ field }}
+              {% if field.help_text %}<div class="muted">{{ field.help_text }}</div>{% endif %}
+            </div>
+          {% endif %}
+        {% endfor %}
+      </div>
+      <div class="row" style="margin-top:12px;">
+        <button class="btn" type="submit">Guardar</button>
+        {% if client %}
+          <a class="btn ghost" href="{% url 'sintesis:client_detail' client.id %}">Volver</a>
+        {% endif %}
+      </div>
+    </form>
+  </div>
+
+  {% if client %}
+  <div class="grid two" style="margin-top:16px;">
+    <div class="card">
+      <h3 class="section-title">Builder de secciones</h3>
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="add_section">
+        <div class="form-grid">
+          {% for field in section_form %}
+            {% if field.is_hidden %}
+              {{ field }}
+            {% else %}
+              <div>
+                <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                {{ field }}
+                {% if field.help_text %}<div class="muted">{{ field.help_text }}</div>{% endif %}
+              </div>
+            {% endif %}
+          {% endfor %}
+        </div>
+        <div class="row" style="margin-top:12px;">
+          <button class="btn" type="submit">Agregar sección</button>
+        </div>
+      </form>
+
+      <div class="list" style="margin-top:12px;">
+        {% for section in sections %}
+          <div class="item">
+            <div class="row" style="justify-content: space-between;">
+              <div>
+                <strong>{{ section.title }}</strong>
+                <div class="muted">Orden {{ section.order }} · {{ section.get_section_type_display }}</div>
+              </div>
+              <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="delete_section">
+                <input type="hidden" name="section_id" value="{{ section.id }}">
+                <button class="btn ghost" type="submit">Eliminar</button>
+              </form>
+            </div>
+          </div>
+        {% empty %}
+          <p class="muted">No hay secciones configuradas.</p>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="card">
+      <h3 class="section-title">Builder de schedules</h3>
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="add_schedule">
+        <div class="form-grid">
+          {% for field in schedule_form %}
+            {% if field.is_hidden %}
+              {{ field }}
+            {% else %}
+              <div>
+                <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                {{ field }}
+                {% if field.help_text %}<div class="muted">{{ field.help_text }}</div>{% endif %}
+              </div>
+            {% endif %}
+          {% endfor %}
+        </div>
+        <div class="row" style="margin-top:12px;">
+          <button class="btn" type="submit">Agregar schedule</button>
+        </div>
+      </form>
+
+      <div class="list" style="margin-top:12px;">
+        {% for schedule in schedules %}
+          <div class="item">
+            <div class="row" style="justify-content: space-between;">
+              <div>
+                <strong>{{ schedule.name|default:"Programación" }}</strong>
+                <div class="muted">{{ schedule.run_time }} · {{ schedule.window_start_time }} - {{ schedule.window_end_time }}</div>
+              </div>
+              <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="delete_schedule">
+                <input type="hidden" name="schedule_id" value="{{ schedule.id }}">
+                <button class="btn ghost" type="submit">Eliminar</button>
+              </form>
+            </div>
+          </div>
+        {% empty %}
+          <p class="muted">No hay schedules configurados.</p>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+  {% endif %}
+{% endblock %}

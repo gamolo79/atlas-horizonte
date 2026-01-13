@@ -1,0 +1,45 @@
+{% extends "sintesis/base.html" %}
+{% block title %}Reportes · Síntesis{% endblock %}
+{% block content %}
+  <div class="card">
+    <h2 class="section-title">Reportes</h2>
+    <form method="get" class="form-grid" style="margin-top:8px;">
+      <div>
+        <label for="client">Cliente</label>
+        <select name="client" id="client">
+          <option value="">Todos</option>
+          {% for client in clients %}
+            <option value="{{ client.id }}" {% if request.GET.client == client.id|stringformat:"s" %}selected{% endif %}>{{ client.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label for="start">Desde</label>
+        <input type="date" id="start" name="start" value="{{ request.GET.start }}">
+      </div>
+      <div>
+        <label for="end">Hasta</label>
+        <input type="date" id="end" name="end" value="{{ request.GET.end }}">
+      </div>
+      <div class="row" style="align-items:end;">
+        <button class="btn" type="submit">Filtrar</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="list" style="margin-top:16px;">
+    {% for run in runs %}
+      <div class="item">
+        <div class="row" style="justify-content: space-between;">
+          <div>
+            <strong>{{ run.client.name }} · Reporte #{{ run.id }}</strong>
+            <div class="muted">{{ run.started_at|date:"d/m/Y H:i" }} · {{ run.get_status_display }}</div>
+          </div>
+          <a class="btn secondary" href="{% url 'sintesis:report_detail' run.id %}">Ver detalle</a>
+        </div>
+      </div>
+    {% empty %}
+      <p class="muted">No hay reportes para los filtros seleccionados.</p>
+    {% endfor %}
+  </div>
+{% endblock %}

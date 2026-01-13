@@ -66,10 +66,22 @@ class SynthesisSectionTemplateForm(forms.ModelForm):
         widget=forms.Textarea(attrs={"rows": 2, "placeholder": "palabras, clave, separadas, por, comas"}),
         help_text="Lista de palabras para filtrar (además de personas/instituciones).",
     )
+    section_prompt = forms.CharField(
+        required=False,
+        widget=forms.Textarea(attrs={"rows": 2, "placeholder": "Instrucciones opcionales para esta sección"}),
+    )
 
     class Meta:
         model = SynthesisSectionTemplate
-        fields = ["title", "order", "group_by", "section_type", "is_active", "keywords"]
+        fields = [
+            "title",
+            "order",
+            "group_by",
+            "section_type",
+            "is_active",
+            "section_prompt",
+            "keywords",
+        ]
 
     def __init__(self, *args, **kwargs):
         persona_queryset = kwargs.pop("persona_queryset", None)
@@ -109,19 +121,57 @@ class SynthesisSectionTemplateForm(forms.ModelForm):
         # Save keywords
         raw_keywords = self.cleaned_data.get("keywords", "")
         if raw_keywords.strip():
-            SynthesisSectionFilter.objects.create(template=instance, keywords=raw_keywords.strip())
+            keywords_list = [item.strip() for item in raw_keywords.split(",") if item.strip()]
+            SynthesisSectionFilter.objects.create(
+                template=instance,
+                keywords=raw_keywords.strip(),
+                keywords_json=keywords_list,
+            )
 
 
 class SynthesisScheduleForm(forms.ModelForm):
+    days_of_week = forms.MultipleChoiceField(
+        choices=[
+            (0, "Lun"),
+            (1, "Mar"),
+            (2, "Mié"),
+            (3, "Jue"),
+            (4, "Vie"),
+            (5, "Sáb"),
+            (6, "Dom"),
+        ],
+        required=False,
+        widget=forms.CheckboxSelectMultiple,
+    )
+
     class Meta:
         model = SynthesisSchedule
-        fields = ["client", "name", "run_at", "is_active"]
+        fields = [
+            "client",
+            "name",
+            "timezone",
+            "run_time",
+            "window_start_time",
+            "window_end_time",
+            "days_of_week",
+            "is_active",
+        ]
         widgets = {
-            "run_at": forms.DateTimeInput(attrs={"type": "datetime-local"}),
+            "run_time": forms.TimeInput(attrs={"type": "time"}),
+            "window_start_time": forms.TimeInput(attrs={"type": "time"}),
+            "window_end_time": forms.TimeInput(attrs={"type": "time"}),
         }
+
+    def clean_days_of_week(self):
+        raw = self.cleaned_data.get("days_of_week") or []
+        return [int(day) for day in raw]
 
 
 class SynthesisRunForm(forms.Form):
     client = forms.ModelChoiceField(queryset=SynthesisClient.objects.all())
-    date_from = forms.DateField(required=False, widget=forms.DateInput(attrs={"type": "date"}))
-    date_to = forms.DateField(required=False, widget=forms.DateInput(attrs={"type": "date"}))
+    window_start = forms.DateTimeField(
+        required=False, widget=forms.DateTimeInput(attrs={"type": "datetime-local"})
+    )
+    window_end = forms.DateTimeField(
+        required=False, widget=forms.DateTimeInput(attrs={"type": "datetime-local"})
+    )

@@ -1,16 +1,22 @@
 {% load static %}
-<div class="nav">
-  <div class="brand">
-    <img src="{% static 'img/logo-Horizonte-sintesis-dark.png' %}" alt="Horizonte Síntesis">
-    <span>Síntesis</span>
+<header class="header">
+  <div class="header-top">
+    <div class="brand">
+      <img src="{% static 'img/horizonte-sintesis-dark.svg' %}" alt="Horizonte Síntesis">
+      <div>
+        <strong>Síntesis</strong>
+        <p>Reportes editoriales basados en Monitor</p>
+      </div>
+    </div>
+    <div class="row">
+      <span class="badge">Modo oscuro</span>
+      <span class="badge">Atlas</span>
+    </div>
   </div>
-  <div class="tabs">
-    <a class="tab {% if active_tab == 'home' %}active{% endif %}" href="{% url 'sintesis:home' %}">Inicio</a>
-    <a class="tab {% if active_tab == 'clients' %}active{% endif %}" href="{% url 'sintesis:clients' %}">Clientes</a>
-    <a class="tab {% if active_tab == 'procesos' %}active{% endif %}" href="{% url 'sintesis:procesos' %}">Procesos</a>
-  </div>
-  <div class="row">
-    <a class="btn ghost" href="/monitor/">Monitor</a>
-    <a class="btn ghost" href="/">Atlas</a>
-  </div>
-</div>
+  <nav class="header-chips" aria-label="Navegación principal">
+    <a class="chip-nav {% if active_tab == 'home' %}active{% endif %}" href="{% url 'sintesis:home' %}">Inicio</a>
+    <a class="chip-nav {% if active_tab == 'clients' %}active{% endif %}" href="{% url 'sintesis:clients' %}">Clientes</a>
+    <a class="chip-nav {% if active_tab == 'reports' %}active{% endif %}" href="{% url 'sintesis:reports' %}">Reportes</a>
+    <a class="chip-nav {% if active_tab == 'procesos' %}active{% endif %}" href="{% url 'sintesis:procesos' %}">Procesos</a>
+  </nav>
+</header>

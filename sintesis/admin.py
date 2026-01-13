@@ -33,15 +33,15 @@ class SynthesisClientInterestAdmin(admin.ModelAdmin):
 
 @admin.register(SynthesisSchedule)
 class SynthesisScheduleAdmin(admin.ModelAdmin):
-    list_display = ("client", "name", "run_at", "is_active")
-    list_filter = ("is_active",)
+    list_display = ("client", "name", "run_time", "next_run_at", "is_active")
+    list_filter = ("is_active", "timezone")
     search_fields = ("client__name", "name")
 
 
 @admin.register(SynthesisRun)
 class SynthesisRunAdmin(admin.ModelAdmin):
-    list_display = ("client", "run_type", "status", "started_at", "finished_at")
-    list_filter = ("run_type", "status")
+    list_display = ("client", "run_type", "status", "version", "started_at", "finished_at")
+    list_filter = ("run_type", "status", "version")
     search_fields = ("client__name",)
 
 

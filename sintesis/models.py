@@ -124,6 +124,7 @@ class SynthesisSectionTemplate(models.Model):
         choices=SECTION_TYPES,
         default="custom",
     )
+    section_prompt = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -165,6 +166,7 @@ class SynthesisSectionFilter(models.Model):
         blank=True,
         help_text="Lista de palabras clave o etiquetas separadas por comas.",
     )
+    keywords_json = models.JSONField(default=list, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -190,7 +192,13 @@ class SynthesisSchedule(models.Model):
         related_name="schedules",
     )
     name = models.CharField(max_length=120, blank=True)
-    run_at = models.DateTimeField()
+    timezone = models.CharField(max_length=80, default="America/Mexico_City")
+    run_time = models.TimeField()
+    window_start_time = models.TimeField()
+    window_end_time = models.TimeField()
+    days_of_week = models.JSONField(default=list)
+    next_run_at = models.DateTimeField(db_index=True)
+    last_run_at = models.DateTimeField(null=True, blank=True)
     is_active = models.BooleanField(default=True)
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -202,7 +210,7 @@ class SynthesisSchedule(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        ordering = ["-run_at"]
+        ordering = ["-next_run_at"]
 
     def __str__(self) -> str:
         label = self.name or "Programación"
@@ -233,9 +241,22 @@ class SynthesisRun(models.Model):
         blank=True,
         related_name="runs",
     )
+    parent_run = models.ForeignKey(
+        "self",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="versions",
+    )
+    version = models.PositiveIntegerField(default=1)
     run_type = models.CharField(max_length=20, choices=RUN_TYPES, default="manual")
+    regeneration_scope = models.CharField(max_length=20, blank=True)
+    regenerated_template_id = models.IntegerField(null=True, blank=True)
+    review_text = models.TextField(blank=True)
     date_from = models.DateField(null=True, blank=True)
     date_to = models.DateField(null=True, blank=True)
+    window_start = models.DateTimeField(null=True, blank=True)
+    window_end = models.DateTimeField(null=True, blank=True)
     started_at = models.DateTimeField(auto_now_add=True)
     finished_at = models.DateTimeField(null=True, blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="queued")
@@ -278,6 +299,7 @@ class SynthesisStory(models.Model):
         blank=True,
         related_name="stories",
     )
+    story_fingerprint = models.CharField(max_length=64, db_index=True)
     title = models.CharField(max_length=200)
     summary = models.TextField()
     central_idea = models.TextField(blank=True)
@@ -295,6 +317,12 @@ class SynthesisStory(models.Model):
 
     class Meta:
         ordering = ["-created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["run", "story_fingerprint"],
+                name="unique_story_fingerprint_per_run",
+            )
+        ]
 
     def __str__(self) -> str:
         return self.title
@@ -344,6 +372,8 @@ class SynthesisRunSection(models.Model):
         default="story",
     )
     stats_json = models.JSONField(default=dict, blank=True)
+    review_text = models.TextField(blank=True)
+    prompt_snapshot = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

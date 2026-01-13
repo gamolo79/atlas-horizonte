@@ -1,207 +1,76 @@
 {% extends "sintesis/base.html" %}
-
-{% block title %}Síntesis · {{ client.name }}{% endblock %}
-
+{% block title %}{{ client.name }} · Síntesis{% endblock %}
 {% block content %}
-<div class="card">
-  <h2>Cliente · {{ client.name }}</h2>
-  <p class="muted">Configura los intereses editoriales, etiquetas clave y agenda de síntesis.</p>
-  <form method="post">
-    {% csrf_token %}
-    <div class="form-grid">
-      <div>
-        <label for="id_client-name">Nombre</label>
-        {{ client_form.name }}
-      </div>
-      <div>
-        <label for="id_client-persona">Persona Atlas</label>
-        {{ client_form.persona }}
-      </div>
-      <div>
-        <label for="id_client-institucion">Institución Atlas</label>
-        {{ client_form.institucion }}
-      </div>
-      <div>
-        <label for="id_client-description">Descripción</label>
-        {{ client_form.description }}
-      </div>
-      <div>
-        <label for="id_client-keyword_tags">Tags clave</label>
-        {{ client_form.keyword_tags }}
-      </div>
-      <div>
-        <label for="id_client-is_active">Activo</label>
-        {{ client_form.is_active }}
-      </div>
-    </div>
-    <div class="row" style="margin-top:12px">
-      <button class="btn" type="submit" name="save_client">Guardar cambios</button>
-      <a class="btn ghost" href="{% url 'sintesis:client_stories' client.id %}">Ver síntesis completas</a>
-    </div>
-  </form>
-</div>
-
-<div class="grid cols" style="margin-top:16px; align-items: start;">
   <div class="card">
-    <h2>Estructura del Reporte</h2>
-    <p class="muted">Define las secciones del documento. Crea una sección llamada "Notas principales" (Orden 10) para
-      reemplazar la configuración por defecto.</p>
-    <div class="list" style="margin-top:12px">
-      {% for section in sections %}
-      <div class="item">
-        <div>
-          <div class="title">{{ section.title }}</div>
-          <div class="meta">Agrupar por {{ section.get_group_by_display }} · Orden {{ section.order }}</div>
-          <div class="chips" style="margin-top:8px">
-            {% for filter in section.filters.all %}
-            <span class="chip">
-              {% if filter.persona %}{{ filter.persona.nombre_completo }}{% endif %}
-              {% if filter.institucion %}{{ filter.institucion.nombre }}{% endif %}
-              {% if filter.topic %}{{ filter.topic.name }}{% endif %}
-              {% if filter.keywords %}{{ filter.keywords }}{% endif %}
-            </span>
-            {% endfor %}
+    <div class="row" style="justify-content: space-between;">
+      <div>
+        <h2 class="section-title">{{ client.name }}</h2>
+        <p class="muted">{{ client.description|default:"Sin descripción" }}</p>
+        <div class="row">
+          {% if client.persona %}<span class="badge">Persona: {{ client.persona.nombre_completo }}</span>{% endif %}
+          {% if client.institucion %}<span class="badge">Institución: {{ client.institucion.nombre }}</span>{% endif %}
+        </div>
+      </div>
+      <div class="row">
+        <a class="btn secondary" href="{% url 'sintesis:client_edit' client.id %}">Editar</a>
+        <a class="btn ghost" href="{% url 'sintesis:client_reports' client.id %}">Historial</a>
+      </div>
+    </div>
+    <div class="row" style="margin-top:12px;">
+      <form method="post" action="{% url 'sintesis:client_generate' client.id %}">
+        {% csrf_token %}
+        <button class="btn" type="submit">Generar ahora</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="grid two" style="margin-top:16px;">
+    <div class="card">
+      <h3 class="section-title">Secciones</h3>
+      <div class="list">
+        {% for section in sections %}
+          <div class="item">
+            <strong>{{ section.title }}</strong>
+            <div class="muted">Orden {{ section.order }} · {{ section.get_section_type_display }}</div>
+          </div>
+        {% empty %}
+          <p class="muted">No hay secciones configuradas.</p>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="card">
+      <h3 class="section-title">Programaciones</h3>
+      <div class="list">
+        {% for schedule in schedules %}
+          <div class="item">
+            <strong>{{ schedule.name|default:"Programación" }}</strong>
+            <div class="muted">
+              Próxima: {{ schedule.next_run_at|date:"d/m/Y H:i" }} · Ventana {{ schedule.window_start_time }} - {{ schedule.window_end_time }}
+            </div>
+          </div>
+        {% empty %}
+          <p class="muted">No hay schedules activos.</p>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:16px;">
+    <h3 class="section-title">Últimos reportes</h3>
+    <div class="list">
+      {% for run in runs %}
+        <div class="item">
+          <div class="row" style="justify-content: space-between;">
+            <div>
+              <strong>Reporte #{{ run.id }}</strong>
+              <div class="muted">{{ run.started_at|date:"d/m/Y H:i" }} · {{ run.get_run_type_display }}</div>
+            </div>
+            <a class="btn secondary" href="{% url 'sintesis:report_detail' run.id %}">Ver detalle</a>
           </div>
         </div>
-        <div class="row" style="gap:6px">
-          <span class="pill {% if section.is_active %}brand{% else %}warn{% endif %}">
-            {% if section.is_active %}Activa{% else %}Inactiva{% endif %}
-          </span>
-          <a class="btn ghost" style="padding:4px 8px" href="?edit_section={{ section.id }}">Editar</a>
-          <form method="post" action="{% url 'sintesis:delete_section' section.id %}"
-            onsubmit="return confirm('¿Eliminar sección?');">
-            {% csrf_token %}
-            <button type="submit" class="btn ghost"
-              style="padding:4px 8px;color:#ef4444;border:none">Eliminar</button>
-          </form>
-        </div>
-      </div>
       {% empty %}
-      <div class="item">
-        <div>
-          <div class="title">Sin secciones configuradas</div>
-          <div class="meta">Agrega una sección para personalizar el documento.</div>
-        </div>
-      </div>
+        <p class="muted">No hay reportes generados.</p>
       {% endfor %}
     </div>
-
-    <form method="post" style="margin-top:14px">
-      {% csrf_token %}
-      {% if editing_section %}
-      <div class="meta" style="margin-bottom:8px">Editando "{{ editing_section.title }}".</div>
-      <input type="hidden" name="section_id" value="{{ editing_section.id }}">
-      {% endif %}
-      {{ section_form.non_field_errors }}
-      <div class="form-grid" style="margin-top:12px">
-        <div>
-          <label for="{{ section_form.title.id_for_label }}">Título</label>
-          {{ section_form.title }}
-        </div>
-        <div>
-          <label for="{{ section_form.order.id_for_label }}">Orden</label>
-          {{ section_form.order }}
-        </div>
-        <div>
-          <label for="{{ section_form.group_by.id_for_label }}">Agrupar por</label>
-          {{ section_form.group_by }}
-        </div>
-        <div>
-          <label for="{{ section_form.section_type.id_for_label }}">Tipo</label>
-          {{ section_form.section_type }}
-        </div>
-        <div>
-          <label for="{{ section_form.is_active.id_for_label }}">Activa</label>
-          {{ section_form.is_active }}
-        </div>
-        <div>
-          <label for="{{ section_form.keywords.id_for_label }}">Palabras clave</label>
-          {{ section_form.keywords }}
-        </div>
-        <div>
-          <label for="{{ section_form.personas.id_for_label }}">Personas</label>
-          {{ section_form.personas }}
-        </div>
-        <div>
-          <label for="{{ section_form.instituciones.id_for_label }}">Instituciones</label>
-          {{ section_form.instituciones }}
-        </div>
-        <div>
-          <label for="{{ section_form.topics.id_for_label }}">Temas</label>
-          {{ section_form.topics }}
-        </div>
-      </div>
-      <div class="row" style="margin-top:12px">
-        <button class="btn" type="submit" name="{% if editing_section %}update_section{% else %}add_section{% endif %}">
-          {% if editing_section %}Actualizar sección{% else %}Agregar sección{% endif %}
-        </button>
-        {% if editing_section %}
-        <a class="btn ghost" href="{% url 'sintesis:client_detail' client.id %}">Cancelar</a>
-        {% endif %}
-      </div>
-    </form>
   </div>
-
-  <div class="card">
-    <h2>Últimas historias</h2>
-    <p class="muted">Historias recientes generadas para este cliente.</p>
-    <div class="list" style="margin-top:12px">
-      {% for story in stories %}
-      <div class="item">
-        <div>
-          <div class="title">{{ story.title }}</div>
-          <div class="meta">{{ story.summary }}</div>
-          <div class="meta">{{ story.article_count }} notas</div>
-        </div>
-        <div class="chips">
-          {% for item in story.story_articles.all %}
-          <span class="chip"><a href="{{ item.source_url }}" target="_blank">{{ item.source_name }}</a></span>
-          {% endfor %}
-        </div>
-      </div>
-      {% empty %}
-      <div class="item">
-        <div>
-          <div class="title">Aún no hay síntesis</div>
-          <div class="meta">Ejecuta un proceso para generar resúmenes.</div>
-        </div>
-      </div>
-      {% endfor %}
-    </div>
-    <div class="row" style="margin-top:12px">
-      <a class="btn ghost" href="{% url 'sintesis:client_stories' client.id %}">Ver todas</a>
-    </div>
-  </div>
-</div>
-
-<div class="card">
-  <h2>Historial de ejecuciones</h2>
-  <div class="list">
-    {% for run in runs %}
-    <div class="item">
-      <div>
-        <div class="title">{{ run.get_run_type_display }} · {{ run.status|upper }}</div>
-        <div class="meta">{{ run.started_at|date:"d/m/Y H:i"|default:"—" }}</div>
-        <div class="meta">{{ run.output_count }} historias</div>
-      </div>
-      <span class="pill info">{{ run.status }}</span>
-      <div class="row" style="margin-top:8px">
-        <a href="{% url 'sintesis:run_detail' run.id %}" target="_blank" class="btn ghost"
-          style="padding:4px 8px;font-size:11px">Ver documento</a>
-        {% if run.pdf_file %}
-        <a href="{% url 'sintesis:run_pdf' run.id %}" target="_blank" class="btn ghost"
-          style="padding:4px 8px;font-size:11px">PDF</a>
-        {% endif %}
-      </div>
-    </div>
-    {% empty %}
-    <div class="item">
-      <div>
-        <div class="title">Sin ejecuciones registradas</div>
-        <div class="meta">Las ejecuciones aparecerán aquí.</div>
-      </div>
-    </div>
-    {% endfor %}
-  </div>
-</div>
 {% endblock %}
