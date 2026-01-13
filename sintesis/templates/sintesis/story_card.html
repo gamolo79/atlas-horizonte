@@ -5,14 +5,12 @@
   <div class="story-meta">
     <!-- Row 1: Sources & Tags -->
     <div class="meta-row">
-      {% if story.story_articles.exists %}
+      {% if story.source_names_json %}
       <div class="meta-group">
-        <span class="meta-label">Fuentes:</span>
+        <span class="meta-label">Fuentes ({{ story.unique_sources_count }}):</span>
         <div class="chip-list">
-          {% for item in story.story_articles.all %}
-          <a href="{{ item.source_url }}" target="_blank" class="chip link-chip">
-            {{ item.source_name }}
-          </a>
+          {% for source_name in story.source_names_json %}
+          <span class="chip">{{ source_name }}</span>
           {% endfor %}
         </div>
       </div>

@@ -1,5 +1,7 @@
+import logging
 import subprocess
 
+from django.conf import settings
 from django.contrib import messages
 from django.http import FileResponse, Http404, JsonResponse
 from django.db.models import Prefetch
@@ -7,6 +9,8 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.templatetags.static import static
 from django.views.decorators.csrf import ensure_csrf_cookie
+
+logger = logging.getLogger(__name__)
 
 from .forms import (
     SynthesisClientForm,
@@ -349,9 +353,22 @@ def run_detail(request, run_id):
 @ensure_csrf_cookie
 def run_pdf(request, run_id):
     run = get_object_or_404(SynthesisRun, pk=run_id)
+    
+    # Check if PDF generation is enabled
+    if not settings.SINTESIS_ENABLE_PDF:
+        logger.warning("PDF generation requested but SINTESIS_ENABLE_PDF is disabled")
+        raise Http404("La generación de PDF está deshabilitada. Configure SINTESIS_ENABLE_PDF=true en el archivo .env")
+    
+    # Check if run has any stories
+    if not run.output_count:
+        logger.warning(f"PDF requested for run {run_id} but it has no stories")
+        raise Http404("Este reporte no tiene historias para generar PDF.")
+    
     pdf_file = ensure_run_pdf(run)
     if not pdf_file:
-        raise Http404("PDF no disponible.")
+        logger.error(f"Failed to generate PDF for run {run_id}")
+        raise Http404("Error al generar el PDF. Verifique que WeasyPrint esté instalado.")
+    
     return FileResponse(pdf_file.open("rb"), as_attachment=True, filename=pdf_file.name)
 
 

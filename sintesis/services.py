@@ -178,8 +178,9 @@ def _similarity_details(
 def group_profiles(profiles: Sequence[ArticleProfile], threshold: float = 0.65) -> List[dict]:
     groups: List[dict] = []
     tag_weights = _tag_weights(profiles)
-    title_gate = getattr(settings, "SINTESIS_TITLE_SIM_THRESHOLD", 0.55)
-    idea_gate = getattr(settings, "SINTESIS_IDEA_SIM_THRESHOLD", 0.5)
+    # Lowered thresholds to catch more similar stories
+    title_gate = getattr(settings, "SINTESIS_TITLE_SIM_THRESHOLD", 0.45)
+    idea_gate = getattr(settings, "SINTESIS_IDEA_SIM_THRESHOLD", 0.4)
     
     # Sort profiles by date or importance if possible, here we just iterate
     for profile in profiles:
@@ -203,6 +204,10 @@ def group_profiles(profiles: Sequence[ArticleProfile], threshold: float = 0.65) 
             if normalized_idea and group.get("central_idea"):
                 if normalized_idea == group["central_idea"]:
                     score = max(score, 0.9)
+            
+            # Strong title match boost - if titles are very similar, group them together
+            if details["title_score"] > 0.65:
+                score = max(score, 0.85)
 
             if score > best_score:
                 best_score = score
