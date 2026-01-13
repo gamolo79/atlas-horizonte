@@ -1,4 +1,9 @@
 <div class="sintesis-doc">
+  {% if not is_pdf %}
+    <div class="doc-actions">
+      <a class="doc-button" href="{% url 'sintesis:run_pdf' run.id %}">Generar PDF</a>
+    </div>
+  {% endif %}
   <header class="doc-header">
     <div class="doc-logo">
       <img src="{{ logo_href }}" alt="Horizonte Síntesis">
@@ -20,6 +25,8 @@
             {% for group in grouped_stories %}
               {% if group.grouper %}
                 <div class="section-subtitle">{{ group.grouper }}</div>
+              {% else %}
+                <div class="section-subtitle">Sin institución</div>
               {% endif %}
               {% for story in group.list %}
                 {% include "sintesis/story_card.html" with story=story %}
@@ -40,6 +47,11 @@
   {% endif %}
 
   <footer class="doc-footer">
+    {% if not is_pdf %}
+      <div class="doc-actions">
+        <a class="doc-button" href="{% url 'sintesis:run_pdf' run.id %}">Generar PDF</a>
+      </div>
+    {% endif %}
     <div class="footer-title">Fuentes</div>
     <div class="chip-list">
       {% for source in sources %}

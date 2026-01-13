@@ -32,6 +32,10 @@ body {
   line-height: 1.6;
 }
 
+.sintesis-doc * {
+  font-family: var(--font-body);
+}
+
 /* PDF / Print Overrides (Light Mode) */
 @media print {
   :root {
@@ -65,6 +69,10 @@ body {
 
   .doc-section {
     break-inside: avoid;
+  }
+
+  .doc-actions {
+    display: none;
   }
 }
 
@@ -150,6 +158,38 @@ body {
 /* Sections */
 .doc-section {
   margin-bottom: 48px;
+}
+
+.doc-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 24px;
+}
+
+.doc-footer .doc-actions {
+  justify-content: center;
+  margin-bottom: 24px;
+}
+
+.doc-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 16px;
+  border-radius: 999px;
+  border: 1px solid var(--doc-border);
+  background: var(--doc-accent);
+  color: #fff;
+  font-family: var(--font-heading);
+  font-weight: 600;
+  font-size: 13px;
+  text-decoration: none;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.doc-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 12px rgba(249, 115, 22, 0.3);
 }
 
 .section-title {
@@ -249,6 +289,12 @@ body {
   border: 1px solid var(--doc-chip-border);
   color: var(--doc-chip-text);
   text-decoration: none;
+}
+
+.chip.link-chip {
+  background: var(--doc-chip-bg);
+  border-color: var(--doc-chip-border);
+  color: var(--doc-chip-text);
 }
 
 .chip.link-chip:hover {
