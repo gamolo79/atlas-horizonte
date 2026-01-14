@@ -1,7 +1,7 @@
 <div class="sintesis-doc">
   {% if not is_pdf %}
     <div class="doc-actions">
-      <a class="doc-button" href="{% url 'sintesis:run_pdf' run.id %}">Generar PDF</a>
+      <button class="doc-button" type="button" disabled>PDF deshabilitado</button>
     </div>
   {% endif %}
   <header class="doc-header">
@@ -49,7 +49,7 @@
   <footer class="doc-footer">
     {% if not is_pdf %}
       <div class="doc-actions">
-        <a class="doc-button" href="{% url 'sintesis:run_pdf' run.id %}">Generar PDF</a>
+        <button class="doc-button" type="button" disabled>PDF deshabilitado</button>
       </div>
     {% endif %}
     <div class="footer-title">Fuentes</div>

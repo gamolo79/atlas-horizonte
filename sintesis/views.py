@@ -256,6 +256,9 @@ def report_detail(request, run_id):
             messages.success(request, "Regeneración en cola.")
             return redirect("sintesis:report_detail", run_id=run.id)
         if action == "send_email":
+            if not getattr(settings, "SINTESIS_ENABLE_EMAIL_SHARE", False):
+                messages.error(request, "El envío por correo está deshabilitado temporalmente.")
+                return redirect("sintesis:report_detail", run_id=run.id)
             email_to = request.POST.get("email_to")
             if not email_to:
                 messages.error(request, "Ingresa un correo válido.")
@@ -324,9 +327,9 @@ def procesos(request):
 def run_pdf(request, run_id):
     run = get_object_or_404(SynthesisRun, pk=run_id)
 
-    if not settings.SINTESIS_ENABLE_PDF:
-        logger.warning("PDF generation requested but SINTESIS_ENABLE_PDF is disabled")
-        raise Http404("La generación de PDF está deshabilitada. Configure SINTESIS_ENABLE_PDF=true en el archivo .env")
+    if not settings.SINTESIS_ENABLE_PDF or not getattr(settings, "SINTESIS_ENABLE_PDF_EXPORT", False):
+        logger.warning("PDF export requested but it is disabled")
+        raise Http404("La exportación de PDF está deshabilitada temporalmente.")
 
     if not run.output_count:
         logger.warning("PDF requested for run %s but it has no stories", run_id)

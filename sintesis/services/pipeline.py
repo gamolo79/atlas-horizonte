@@ -61,19 +61,24 @@ def build_run_window(
     return window_start, window_end
 
 
-def _normalize_keywords(filters: Iterable[SynthesisSectionFilter]) -> List[str]:
+def _collect_keywords(filters: Iterable[SynthesisSectionFilter]) -> List[str]:
     keywords: List[str] = []
     for item in filters:
         if item.keywords_json:
             keywords.extend([str(word).strip() for word in item.keywords_json if word])
         if item.keywords:
             keywords.extend([word.strip() for word in item.keywords.split(",") if word.strip()])
-    normalized = []
+    seen = set()
+    variants: List[str] = []
     for keyword in keywords:
-        normalized_value = normalize_name(keyword)
-        if normalized_value:
-            normalized.append(normalized_value)
-    return normalized
+        for variant in {keyword, keyword.lower(), normalize_name(keyword)}:
+            if not variant:
+                continue
+            if variant in seen:
+                continue
+            seen.add(variant)
+            variants.append(variant)
+    return variants
 
 
 def fetch_candidate_articles(
@@ -98,7 +103,7 @@ def fetch_candidate_articles(
         return base_qs
 
     q = Q()
-    keywords = _normalize_keywords(filters)
+    keywords = _collect_keywords(filters)
     for item in filters:
         if item.persona_id:
             q |= Q(
