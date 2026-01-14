@@ -536,6 +536,10 @@ def persist_run(
     run.stats_json = {
         "sources": sorted(run_sources),
         "sections": [payload["title"] for payload in section_payloads if payload.get("stories")],
+        "routing": routing_counts,
+        "dedupe": dedupe_counts,
+        "clusters": cluster_counts,
+        "metrics": _build_run_metrics(routing_counts, dedupe_counts),
     }
     run.log_text = "\n".join(log_lines)
     run.save(update_fields=["output_count", "stats_json", "log_text"])
@@ -598,11 +602,25 @@ def build_section_payloads(
 ) -> List[dict]:
     used_fingerprints = set()
     section_payloads: List[dict] = []
+    routing_counts: dict[int, dict[str, int]] = {}
+    dedupe_counts: dict[int, int] = {}
+    cluster_counts: dict[int, int] = {}
 
     for template in templates:
         filters = template.filters.select_related("persona", "institucion", "topic")
         if settings.SINTESIS_ENABLE_NEW_PIPELINE:
             articles = route_articles_for_section(run, template, window)
+            routing_counts[template.id] = {
+                "included": len(articles),
+                "total": SynthesisSectionRoutingResult.objects.filter(
+                    run=run,
+                    template=template,
+                ).count(),
+            }
+            dedupe_counts[template.id] = SynthesisArticleDedup.objects.filter(
+                run=run,
+                article__in=articles,
+            ).count()
         else:
             articles = list(fetch_candidate_articles(window, filters))
         if not articles:
@@ -611,6 +629,10 @@ def build_section_payloads(
             build_clusters_for_section(run, template, articles)
             if settings.SINTESIS_ENABLE_LLM_LABELS:
                 label_clusters(run.id, template.id)
+            cluster_counts[template.id] = SynthesisCluster.objects.filter(
+                run=run,
+                template=template,
+            ).count()
         groups = cluster_articles_into_stories(articles)
         groups = _rank_and_limit_groups(groups, template)
         stories_payloads = []
@@ -686,6 +708,29 @@ def _rank_and_limit_groups(groups: List[dict], template: SynthesisSectionTemplat
     ranked = sorted(groups, key=group_score, reverse=True)
     limit = getattr(settings, "SINTESIS_SECTION_STORY_LIMIT", 6)
     return ranked[:limit]
+
+
+def _build_run_metrics(
+    routing_counts: dict[int, dict[str, int]],
+    dedupe_counts: dict[int, int],
+) -> dict:
+    off_section_rate = {}
+    dup_rate = {}
+    for template_id, counts in routing_counts.items():
+        total = counts.get("total", 0)
+        included = counts.get("included", 0)
+        if total:
+            off_section_rate[template_id] = round((total - included) / total, 4)
+        else:
+            off_section_rate[template_id] = 0.0
+        if included:
+            dup_rate[template_id] = round(dedupe_counts.get(template_id, 0) / included, 4)
+        else:
+            dup_rate[template_id] = 0.0
+    return {
+        "off_section_rate": off_section_rate,
+        "dup_rate": dup_rate,
+    }
 
 
 def _dominant_institution_label(profiles) -> str:
