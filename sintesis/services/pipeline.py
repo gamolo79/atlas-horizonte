@@ -539,7 +539,11 @@ def persist_run(
         "routing": routing_counts,
         "dedupe": dedupe_counts,
         "clusters": cluster_counts,
-        "metrics": _build_run_metrics(routing_counts, dedupe_counts),
+        "metrics": _build_run_metrics(
+            routing_counts,
+            dedupe_counts,
+            _cluster_purity_by_template(run),
+        ),
     }
     run.log_text = "\n".join(log_lines)
     run.save(update_fields=["output_count", "stats_json", "log_text"])
@@ -713,6 +717,7 @@ def _rank_and_limit_groups(groups: List[dict], template: SynthesisSectionTemplat
 def _build_run_metrics(
     routing_counts: dict[int, dict[str, int]],
     dedupe_counts: dict[int, int],
+    cluster_purity: dict[int, float],
 ) -> dict:
     off_section_rate = {}
     dup_rate = {}
@@ -730,7 +735,46 @@ def _build_run_metrics(
     return {
         "off_section_rate": off_section_rate,
         "dup_rate": dup_rate,
+        "cluster_purity": cluster_purity,
     }
+
+
+def _cluster_purity_by_template(run: SynthesisRun) -> dict[int, float]:
+    purities = {}
+    clusters = (
+        SynthesisCluster.objects.filter(run=run)
+        .prefetch_related("members__article__classification__mentions")
+        .order_by("template_id")
+    )
+    purity_scores = {}
+    cluster_counts = {}
+
+    for cluster in clusters:
+        member_count = cluster.members.count()
+        if not member_count:
+            continue
+        entity_counts = Counter()
+        for member in cluster.members.all():
+            strengths = SynthesisArticleMentionStrength.objects.filter(
+                article=member.article,
+                strength="strong",
+            )
+            for item in strengths:
+                key = f"{item.target_type}:{item.target_id}"
+                entity_counts[key] += 1
+        if not entity_counts:
+            purity = 0.0
+        else:
+            dominant = entity_counts.most_common(1)[0][1]
+            purity = dominant / member_count
+
+        template_id = cluster.template_id
+        purity_scores[template_id] = purity_scores.get(template_id, 0.0) + purity
+        cluster_counts[template_id] = cluster_counts.get(template_id, 0) + 1
+
+    for template_id, total in purity_scores.items():
+        purities[template_id] = round(total / cluster_counts[template_id], 4)
+    return purities
 
 
 def _dominant_institution_label(profiles) -> str:

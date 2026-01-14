@@ -243,6 +243,7 @@ def report_detail(request, run_id):
     metrics = stats.get("metrics", {})
     off_section = metrics.get("off_section_rate", {})
     dup_rate = metrics.get("dup_rate", {})
+    cluster_purity = metrics.get("cluster_purity", {})
 
     def _metric(mapping, template_id, default=0):
         if template_id is None:
@@ -265,6 +266,7 @@ def report_detail(request, run_id):
                 "cluster_count": _metric(clusters, template_id, 0),
                 "off_section_rate": _metric(off_section, template_id, 0),
                 "dup_rate": _metric(dup_rate, template_id, 0),
+                "cluster_purity": _metric(cluster_purity, template_id, 0),
             }
         )
 
