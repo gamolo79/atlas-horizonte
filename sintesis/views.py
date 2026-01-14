@@ -236,6 +236,37 @@ def report_detail(request, run_id):
         .prefetch_related(Prefetch("stories", queryset=ordered_stories))
         .order_by("order", "id")
     )
+    stats = run.stats_json or {}
+    routing = stats.get("routing", {})
+    dedupe = stats.get("dedupe", {})
+    clusters = stats.get("clusters", {})
+    metrics = stats.get("metrics", {})
+    off_section = metrics.get("off_section_rate", {})
+    dup_rate = metrics.get("dup_rate", {})
+
+    def _metric(mapping, template_id, default=0):
+        if template_id is None:
+            return default
+        return mapping.get(template_id, mapping.get(str(template_id), default))
+
+    section_metrics = []
+    for section in sections:
+        template_id = section.template_id
+        routing_data = _metric(routing, template_id, {})
+        if not isinstance(routing_data, dict):
+            routing_data = {}
+        section_metrics.append(
+            {
+                "section_id": section.id,
+                "title": section.title,
+                "routing_total": routing_data.get("total", 0),
+                "routing_included": routing_data.get("included", 0),
+                "dedupe_count": _metric(dedupe, template_id, 0),
+                "cluster_count": _metric(clusters, template_id, 0),
+                "off_section_rate": _metric(off_section, template_id, 0),
+                "dup_rate": _metric(dup_rate, template_id, 0),
+            }
+        )
 
     if request.method == "POST":
         action = request.POST.get("action")
@@ -292,6 +323,7 @@ def report_detail(request, run_id):
             "logo_href": static("img/horizonte-sintesis-dark.svg"),
             "share_url": request.build_absolute_uri(),
             "active_tab": "reports",
+            "section_metrics": section_metrics,
         },
     )
 
