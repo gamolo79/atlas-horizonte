@@ -21,12 +21,20 @@ from monitor.services import parse_json_response
 from sintesis.models import (
     SynthesisRun,
     SynthesisRunSection,
+    SynthesisSectionRoutingResult,
     SynthesisSectionFilter,
     SynthesisSectionTemplate,
+    SynthesisArticleMentionStrength,
+    SynthesisArticleEmbedding,
+    SynthesisArticleDedup,
+    SynthesisCluster,
     SynthesisStory,
     SynthesisStoryArticle,
 )
 from sintesis.services import build_profile, group_profiles
+from sintesis.services.clustering import assign_articles_to_clusters
+from sintesis.services.embeddings import build_canonical_text, canonical_hash, compute_embedding
+from sintesis.services.mention_strength import classify_mentions
 
 
 logger = logging.getLogger(__name__)
@@ -128,9 +136,220 @@ def fetch_candidate_articles(
     return base_qs.filter(q).distinct()
 
 
+def _fetch_window_articles(window: Tuple[datetime, datetime]):
+    window_start, window_end = window
+    qs = (
+        Article.objects.filter(status="processed")
+        .select_related("source", "classification")
+        .prefetch_related("classification__mentions")
+        .order_by("-published_at", "-fetched_at")
+    )
+    if window_start and window_end:
+        qs = qs.filter(
+            Q(published_at__gte=window_start, published_at__lte=window_end)
+            | Q(fetched_at__gte=window_start, fetched_at__lte=window_end)
+        )
+    return qs
+
+
+def _section_watchlist_keys(filters: Iterable[SynthesisSectionFilter]) -> set[str]:
+    watchlist = set()
+    for item in filters:
+        if item.persona_id:
+            watchlist.add(f"persona:{item.persona_id}")
+        if item.institucion_id:
+            watchlist.add(f"institucion:{item.institucion_id}")
+        if item.topic_id:
+            watchlist.add(f"tema:{item.topic_id}")
+    return watchlist
+
+
+def _normalize_keywords(values: Iterable[str]) -> list[str]:
+    normalized = []
+    for value in values:
+        variant = normalize_name(value or "")
+        if variant:
+            normalized.append(variant)
+    return normalized
+
+
+def _evaluate_section_contract(
+    template: SynthesisSectionTemplate,
+    article: Article,
+    mention_strengths: list[SynthesisArticleMentionStrength],
+) -> tuple[bool, float, dict]:
+    filters = template.filters.select_related("persona", "institucion", "topic")
+    watchlist_keys = _section_watchlist_keys(filters)
+    strong_keys = {
+        f"{ms.target_type}:{ms.target_id}" for ms in mention_strengths if ms.strength == "strong"
+    }
+    total_keys = {f"{ms.target_type}:{ms.target_id}" for ms in mention_strengths}
+    strong_hits = sorted(watchlist_keys & strong_keys)
+    total_hits = sorted(watchlist_keys & total_keys)
+
+    normalized_text = normalize_name(f"{article.title} {article.text[:600]}")
+    positive_keywords = _normalize_keywords(template.contract_keywords_positive or [])
+    negative_keywords = _normalize_keywords(template.contract_keywords_negative or [])
+    matched_positive = [kw for kw in positive_keywords if kw in normalized_text]
+    matched_negative = [kw for kw in negative_keywords if kw in normalized_text]
+
+    if matched_negative:
+        return (
+            False,
+            0.0,
+            {
+                "reason": "negative_keyword",
+                "matched_negative": matched_negative,
+                "matched_positive": matched_positive,
+            },
+        )
+
+    score = 0.0
+    score += min(len(strong_hits) * 0.6, 1.0)
+    score += min(len(total_hits) * 0.2, 0.6)
+    if matched_positive:
+        score += 0.2
+    score = min(score, 1.0)
+
+    min_score = template.contract_min_score or settings.SINTESIS_ROUTING_DEFAULT_MIN_SCORE
+    min_mentions = template.contract_min_mentions or settings.SINTESIS_ROUTING_DEFAULT_MIN_MENTIONS
+    is_included = bool(strong_hits) or (len(total_hits) >= min_mentions and score >= min_score)
+
+    return (
+        is_included,
+        score,
+        {
+            "strong_hits": strong_hits,
+            "total_hits": total_hits,
+            "matched_positive": matched_positive,
+            "matched_negative": matched_negative,
+            "min_score": min_score,
+            "min_mentions": min_mentions,
+            "score": score,
+        },
+    )
+
+
+def _store_mention_strengths(article: Article) -> list[SynthesisArticleMentionStrength]:
+    classification = getattr(article, "classification", None)
+    mentions = classification.mentions.all() if classification else []
+    strengths = classify_mentions(article, mentions)
+    SynthesisArticleMentionStrength.objects.filter(article=article).delete()
+    records = [
+        SynthesisArticleMentionStrength(
+            article=article,
+            target_type=item.target_type,
+            target_id=item.target_id,
+            target_name=item.target_name,
+            strength=item.strength,
+            positions_json=item.positions,
+        )
+        for item in strengths
+    ]
+    if records:
+        SynthesisArticleMentionStrength.objects.bulk_create(records)
+    return records
+
+
+def _ensure_embedding_cache(article: Article) -> None:
+    classification = getattr(article, "classification", None)
+    labels = list(getattr(classification, "labels_json", []) or [])
+    entity_names = []
+    if classification:
+        entity_names = [mention.target_name for mention in classification.mentions.all()]
+    canonical_text = build_canonical_text(article, labels, entity_names)
+    canonical_key = canonical_hash(canonical_text)
+    cache = getattr(article, "embedding_cache", None)
+    if cache and cache.canonical_hash == canonical_key:
+        return
+    embedding = []
+    if settings.SINTESIS_ENABLE_EMBEDDINGS:
+        embedding = compute_embedding(canonical_text)
+    SynthesisArticleEmbedding.objects.update_or_create(
+        article=article,
+        defaults={
+            "canonical_hash": canonical_key,
+            "canonical_text": canonical_text,
+            "embedding_json": embedding or (cache.embedding_json if cache else []),
+        },
+    )
+
+
+def route_articles_for_section(
+    run: SynthesisRun,
+    template: SynthesisSectionTemplate,
+    window: Tuple[datetime, datetime],
+) -> list[Article]:
+    candidates = _fetch_window_articles(window)
+    routing_rows = []
+    included = []
+
+    for article in candidates:
+        _ensure_embedding_cache(article)
+        strengths = _store_mention_strengths(article)
+        is_included, score, details = _evaluate_section_contract(template, article, strengths)
+        routing_rows.append(
+            SynthesisSectionRoutingResult(
+                run=run,
+                template=template,
+                article=article,
+                is_included=is_included,
+                score=score,
+                scores_json=details,
+            )
+        )
+        if is_included:
+            included.append(article)
+
+    if routing_rows:
+        SynthesisSectionRoutingResult.objects.bulk_create(routing_rows)
+    if settings.SINTESIS_ENABLE_DEDUPE:
+        return _dedupe_articles(run, included)
+    return included
+
+
+def _dedupe_key_for_article(article: Article) -> str:
+    url_key = normalize_name(article.url or "")
+    cache = getattr(article, "embedding_cache", None)
+    canonical_key = cache.canonical_hash if cache else ""
+    base = f"{url_key}|{canonical_key}"
+    return hashlib.sha256(base.encode("utf-8")).hexdigest()
+
+
+def _dedupe_articles(run: SynthesisRun, articles: list[Article]) -> list[Article]:
+    seen_keys = set()
+    dedupe_rows = []
+    kept = []
+    for article in articles:
+        dedupe_key = _dedupe_key_for_article(article)
+        if dedupe_key in seen_keys:
+            dedupe_rows.append(
+                SynthesisArticleDedup(
+                    run=run,
+                    article=article,
+                    dedup_key=dedupe_key,
+                    reason="duplicate_in_run",
+                )
+            )
+            continue
+        seen_keys.add(dedupe_key)
+        kept.append(article)
+    if dedupe_rows:
+        SynthesisArticleDedup.objects.bulk_create(dedupe_rows)
+    return kept
+
+
 def cluster_articles_into_stories(articles: Sequence[Article]):
     profiles = [build_profile(article) for article in articles]
     return group_profiles(profiles)
+
+
+def build_clusters_for_section(
+    run: SynthesisRun,
+    template: SynthesisSectionTemplate,
+    articles: List[Article],
+) -> List[SynthesisCluster]:
+    return assign_articles_to_clusters(run, template, articles)
 
 
 def _group_metrics(profiles) -> Tuple[int, List[str], dict, dict, dict]:
@@ -381,9 +600,14 @@ def build_section_payloads(
 
     for template in templates:
         filters = template.filters.select_related("persona", "institucion", "topic")
-        articles = list(fetch_candidate_articles(window, filters))
+        if settings.SINTESIS_ENABLE_NEW_PIPELINE:
+            articles = route_articles_for_section(run, template, window)
+        else:
+            articles = list(fetch_candidate_articles(window, filters))
         if not articles:
             continue
+        if settings.SINTESIS_ENABLE_NEW_PIPELINE:
+            build_clusters_for_section(run, template, articles)
         groups = cluster_articles_into_stories(articles)
         stories_payloads = []
         for group in groups:

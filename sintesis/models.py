@@ -125,6 +125,24 @@ class SynthesisSectionTemplate(models.Model):
         default="custom",
     )
     section_prompt = models.TextField(blank=True)
+    contract_keywords_positive = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="Palabras clave positivas para el contrato de sección.",
+    )
+    contract_keywords_negative = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="Palabras clave negativas para excluir artículos.",
+    )
+    contract_min_score = models.FloatField(
+        default=0.6,
+        help_text="Score mínimo para aceptar artículos sin mención fuerte.",
+    )
+    contract_min_mentions = models.PositiveIntegerField(
+        default=2,
+        help_text="Número mínimo de menciones totales si no hay mención fuerte.",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -381,5 +399,183 @@ class SynthesisRunSection(models.Model):
 
     def __str__(self) -> str:
         return f"{self.run} · {self.title}"
+
+
+class SynthesisSectionRoutingResult(models.Model):
+    run = models.ForeignKey(
+        SynthesisRun,
+        on_delete=models.CASCADE,
+        related_name="routing_results",
+    )
+    template = models.ForeignKey(
+        SynthesisSectionTemplate,
+        on_delete=models.CASCADE,
+        related_name="routing_results",
+    )
+    article = models.ForeignKey(
+        Article,
+        on_delete=models.CASCADE,
+        related_name="routing_results",
+    )
+    is_included = models.BooleanField(default=False)
+    score = models.FloatField(default=0.0)
+    scores_json = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["run", "template", "article"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"Routing {self.article_id} -> {self.template_id}"
+
+
+class SynthesisArticleMentionStrength(models.Model):
+    STRENGTH_CHOICES = [
+        ("strong", "Fuerte"),
+        ("weak", "Débil"),
+    ]
+
+    article = models.ForeignKey(
+        Article,
+        on_delete=models.CASCADE,
+        related_name="mention_strengths",
+    )
+    target_type = models.CharField(max_length=20)
+    target_id = models.IntegerField()
+    target_name = models.CharField(max_length=255)
+    strength = models.CharField(max_length=10, choices=STRENGTH_CHOICES)
+    positions_json = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["article", "target_type", "target_id"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.target_name} ({self.strength})"
+
+
+class SynthesisArticleEmbedding(models.Model):
+    article = models.OneToOneField(
+        Article,
+        on_delete=models.CASCADE,
+        related_name="embedding_cache",
+    )
+    canonical_hash = models.CharField(max_length=64, db_index=True)
+    canonical_text = models.TextField()
+    embedding_json = models.JSONField(default=list)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-updated_at"]
+
+    def __str__(self) -> str:
+        return f"Embedding {self.article_id}"
+
+
+class SynthesisArticleDedup(models.Model):
+    article = models.ForeignKey(
+        Article,
+        on_delete=models.CASCADE,
+        related_name="dedupe_entries",
+    )
+    run = models.ForeignKey(
+        SynthesisRun,
+        on_delete=models.CASCADE,
+        related_name="dedupe_entries",
+    )
+    dedup_key = models.CharField(max_length=128, db_index=True)
+    reason = models.CharField(max_length=255, blank=True)
+    duplicate_of = models.ForeignKey(
+        Article,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="deduped_children",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        return f"Dedupe {self.article_id}"
+
+
+class SynthesisCluster(models.Model):
+    run = models.ForeignKey(
+        SynthesisRun,
+        on_delete=models.CASCADE,
+        related_name="clusters",
+    )
+    template = models.ForeignKey(
+        SynthesisSectionTemplate,
+        on_delete=models.CASCADE,
+        related_name="clusters",
+    )
+    centroid_json = models.JSONField(default=list)
+    top_entities_json = models.JSONField(default=list, blank=True)
+    top_tags_json = models.JSONField(default=list, blank=True)
+    time_start = models.DateTimeField()
+    time_end = models.DateTimeField()
+    story_key = models.CharField(max_length=128, blank=True)
+    story_title = models.CharField(max_length=255, blank=True)
+    story_summary = models.TextField(blank=True)
+    key_entities_json = models.JSONField(default=list, blank=True)
+    stats_json = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["run", "template"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"Cluster {self.pk}"
+
+
+class SynthesisClusterMember(models.Model):
+    cluster = models.ForeignKey(
+        SynthesisCluster,
+        on_delete=models.CASCADE,
+        related_name="members",
+    )
+    article = models.ForeignKey(
+        Article,
+        on_delete=models.CASCADE,
+        related_name="cluster_memberships",
+    )
+    similarity = models.FloatField(default=0.0)
+    matched_signals_json = models.JSONField(default=list, blank=True)
+    is_strong_match = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        unique_together = ("cluster", "article")
+
+    def __str__(self) -> str:
+        return f"{self.cluster_id} · {self.article_id}"
+
+
+class SynthesisClusterLabelCache(models.Model):
+    story_key = models.CharField(max_length=128)
+    label_date = models.DateField()
+    payload_json = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        unique_together = ("story_key", "label_date")
+
+    def __str__(self) -> str:
+        return f"{self.story_key} · {self.label_date}"
 
 # Create your models here.

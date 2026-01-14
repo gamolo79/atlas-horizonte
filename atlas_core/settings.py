@@ -170,6 +170,30 @@ SINTESIS_ENABLE_PDF_EXPORT = (
 SINTESIS_ENABLE_EMAIL_SHARE = (
     os.environ.get("SINTESIS_ENABLE_EMAIL_SHARE", "false").lower() == "true"
 )
+SINTESIS_ENABLE_NEW_PIPELINE = (
+    os.environ.get("SINTESIS_ENABLE_NEW_PIPELINE", "false").lower() == "true"
+)
+SINTESIS_ENABLE_LLM_LABELS = (
+    os.environ.get("SINTESIS_ENABLE_LLM_LABELS", "false").lower() == "true"
+)
+SINTESIS_ENABLE_EMBEDDINGS = (
+    os.environ.get("SINTESIS_ENABLE_EMBEDDINGS", "true").lower() == "true"
+)
+SINTESIS_ENABLE_PGVECTOR = (
+    os.environ.get("SINTESIS_ENABLE_PGVECTOR", "true").lower() == "true"
+)
+SINTESIS_ENABLE_DEDUPE = (
+    os.environ.get("SINTESIS_ENABLE_DEDUPE", "true").lower() == "true"
+)
+SINTESIS_ENABLE_CLUSTER_MERGE = (
+    os.environ.get("SINTESIS_ENABLE_CLUSTER_MERGE", "true").lower() == "true"
+)
+SINTESIS_ROUTING_DEFAULT_MIN_SCORE = float(
+    os.environ.get("SINTESIS_ROUTING_DEFAULT_MIN_SCORE", "0.6")
+)
+SINTESIS_ROUTING_DEFAULT_MIN_MENTIONS = int(
+    os.environ.get("SINTESIS_ROUTING_DEFAULT_MIN_MENTIONS", "2")
+)
 MONITOR_ENABLE_PDF_EXPORT = (
     os.environ.get("MONITOR_ENABLE_PDF_EXPORT", "false").lower() == "true"
 )

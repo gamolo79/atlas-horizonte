@@ -70,6 +70,16 @@ class SynthesisSectionTemplateForm(forms.ModelForm):
         required=False,
         widget=forms.Textarea(attrs={"rows": 2, "placeholder": "Instrucciones opcionales para esta sección"}),
     )
+    contract_keywords_positive = forms.CharField(
+        required=False,
+        widget=forms.Textarea(attrs={"rows": 2, "placeholder": "palabras positivas, separadas por comas"}),
+        help_text="Palabras clave positivas para el contrato.",
+    )
+    contract_keywords_negative = forms.CharField(
+        required=False,
+        widget=forms.Textarea(attrs={"rows": 2, "placeholder": "palabras negativas, separadas por comas"}),
+        help_text="Palabras clave negativas para excluir notas.",
+    )
 
     class Meta:
         model = SynthesisSectionTemplate
@@ -80,6 +90,10 @@ class SynthesisSectionTemplateForm(forms.ModelForm):
             "section_type",
             "is_active",
             "section_prompt",
+            "contract_min_score",
+            "contract_min_mentions",
+            "contract_keywords_positive",
+            "contract_keywords_negative",
             "keywords",
         ]
 
@@ -99,6 +113,12 @@ class SynthesisSectionTemplateForm(forms.ModelForm):
             # Join all keywords from filters that have them
             keyword_filters = self.instance.filters.exclude(keywords="").values_list("keywords", flat=True)
             self.fields["keywords"].initial = ", ".join(keyword_filters)
+            self.fields["contract_keywords_positive"].initial = ", ".join(
+                self.instance.contract_keywords_positive or []
+            )
+            self.fields["contract_keywords_negative"].initial = ", ".join(
+                self.instance.contract_keywords_negative or []
+            )
 
     def save(self, commit=True):
         instance = super().save(commit=commit)
@@ -127,6 +147,18 @@ class SynthesisSectionTemplateForm(forms.ModelForm):
                 keywords=raw_keywords.strip(),
                 keywords_json=keywords_list,
             )
+
+        instance.contract_keywords_positive = [
+            item.strip()
+            for item in (self.cleaned_data.get("contract_keywords_positive") or "").split(",")
+            if item.strip()
+        ]
+        instance.contract_keywords_negative = [
+            item.strip()
+            for item in (self.cleaned_data.get("contract_keywords_negative") or "").split(",")
+            if item.strip()
+        ]
+        instance.save(update_fields=["contract_keywords_positive", "contract_keywords_negative"])
 
 
 class SynthesisScheduleForm(forms.ModelForm):
