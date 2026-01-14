@@ -7,10 +7,18 @@ from django.utils import timezone
 
 from monitor.models import Article, Classification, Mention, Source
 from redpolitica.models import Persona
-from sintesis.models import SynthesisClient, SynthesisClientInterest, SynthesisRun
+from sintesis.models import (
+    SynthesisClient,
+    SynthesisClientInterest,
+    SynthesisCluster,
+    SynthesisClusterMember,
+    SynthesisRun,
+    SynthesisSectionTemplate,
+)
 from sintesis.management.commands.run_sintesis import Command
 from sintesis._legacy_run_builder import build_run, build_run_document
 from sintesis.services import build_profile, group_profiles
+from sintesis.services.clustering import merge_clusters
 
 
 class SynthesisRunBuilderTests(TestCase):
@@ -217,6 +225,115 @@ class SynthesisRunPdfFailureTests(TestCase):
         run = SynthesisRun.objects.get(client=self.client)
         self.assertIn(run.status, {"completed", "failed"})
         self.assertNotEqual(run.status, "running")
+
+
+class SynthesisClusterMergeTests(TestCase):
+    def setUp(self):
+        self.source = Source.objects.create(
+            name="Medio Uno",
+            source_type="rss",
+            url="https://medio.local",
+        )
+        self.persona = Persona.objects.create(nombre_completo="Ana Pérez", slug="ana-perez")
+        self.client = SynthesisClient.objects.create(
+            name="Cliente Demo",
+            persona=self.persona,
+            description="Demo",
+            keyword_tags=["salud"],
+        )
+        self.template = SynthesisSectionTemplate.objects.create(
+            client=self.client,
+            title="Sección",
+            order=1,
+        )
+        self.run = SynthesisRun.objects.create(
+            client=self.client,
+            status="completed",
+        )
+
+    def _create_article(self, title: str):
+        article = Article.objects.create(
+            source=self.source,
+            url=f"https://medio.local/{title.replace(' ', '-')}",
+            title=title,
+            text="Texto de prueba sobre salud pública.",
+            published_at=timezone.now(),
+        )
+        classification = Classification.objects.create(
+            article=article,
+            central_idea="Tema central de la nota",
+            article_type="informativo",
+            labels_json=["salud", "politica", "economia"],
+            model_name="test",
+        )
+        Mention.objects.create(
+            classification=classification,
+            target_type="persona",
+            target_id=self.persona.id,
+            target_name=self.persona.nombre_completo,
+            sentiment="positivo",
+            confidence=0.9,
+        )
+        return article
+
+    def test_merge_clusters_when_similarity_and_shared_entity(self):
+        article_a = self._create_article("Nota A")
+        article_b = self._create_article("Nota B")
+        cluster_a = SynthesisCluster.objects.create(
+            run=self.run,
+            template=self.template,
+            centroid_json=[1.0, 0.0],
+            top_entities_json=[f"persona:{self.persona.id}"],
+            top_tags_json=["salud", "politica", "economia"],
+            time_start=timezone.now(),
+            time_end=timezone.now(),
+        )
+        cluster_b = SynthesisCluster.objects.create(
+            run=self.run,
+            template=self.template,
+            centroid_json=[1.0, 0.01],
+            top_entities_json=[f"persona:{self.persona.id}"],
+            top_tags_json=["salud", "politica", "economia"],
+            time_start=timezone.now(),
+            time_end=timezone.now(),
+        )
+        SynthesisClusterMember.objects.create(cluster=cluster_a, article=article_a, similarity=1.0)
+        SynthesisClusterMember.objects.create(cluster=cluster_b, article=article_b, similarity=1.0)
+
+        merge_clusters(self.run, self.template)
+
+        clusters = SynthesisCluster.objects.filter(run=self.run, template=self.template)
+        self.assertEqual(clusters.count(), 1)
+        self.assertEqual(clusters.first().members.count(), 2)
+
+    def test_no_merge_without_shared_entities_or_tags(self):
+        article_a = self._create_article("Nota C")
+        article_b = self._create_article("Nota D")
+        cluster_a = SynthesisCluster.objects.create(
+            run=self.run,
+            template=self.template,
+            centroid_json=[1.0, 0.0],
+            top_entities_json=[f"persona:{self.persona.id}"],
+            top_tags_json=["salud"],
+            time_start=timezone.now(),
+            time_end=timezone.now(),
+        )
+        cluster_b = SynthesisCluster.objects.create(
+            run=self.run,
+            template=self.template,
+            centroid_json=[1.0, 0.01],
+            top_entities_json=["persona:9999"],
+            top_tags_json=["otro"],
+            time_start=timezone.now(),
+            time_end=timezone.now(),
+        )
+        SynthesisClusterMember.objects.create(cluster=cluster_a, article=article_a, similarity=1.0)
+        SynthesisClusterMember.objects.create(cluster=cluster_b, article=article_b, similarity=1.0)
+
+        merge_clusters(self.run, self.template)
+
+        clusters = SynthesisCluster.objects.filter(run=self.run, template=self.template)
+        self.assertEqual(clusters.count(), 2)
 
 
 class StoryGroupingSimilarityTests(TestCase):
