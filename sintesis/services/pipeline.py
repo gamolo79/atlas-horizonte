@@ -33,6 +33,7 @@ from sintesis.models import (
 )
 from sintesis.services import build_profile, group_profiles
 from sintesis.services.clustering import assign_articles_to_clusters
+from sintesis.services.llm_labels import label_clusters
 from sintesis.services.embeddings import build_canonical_text, canonical_hash, compute_embedding
 from sintesis.services.mention_strength import classify_mentions
 
@@ -608,6 +609,8 @@ def build_section_payloads(
             continue
         if settings.SINTESIS_ENABLE_NEW_PIPELINE:
             build_clusters_for_section(run, template, articles)
+            if settings.SINTESIS_ENABLE_LLM_LABELS:
+                label_clusters(run.id, template.id)
         groups = cluster_articles_into_stories(articles)
         stories_payloads = []
         for group in groups:
