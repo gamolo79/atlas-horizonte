@@ -143,41 +143,32 @@ class SynthesisRunViewTests(TestCase):
             keyword_tags=["salud"],
         )
 
-    @mock.patch("sintesis.views.subprocess.Popen")
-    def test_client_detail_run_manual_post_redirects(self, popen_mock):
+    @mock.patch("sintesis.views.generate_synthesis_run.delay")
+    def test_manual_run_creates_run_and_enqueues(self, delay_mock):
         response = self.client.post(
-            reverse("sintesis:client_detail", kwargs={"client_id": self.synthesis_client.id}),
-            {
-                "run-client": self.synthesis_client.id,
-                "run-date_from": "2026-01-12",
-                "run-date_to": "2026-01-13",
-                "run_manual": "1",
-            },
+            reverse("sintesis:client_generate", kwargs={"client_id": self.synthesis_client.id}),
+            {},
         )
 
         self.assertEqual(response.status_code, 302)
         self.assertEqual(SynthesisRun.objects.filter(client=self.synthesis_client).count(), 1)
         run = SynthesisRun.objects.get(client=self.synthesis_client)
         self.assertEqual(run.status, "queued")
-        popen_mock.assert_called_once()
+        delay_mock.assert_called_once_with(run_id=run.id)
 
-    @mock.patch("sintesis.views.subprocess.Popen")
-    def test_procesos_run_manual_post_redirects(self, popen_mock):
+    @mock.patch("sintesis.views.generate_synthesis_run.delay")
+    def test_manual_run_invalid_window_does_not_create_run(self, delay_mock):
         response = self.client.post(
-            reverse("sintesis:procesos"),
+            reverse("sintesis:client_generate", kwargs={"client_id": self.synthesis_client.id}),
             {
-                "run-client": self.synthesis_client.id,
-                "run-date_from": "2026-01-12",
-                "run-date_to": "2026-01-13",
-                "run_manual": "1",
+                "window_start": "2026-01-13T10:00",
+                "window_end": "2026-01-12T10:00",
             },
         )
 
         self.assertEqual(response.status_code, 302)
-        self.assertEqual(SynthesisRun.objects.filter(client=self.synthesis_client).count(), 1)
-        run = SynthesisRun.objects.get(client=self.synthesis_client)
-        self.assertEqual(run.status, "queued")
-        popen_mock.assert_called_once()
+        self.assertEqual(SynthesisRun.objects.filter(client=self.synthesis_client).count(), 0)
+        delay_mock.assert_not_called()
 
 
 class SynthesisRunPdfFailureTests(TestCase):

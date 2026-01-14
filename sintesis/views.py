@@ -333,17 +333,39 @@ def report_detail(request, run_id):
 @ensure_csrf_cookie
 def manual_run(request, client_id):
     client = get_object_or_404(SynthesisClient, pk=client_id)
-    if request.method == "POST":
-        form = SynthesisRunForm(request.POST)
-        if form.is_valid():
-            data = form.cleaned_data
-            generate_synthesis_run.delay(
-                client_id=client.id,
-                window_start=data.get("window_start").isoformat() if data.get("window_start") else None,
-                window_end=data.get("window_end").isoformat() if data.get("window_end") else None,
-            )
-            messages.success(request, "Síntesis en cola.")
-            return redirect("sintesis:client_detail", client_id=client.id)
+    if request.method != "POST":
+        return redirect("sintesis:client_detail", client_id=client.id)
+
+    form = SynthesisRunForm(request.POST)
+    if not form.is_valid():
+        messages.error(request, f"Formulario inválido: {form.errors}")
+        return redirect("sintesis:client_detail", client_id=client.id)
+
+    data = form.cleaned_data
+    window_start = data.get("window_start")
+    window_end = data.get("window_end")
+    run = SynthesisRun.objects.create(
+        client=client,
+        run_type="manual",
+        status="queued",
+        window_start=window_start,
+        window_end=window_end,
+        date_from=window_start.date() if window_start else None,
+        date_to=window_end.date() if window_end else None,
+    )
+    try:
+        generate_synthesis_run.delay(run_id=run.id)
+        messages.success(request, "Síntesis en cola.")
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("No se pudo encolar la síntesis")
+        run.status = "failed"
+        run.error_message = str(exc)
+        run.finished_at = timezone.now()
+        run.save(update_fields=["status", "error_message", "finished_at"])
+        messages.error(
+            request,
+            "No se pudo encolar la síntesis. Revisa Celery/Redis.",
+        )
     return redirect("sintesis:client_detail", client_id=client.id)
 
 

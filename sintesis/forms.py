@@ -200,10 +200,19 @@ class SynthesisScheduleForm(forms.ModelForm):
 
 
 class SynthesisRunForm(forms.Form):
-    client = forms.ModelChoiceField(queryset=SynthesisClient.objects.all())
     window_start = forms.DateTimeField(
         required=False, widget=forms.DateTimeInput(attrs={"type": "datetime-local"})
     )
     window_end = forms.DateTimeField(
         required=False, widget=forms.DateTimeInput(attrs={"type": "datetime-local"})
     )
+
+    def clean(self):
+        cleaned_data = super().clean()
+        window_start = cleaned_data.get("window_start")
+        window_end = cleaned_data.get("window_end")
+        if window_start and window_end and window_end < window_start:
+            raise forms.ValidationError(
+                "La ventana final debe ser mayor o igual a la ventana inicial."
+            )
+        return cleaned_data

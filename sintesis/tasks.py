@@ -54,6 +54,7 @@ def dispatch_due_schedules():
 
 @shared_task
 def generate_synthesis_run(
+    run_id: int | None = None,
     schedule_id: int | None = None,
     client_id: int | None = None,
     window_start: str | None = None,
@@ -61,40 +62,68 @@ def generate_synthesis_run(
     regeneration_run_id: int | None = None,
     regeneration_template_id: int | None = None,
 ):
-    schedule = None
-    client = None
-    if schedule_id:
-        schedule = SynthesisSchedule.objects.select_related("client").get(pk=schedule_id)
-        client = schedule.client
-    elif client_id:
-        from sintesis.models import SynthesisClient
-
-        client = SynthesisClient.objects.get(pk=client_id)
-
     if regeneration_run_id:
         return _regenerate_section(regeneration_run_id, regeneration_template_id)
 
-    if not client:
-        raise ValueError("Debe especificar un cliente o programación.")
+    if run_id:
+        run = SynthesisRun.objects.select_related("client", "schedule").get(pk=run_id)
+        client = run.client
+        schedule = run.schedule
+        if run.status != "running":
+            run.status = "running"
+        if not run.window_start or not run.window_end:
+            window_start_dt, window_end_dt = build_run_window(
+                schedule=schedule,
+                window_start=run.window_start,
+                window_end=run.window_end,
+            )
+            run.window_start = window_start_dt
+            run.window_end = window_end_dt
+            run.date_from = window_start_dt.date()
+            run.date_to = window_end_dt.date()
+        window_start_dt = run.window_start
+        window_end_dt = run.window_end
+        run.save(
+            update_fields=[
+                "status",
+                "window_start",
+                "window_end",
+                "date_from",
+                "date_to",
+            ]
+        )
+    else:
+        schedule = None
+        client = None
+        if schedule_id:
+            schedule = SynthesisSchedule.objects.select_related("client").get(pk=schedule_id)
+            client = schedule.client
+        elif client_id:
+            from sintesis.models import SynthesisClient
 
-    start_dt = timezone.make_aware(datetime.fromisoformat(window_start)) if window_start else None
-    end_dt = timezone.make_aware(datetime.fromisoformat(window_end)) if window_end else None
-    window_start_dt, window_end_dt = build_run_window(
-        schedule=schedule,
-        window_start=start_dt,
-        window_end=end_dt,
-    )
+            client = SynthesisClient.objects.get(pk=client_id)
 
-    run = SynthesisRun.objects.create(
-        client=client,
-        schedule=schedule,
-        run_type="scheduled" if schedule else "manual",
-        status="running",
-        window_start=window_start_dt,
-        window_end=window_end_dt,
-        date_from=window_start_dt.date(),
-        date_to=window_end_dt.date(),
-    )
+        if not client:
+            raise ValueError("Debe especificar un cliente o programación.")
+
+        start_dt = timezone.make_aware(datetime.fromisoformat(window_start)) if window_start else None
+        end_dt = timezone.make_aware(datetime.fromisoformat(window_end)) if window_end else None
+        window_start_dt, window_end_dt = build_run_window(
+            schedule=schedule,
+            window_start=start_dt,
+            window_end=end_dt,
+        )
+
+        run = SynthesisRun.objects.create(
+            client=client,
+            schedule=schedule,
+            run_type="scheduled" if schedule else "manual",
+            status="running",
+            window_start=window_start_dt,
+            window_end=window_end_dt,
+            date_from=window_start_dt.date(),
+            date_to=window_end_dt.date(),
+        )
 
     try:
         templates = (
