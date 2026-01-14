@@ -164,6 +164,15 @@ STATIC_ROOT = "/srv/atlas/staticfiles"
 
 # Sintesis settings
 SINTESIS_ENABLE_PDF = os.environ.get("SINTESIS_ENABLE_PDF", "false").lower() == "true"
+SINTESIS_ENABLE_PDF_EXPORT = (
+    os.environ.get("SINTESIS_ENABLE_PDF_EXPORT", "false").lower() == "true"
+)
+SINTESIS_ENABLE_EMAIL_SHARE = (
+    os.environ.get("SINTESIS_ENABLE_EMAIL_SHARE", "false").lower() == "true"
+)
+MONITOR_ENABLE_PDF_EXPORT = (
+    os.environ.get("MONITOR_ENABLE_PDF_EXPORT", "false").lower() == "true"
+)
 
 # Celery
 CELERY_BROKER_URL = os.environ.get("REDIS_URL", "redis://localhost:6379/0")

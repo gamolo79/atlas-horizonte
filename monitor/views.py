@@ -3,6 +3,7 @@ import json
 from collections import Counter, defaultdict
 from datetime import datetime, timedelta
 
+from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.management import call_command
 from django.db.models import Q
@@ -43,6 +44,8 @@ def dashboards(request):
 
 
 def dashboards_export(request):
+    if not getattr(settings, "MONITOR_ENABLE_PDF_EXPORT", False):
+        return HttpResponse("Exportación PDF deshabilitada temporalmente.", status=403)
     return _render_pdf(
         request,
         "monitor/dashboards-export.html",
@@ -57,6 +60,8 @@ def benchmarks(request):
 
 
 def benchmarks_export(request):
+    if not getattr(settings, "MONITOR_ENABLE_PDF_EXPORT", False):
+        return HttpResponse("Exportación PDF deshabilitada temporalmente.", status=403)
     return _render_pdf(
         request,
         "monitor/benchmarks-export.html",
@@ -936,6 +941,11 @@ def api_process_run(request):
 
 @require_POST
 def api_export_dashboard(request):
+    if not getattr(settings, "MONITOR_ENABLE_PDF_EXPORT", False):
+        return JsonResponse(
+            {"error": "Exportación PDF deshabilitada temporalmente."},
+            status=403,
+        )
     try:
         payload = json.loads(request.body.decode("utf-8"))
     except json.JSONDecodeError:
@@ -952,6 +962,11 @@ def api_export_dashboard(request):
 
 @require_POST
 def api_export_benchmark(request):
+    if not getattr(settings, "MONITOR_ENABLE_PDF_EXPORT", False):
+        return JsonResponse(
+            {"error": "Exportación PDF deshabilitada temporalmente."},
+            status=403,
+        )
     try:
         payload = json.loads(request.body.decode("utf-8"))
     except json.JSONDecodeError:
