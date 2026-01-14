@@ -15,9 +15,12 @@ from sintesis.models import (
     SynthesisRun,
     SynthesisSectionTemplate,
 )
+from sintesis.models import SynthesisArticleDedup, SynthesisSectionFilter
 from sintesis.management.commands.run_sintesis import Command
 from sintesis._legacy_run_builder import build_run, build_run_document
 from sintesis.services import build_profile, group_profiles
+from sintesis.services.pipeline import _dedupe_articles, _evaluate_section_contract
+from sintesis.services.mention_strength import classify_mentions
 from sintesis.services.clustering import merge_clusters
 
 
@@ -412,3 +415,165 @@ class StoryGroupingSimilarityTests(TestCase):
         profiles = [build_profile(article_a), build_profile(article_b)]
         groups = group_profiles(profiles)
         self.assertEqual(len(groups), 1)
+
+
+class SynthesisRoutingContractTests(TestCase):
+    def setUp(self):
+        self.source = Source.objects.create(
+            name="Medio Uno",
+            source_type="rss",
+            url="https://medio.local",
+        )
+        self.persona = Persona.objects.create(nombre_completo="Ana Pérez", slug="ana-perez")
+        self.client = SynthesisClient.objects.create(
+            name="Cliente Demo",
+            persona=self.persona,
+            description="Demo",
+            keyword_tags=["salud"],
+        )
+        self.template = SynthesisSectionTemplate.objects.create(
+            client=self.client,
+            title="Sección",
+            order=1,
+            contract_min_score=0.6,
+            contract_min_mentions=2,
+        )
+        SynthesisSectionFilter.objects.create(
+            template=self.template,
+            persona=self.persona,
+        )
+        self.run = SynthesisRun.objects.create(client=self.client, status="completed")
+
+    def _create_article(self, title, text):
+        article = Article.objects.create(
+            source=self.source,
+            url=f"https://medio.local/{title.replace(' ', '-').lower()}",
+            title=title,
+            text=text,
+            published_at=timezone.now(),
+        )
+        classification = Classification.objects.create(
+            article=article,
+            central_idea="Tema central de la nota",
+            article_type="informativo",
+            labels_json=["salud"],
+            model_name="test",
+        )
+        Mention.objects.create(
+            classification=classification,
+            target_type="persona",
+            target_id=self.persona.id,
+            target_name=self.persona.nombre_completo,
+            sentiment="positivo",
+            confidence=0.9,
+        )
+        return article
+
+    def test_contract_includes_strong_entity(self):
+        article = self._create_article(
+            "Ana Pérez anuncia política pública",
+            "Ana Pérez anunció un nuevo programa de salud.",
+        )
+        strengths = classify_mentions(article, article.classification.mentions.all())
+        included, score, details = _evaluate_section_contract(self.template, article, strengths)
+        self.assertTrue(included)
+        self.assertGreaterEqual(score, 0.6)
+        self.assertIn("strong_hits", details)
+
+    def test_contract_excludes_negative_keyword(self):
+        self.template.contract_keywords_negative = ["corrupcion"]
+        self.template.save(update_fields=["contract_keywords_negative"])
+        article = self._create_article(
+            "Ana Pérez en polémica",
+            "Ana Pérez mencionada en un caso de corrupción.",
+        )
+        strengths = classify_mentions(article, article.classification.mentions.all())
+        included, score, details = _evaluate_section_contract(self.template, article, strengths)
+        self.assertFalse(included)
+        self.assertEqual(score, 0.0)
+        self.assertEqual(details.get("reason"), "negative_keyword")
+
+
+class MentionStrengthTests(TestCase):
+    def test_mentions_strong_in_title(self):
+        source = Source.objects.create(
+            name="Medio Uno",
+            source_type="rss",
+            url="https://medio.local",
+        )
+        persona = Persona.objects.create(nombre_completo="Ana Pérez", slug="ana-perez")
+        article = Article.objects.create(
+            source=source,
+            url="https://medio.local/ana-perez",
+            title="Ana Pérez anuncia medidas",
+            text="Texto de prueba sobre salud pública.",
+            published_at=timezone.now(),
+        )
+        classification = Classification.objects.create(
+            article=article,
+            central_idea="Tema central de la nota",
+            article_type="informativo",
+            labels_json=["salud"],
+            model_name="test",
+        )
+        Mention.objects.create(
+            classification=classification,
+            target_type="persona",
+            target_id=persona.id,
+            target_name=persona.nombre_completo,
+            sentiment="positivo",
+            confidence=0.9,
+        )
+        strengths = classify_mentions(article, article.classification.mentions.all())
+        self.assertEqual(len(strengths), 1)
+        self.assertEqual(strengths[0].strength, "strong")
+
+
+class DedupeTests(TestCase):
+    def setUp(self):
+        self.source = Source.objects.create(
+            name="Medio Uno",
+            source_type="rss",
+            url="https://medio.local",
+        )
+        self.persona = Persona.objects.create(nombre_completo="Ana Pérez", slug="ana-perez")
+        self.client = SynthesisClient.objects.create(
+            name="Cliente Demo",
+            persona=self.persona,
+            description="Demo",
+            keyword_tags=["salud"],
+        )
+        self.template = SynthesisSectionTemplate.objects.create(
+            client=self.client,
+            title="Sección",
+            order=1,
+        )
+        self.run = SynthesisRun.objects.create(client=self.client, status="completed")
+
+    def _create_article(self, title: str):
+        article = Article.objects.create(
+            source=self.source,
+            url=f"https://medio.local/{title.replace(' ', '-')}",
+            title=title,
+            text="Texto de prueba sobre salud pública.",
+            published_at=timezone.now(),
+        )
+        Classification.objects.create(
+            article=article,
+            central_idea="Tema central de la nota",
+            article_type="informativo",
+            labels_json=["salud"],
+            model_name="test",
+        )
+        return article
+
+    def test_dedupe_marks_duplicate(self):
+        article_a = self._create_article("Nota A")
+        article_b = self._create_article("Nota A")
+        articles = [article_a, article_b]
+        kept = _dedupe_articles(self.run, articles)
+        self.assertEqual(len(kept), 1)
+        self.assertEqual(
+            SynthesisArticleDedup.objects.filter(run=self.run).count(),
+            1,
+        )
