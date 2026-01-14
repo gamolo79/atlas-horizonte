@@ -5,7 +5,7 @@ from datetime import datetime
 from typing import Iterable, List, Tuple
 
 from django.conf import settings
-from django.db import transaction
+from django.db import connection, transaction
 
 from monitor.models import Article
 from sintesis.models import (
@@ -15,7 +15,7 @@ from sintesis.models import (
     SynthesisRun,
     SynthesisSectionTemplate,
 )
-from sintesis.services.embeddings import cosine_similarity, nearest_embeddings
+from sintesis.services.embeddings import cosine_similarity, nearest_embeddings, pgvector_enabled
 
 
 def _article_vector(article: Article) -> List[float]:
@@ -100,6 +100,51 @@ def _candidate_clusters(run: SynthesisRun, template: SynthesisSectionTemplate) -
     )
 
 
+def _ann_clusters(
+    run: SynthesisRun,
+    template: SynthesisSectionTemplate,
+    vector: List[float],
+    top_k: int = 5,
+) -> List[SynthesisCluster]:
+    if not vector or not pgvector_enabled():
+        return []
+    vector_literal = "[" + ",".join(str(value) for value in vector) + "]"
+    with connection.cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT id
+            FROM sintesis_synthesiscluster
+            WHERE run_id = %s
+              AND template_id = %s
+              AND centroid_vector IS NOT NULL
+            ORDER BY centroid_vector <=> %s::vector
+            LIMIT %s
+            """,
+            [run.id, template.id, vector_literal, top_k],
+        )
+        ids = [row[0] for row in cursor.fetchall()]
+    if not ids:
+        return []
+    clusters = list(SynthesisCluster.objects.filter(id__in=ids))
+    order = {cluster_id: idx for idx, cluster_id in enumerate(ids)}
+    return sorted(clusters, key=lambda item: order.get(item.id, 0))
+
+
+def _update_cluster_vector(cluster: SynthesisCluster, vector: List[float]) -> None:
+    if not vector or not pgvector_enabled():
+        return
+    vector_literal = "[" + ",".join(str(value) for value in vector) + "]"
+    with connection.cursor() as cursor:
+        cursor.execute(
+            """
+            UPDATE sintesis_synthesiscluster
+            SET centroid_vector = %s::vector
+            WHERE id = %s
+            """,
+            [vector_literal, cluster.id],
+        )
+
+
 def assign_articles_to_clusters(
     run: SynthesisRun,
     template: SynthesisSectionTemplate,
@@ -114,7 +159,10 @@ def assign_articles_to_clusters(
         best_score = 0.0
         best_reasons = {}
 
-        if clusters and vector:
+        ann_candidates = _ann_clusters(run, template, vector, top_k=5)
+        if ann_candidates:
+            candidates = [(clusters.index(item), 0.0) for item in ann_candidates if item in clusters]
+        elif clusters and vector:
             cluster_vectors = [cluster.centroid_json for cluster in clusters]
             candidates = nearest_embeddings(vector, cluster_vectors, top_k=5)
         else:
@@ -144,6 +192,7 @@ def assign_articles_to_clusters(
                 )
                 members = best_cluster.members.select_related("article")
                 best_cluster.centroid_json = _cluster_vector(members)
+                _update_cluster_vector(best_cluster, best_cluster.centroid_json)
                 articles_in_cluster = [member.article for member in members]
                 top_entities, top_tags = _collect_cluster_metadata(articles_in_cluster)
                 best_cluster.top_entities_json = top_entities
@@ -175,6 +224,7 @@ def assign_articles_to_clusters(
                     time_start=article.published_at or article.fetched_at or now,
                     time_end=article.published_at or article.fetched_at or now,
                 )
+                _update_cluster_vector(cluster, cluster.centroid_json)
                 SynthesisClusterMember.objects.create(
                     cluster=cluster,
                     article=article,
@@ -211,6 +261,7 @@ def _merge_pair(primary: SynthesisCluster, secondary: SynthesisCluster) -> None:
         secondary.members.update(cluster=primary)
         members = primary.members.select_related("article")
         primary.centroid_json = _cluster_vector(members)
+        _update_cluster_vector(primary, primary.centroid_json)
         articles = [member.article for member in members]
         top_entities, top_tags = _collect_cluster_metadata(articles)
         primary.top_entities_json = top_entities

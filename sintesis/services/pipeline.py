@@ -34,7 +34,12 @@ from sintesis.models import (
 from sintesis.services import build_profile, group_profiles
 from sintesis.services.clustering import assign_articles_to_clusters
 from sintesis.services.llm_labels import label_clusters
-from sintesis.services.embeddings import build_canonical_text, canonical_hash, compute_embedding
+from sintesis.services.embeddings import (
+    build_canonical_text,
+    canonical_hash,
+    compute_embedding,
+    update_embedding_vector,
+)
 from sintesis.services.mention_strength import classify_mentions
 
 
@@ -266,7 +271,7 @@ def _ensure_embedding_cache(article: Article) -> None:
     embedding = []
     if settings.SINTESIS_ENABLE_EMBEDDINGS:
         embedding = compute_embedding(canonical_text)
-    SynthesisArticleEmbedding.objects.update_or_create(
+    embedding_record, _created = SynthesisArticleEmbedding.objects.update_or_create(
         article=article,
         defaults={
             "canonical_hash": canonical_key,
@@ -274,6 +279,8 @@ def _ensure_embedding_cache(article: Article) -> None:
             "embedding_json": embedding or (cache.embedding_json if cache else []),
         },
     )
+    if embedding:
+        update_embedding_vector(embedding_record.id, embedding)
 
 
 def route_articles_for_section(

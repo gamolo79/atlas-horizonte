@@ -7,6 +7,7 @@ import os
 from typing import Iterable, List, Sequence
 
 from django.conf import settings
+from django.db import connection
 
 from atlas_core.text_utils import normalize_name
 
@@ -89,3 +90,18 @@ def pgvector_enabled() -> bool:
     if not getattr(settings, "SINTESIS_ENABLE_PGVECTOR", False):
         return False
     return importlib.util.find_spec("pgvector") is not None
+
+
+def update_embedding_vector(embedding_id: int, vector: Sequence[float]) -> None:
+    if not vector or not pgvector_enabled():
+        return
+    vector_literal = "[" + ",".join(str(value) for value in vector) + "]"
+    with connection.cursor() as cursor:
+        cursor.execute(
+            """
+            UPDATE sintesis_synthesisarticleembedding
+            SET embedding_vector = %s::vector
+            WHERE id = %s
+            """,
+            [vector_literal, embedding_id],
+        )
