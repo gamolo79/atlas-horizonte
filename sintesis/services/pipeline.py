@@ -612,6 +612,7 @@ def build_section_payloads(
             if settings.SINTESIS_ENABLE_LLM_LABELS:
                 label_clusters(run.id, template.id)
         groups = cluster_articles_into_stories(articles)
+        groups = _rank_and_limit_groups(groups, template)
         stories_payloads = []
         for group in groups:
             profiles = group.get("profiles", [])
@@ -664,6 +665,27 @@ def build_section_payloads(
                 }
             )
     return section_payloads
+
+
+def _rank_and_limit_groups(groups: List[dict], template: SynthesisSectionTemplate) -> List[dict]:
+    def group_score(group: dict) -> tuple:
+        profiles = group.get("profiles", [])
+        article_count = len(profiles)
+        sources = {profile.article.source_id for profile in profiles if profile.article.source_id}
+        source_count = len(sources)
+        latest = max(
+            [
+                profile.article.published_at or profile.article.fetched_at
+                for profile in profiles
+                if profile.article
+            ],
+            default=timezone.now(),
+        )
+        return (article_count, source_count, latest)
+
+    ranked = sorted(groups, key=group_score, reverse=True)
+    limit = getattr(settings, "SINTESIS_SECTION_STORY_LIMIT", 6)
+    return ranked[:limit]
 
 
 def _dominant_institution_label(profiles) -> str:
