@@ -236,6 +236,39 @@ def report_detail(request, run_id):
         .prefetch_related(Prefetch("stories", queryset=ordered_stories))
         .order_by("order", "id")
     )
+    stats = run.stats_json or {}
+    routing = stats.get("routing", {})
+    dedupe = stats.get("dedupe", {})
+    clusters = stats.get("clusters", {})
+    metrics = stats.get("metrics", {})
+    off_section = metrics.get("off_section_rate", {})
+    dup_rate = metrics.get("dup_rate", {})
+    cluster_purity = metrics.get("cluster_purity", {})
+
+    def _metric(mapping, template_id, default=0):
+        if template_id is None:
+            return default
+        return mapping.get(template_id, mapping.get(str(template_id), default))
+
+    section_metrics = []
+    for section in sections:
+        template_id = section.template_id
+        routing_data = _metric(routing, template_id, {})
+        if not isinstance(routing_data, dict):
+            routing_data = {}
+        section_metrics.append(
+            {
+                "section_id": section.id,
+                "title": section.title,
+                "routing_total": routing_data.get("total", 0),
+                "routing_included": routing_data.get("included", 0),
+                "dedupe_count": _metric(dedupe, template_id, 0),
+                "cluster_count": _metric(clusters, template_id, 0),
+                "off_section_rate": _metric(off_section, template_id, 0),
+                "dup_rate": _metric(dup_rate, template_id, 0),
+                "cluster_purity": _metric(cluster_purity, template_id, 0),
+            }
+        )
 
     if request.method == "POST":
         action = request.POST.get("action")
@@ -292,6 +325,7 @@ def report_detail(request, run_id):
             "logo_href": static("img/horizonte-sintesis-dark.svg"),
             "share_url": request.build_absolute_uri(),
             "active_tab": "reports",
+            "section_metrics": section_metrics,
         },
     )
 
@@ -299,17 +333,39 @@ def report_detail(request, run_id):
 @ensure_csrf_cookie
 def manual_run(request, client_id):
     client = get_object_or_404(SynthesisClient, pk=client_id)
-    if request.method == "POST":
-        form = SynthesisRunForm(request.POST)
-        if form.is_valid():
-            data = form.cleaned_data
-            generate_synthesis_run.delay(
-                client_id=client.id,
-                window_start=data.get("window_start").isoformat() if data.get("window_start") else None,
-                window_end=data.get("window_end").isoformat() if data.get("window_end") else None,
-            )
-            messages.success(request, "Síntesis en cola.")
-            return redirect("sintesis:client_detail", client_id=client.id)
+    if request.method != "POST":
+        return redirect("sintesis:client_detail", client_id=client.id)
+
+    form = SynthesisRunForm(request.POST)
+    if not form.is_valid():
+        messages.error(request, f"Formulario inválido: {form.errors}")
+        return redirect("sintesis:client_detail", client_id=client.id)
+
+    data = form.cleaned_data
+    window_start = data.get("window_start")
+    window_end = data.get("window_end")
+    run = SynthesisRun.objects.create(
+        client=client,
+        run_type="manual",
+        status="queued",
+        window_start=window_start,
+        window_end=window_end,
+        date_from=window_start.date() if window_start else None,
+        date_to=window_end.date() if window_end else None,
+    )
+    try:
+        generate_synthesis_run.delay(run_id=run.id)
+        messages.success(request, "Síntesis en cola.")
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("No se pudo encolar la síntesis")
+        run.status = "failed"
+        run.error_message = str(exc)
+        run.finished_at = timezone.now()
+        run.save(update_fields=["status", "error_message", "finished_at"])
+        messages.error(
+            request,
+            "No se pudo encolar la síntesis. Revisa Celery/Redis.",
+        )
     return redirect("sintesis:client_detail", client_id=client.id)
 
 

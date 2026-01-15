@@ -56,6 +56,37 @@
   </div>
 
   <div class="card" style="margin-top:16px;">
+    <h3 class="section-title">Métricas de sección</h3>
+    {% if section_metrics %}
+      <div class="table">
+        <div class="row" style="font-weight:600;">
+          <div style="flex:2;">Sección</div>
+          <div style="flex:1;">Routing</div>
+          <div style="flex:1;">Off-section</div>
+          <div style="flex:1;">Dedupe</div>
+          <div style="flex:1;">Clusters</div>
+          <div style="flex:1;">Purity</div>
+        </div>
+        {% for metric in section_metrics %}
+          <div class="row">
+            <div style="flex:2;">{{ metric.title }}</div>
+            <div style="flex:1;">{{ metric.routing_included }}/{{ metric.routing_total }}</div>
+            <div style="flex:1;">{{ metric.off_section_rate|floatformat:2 }}</div>
+            <div style="flex:1;">{{ metric.dup_rate|floatformat:2 }}</div>
+            <div style="flex:1;">{{ metric.cluster_count }}</div>
+            <div style="flex:1;">{{ metric.cluster_purity|floatformat:2 }}</div>
+          </div>
+        {% endfor %}
+      </div>
+      <div class="muted" style="margin-top:8px;">
+        Off-section y Dedupe expresados como proporción (0-1).
+      </div>
+    {% else %}
+      <p class="muted">Sin métricas disponibles para este reporte.</p>
+    {% endif %}
+  </div>
+
+  <div class="card" style="margin-top:16px;">
     <h3 class="section-title">Secciones</h3>
     {% for section in sections %}
       <div style="margin-top:12px;">
