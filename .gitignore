@@ -49,3 +49,7 @@ dist/
 db.sqlite3
 monitor/linking.py.bak_*
 .venv/
+
+# local runtime
+celerybeat-schedule
+sintesis/pdfs/
