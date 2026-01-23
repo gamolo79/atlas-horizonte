@@ -16,6 +16,7 @@ ALIASES_FIELDS = ["aliases", "alias", "aka", "apodos"]
 logger = logging.getLogger(__name__)
 FUZZY_MATCH_THRESHOLD = 90
 CATALOG_FALLBACK_SIZE = 25
+ALLOWED_TARGET_TYPES = {"persona", "institucion", "tema"}
 
 
 def get_display_name(obj) -> str:
@@ -211,7 +212,7 @@ def validate_payload(payload: Dict[str, Any]) -> Dict[str, Any]:
         for key in ("target_type", "target_name", "sentiment", "confidence"):
             if key not in mention:
                 raise ValueError("mention incompleta.")
-        if mention["target_type"] not in {"persona", "institucion", "tema"}:
+        if mention["target_type"] not in ALLOWED_TARGET_TYPES:
             raise ValueError("target_type inválido.")
         if mention["sentiment"] not in {"positivo", "neutro", "negativo"}:
             raise ValueError("sentiment inválido.")

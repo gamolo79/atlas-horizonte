@@ -121,7 +121,7 @@ class Command(BaseCommand):
     help = "Ingesta fuentes activas (RSS, sitemap o scrape)."
 
     def add_arguments(self, parser):
-        parser.add_argument("--limit", type=int, default=10, help="Límite de artículos nuevos a crear")
+        parser.add_argument("--limit", type=int, default=0, help="Límite de artículos nuevos a crear")
         parser.add_argument("--limit-sources", type=int, default=None, help="Límite de fuentes a procesar")
         parser.add_argument("--source-id", type=int, help="Procesar una sola fuente")
 
@@ -129,6 +129,7 @@ class Command(BaseCommand):
         limit = options["limit"]
         source_id = options.get("source_id")
         limit_sources = options.get("limit_sources")
+        per_source_limit = limit if limit and limit > 0 else None
 
         personas = Persona.objects.all()
         instituciones = Institucion.objects.all()
@@ -143,8 +144,6 @@ class Command(BaseCommand):
 
         total_new = 0
         for source in sources:
-            if total_new >= limit:
-                break
             start = time.monotonic()
             seen = 0
             created = 0
@@ -155,19 +154,19 @@ class Command(BaseCommand):
                 if source.source_type == "rss":
                     seen, created, errors, last_error = self._process_rss(
                         source,
-                        limit - total_new,
+                        per_source_limit,
                         catalog,
                     )
                 elif source.source_type == "sitemap":
                     seen, created, errors, last_error = self._process_sitemap(
                         source,
-                        limit - total_new,
+                        per_source_limit,
                         catalog,
                     )
                 elif source.source_type == "scrape":
                     seen, created, errors, last_error = self._process_scrape(
                         source,
-                        limit - total_new,
+                        per_source_limit,
                         catalog,
                     )
                 else:
@@ -204,7 +203,7 @@ class Command(BaseCommand):
 
         self.stdout.write(self.style.SUCCESS(f"Total nuevos: {total_new}"))
 
-    def _process_rss(self, source: Source, limit: int, catalog) -> Tuple[int, int, int, str]:
+    def _process_rss(self, source: Source, limit: Optional[int], catalog) -> Tuple[int, int, int, str]:
         feed = feedparser.parse(source.url)
         seen = 0
         created = 0
@@ -212,7 +211,7 @@ class Command(BaseCommand):
         last_error = ""
 
         for entry in feed.entries:
-            if created >= limit:
+            if limit is not None and created >= limit:
                 break
             seen += 1
             url = entry.get("link") or entry.get("id")
@@ -259,13 +258,10 @@ class Command(BaseCommand):
 
             if created_flag:
                 created += 1
-                classify_error = self._classify_article(article, catalog)
-                if classify_error:
-                    errors += 1
-                    last_error = classify_error
+                self._classify_article(article, catalog)
         return seen, created, errors, last_error
 
-    def _process_sitemap(self, source: Source, limit: int, catalog) -> Tuple[int, int, int, str]:
+    def _process_sitemap(self, source: Source, limit: Optional[int], catalog) -> Tuple[int, int, int, str]:
         urls = crawl_sitemap(source.url)
         seen = 0
         created = 0
@@ -273,7 +269,7 @@ class Command(BaseCommand):
         last_error = ""
 
         for url in urls:
-            if created >= limit:
+            if limit is not None and created >= limit:
                 break
             seen += 1
             try:
@@ -295,10 +291,7 @@ class Command(BaseCommand):
                 )
                 if created_flag:
                     created += 1
-                    classify_error = self._classify_article(article, catalog)
-                    if classify_error:
-                        errors += 1
-                        last_error = classify_error
+                    self._classify_article(article, catalog)
             except requests.RequestException as exc:
                 errors += 1
                 last_error = str(exc)
@@ -306,7 +299,7 @@ class Command(BaseCommand):
                 continue
         return seen, created, errors, last_error
 
-    def _process_scrape(self, source: Source, limit: int, catalog) -> Tuple[int, int, int, str]:
+    def _process_scrape(self, source: Source, limit: Optional[int], catalog) -> Tuple[int, int, int, str]:
         seen = 0
         created = 0
         errors = 0
@@ -332,10 +325,7 @@ class Command(BaseCommand):
             )
             if created_flag:
                 created += 1
-                classify_error = self._classify_article(article, catalog)
-                if classify_error:
-                    errors += 1
-                    last_error = classify_error
+                self._classify_article(article, catalog)
         except requests.RequestException as exc:
             errors += 1
             last_error = str(exc)
